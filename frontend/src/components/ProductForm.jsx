@@ -14,13 +14,14 @@ import useCommissionRate from '../hooks/useCommissionRate';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import BaseModal from './modals/BaseModal';
 import { appAlert, appConfirm } from '../utils/appDialog';
-import { getHighestProductPrice, hydrateImageVariantsFromAttributes, normalizeProductAttributes } from '../utils/productAttributes';
+import { buildImageVariantAttribute as serializeImageVariants, getHighestProductPrice, hydrateImageVariantsFromAttributes, normalizeProductAttributes } from '../utils/productAttributes';
 import { isValidSocialVideoUrl } from '../utils/socialVideo';
 import { formatFileSize, optimizeImageFiles, PRODUCT_IMAGE_ACCEPT } from '../utils/mediaOptimizer';
 import { createIdempotencyKey } from '../utils/idempotency';
 import { applyOrder, isValidPermutation, moveInOrder, reconcileOrderAfterAdd, reconcileOrderAfterRemove } from '../utils/imageOrdering';
 import TagSelector from './tags/TagSelector';
 import { getInstallmentEndDate, getListingFeeChangePreview, getMissingProductFormFields } from '../utils/productFormUx';
+import { PRODUCT_FORM_STEPS, ProductFormNavigation, ProductFormSummary, ProductFormActions } from './product-form/ProductFormLayout';
 
 const ProductImageStudio = React.lazy(() => import('./image-studio/ProductImageStudio'));
 const CompleteImageStudio = React.lazy(() => import('./image-studio/CompleteImageStudio'));
@@ -92,7 +93,7 @@ const createEmptyProductForm = () => ({
   aiTagIds: [],
   price: '',
   category: '',
-  condition: 'used',
+  condition: 'new',
   operator: 'MTN',
   discount: '',
   perishableStartDate: '',
@@ -124,8 +125,8 @@ const createEmptyProductForm = () => ({
 });
 const createDefaultExpandedSections = () => ({
   info: true,
-  commercialisation: false,
-  options: false,
+  commercialisation: true,
+  options: true,
   images: true,
   media: false,
   validation: true,
@@ -302,6 +303,18 @@ export default function ProductForm(props) {
     return DEFAULT_MAX_IMAGES;
   }, [app?.maxUploadImages, runtime?.maxUploadImages, runtime?.max_image_upload]);
   const [expandedSections, setExpandedSections] = useState(createDefaultExpandedSections);
+  const [activeStep, setActiveStep] = useState(0);
+  const stepHeadingRef = useRef(null);
+  const goToStep = (step) => {
+    if (loading || mediaOptimization.active || isCompressingVideo) return;
+    setActiveStep(step);
+    if (step === 3) setShowPreview(true);
+    setExpandedSections(current => ({ ...current, info: true, images: true, commercialisation: true, options: true }));
+    window.requestAnimationFrame(() => {
+      stepHeadingRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
+      stepHeadingRef.current?.focus({ preventScroll: true });
+    });
+  };
   const formShellRef = useRef(null);
   const sectionRefs = useRef({});
   const fieldRefs = useRef({});
@@ -309,7 +322,6 @@ export default function ProductForm(props) {
   const [draftOffer, setDraftOffer] = useState(null);
   const [draftSavedAt, setDraftSavedAt] = useState(null);
   const [validationSummary, setValidationSummary] = useState([]);
-  const toggleSection = (key) => setExpandedSections((s) => ({ ...s, [key]: !s[key] }));
   const isEmbeddedMobile = Boolean(isMobile && embeddedInModal);
 
   useLayoutEffect(() => {
@@ -365,7 +377,9 @@ export default function ProductForm(props) {
   const resumeDraft = useCallback(() => {
     if (!draftOffer?.form) return;
     setForm((prev) => ({ ...prev, ...draftOffer.form }));
-    if (draftOffer.expandedSections) setExpandedSections(draftOffer.expandedSections);
+    // Old drafts can contain collapsed sections from the previous layout.
+    setExpandedSections(createDefaultExpandedSections());
+    setActiveStep(0);
     setDraftSavedAt(Number(draftOffer.savedAt || 0) || null);
     setDraftOffer(null);
   }, [draftOffer]);
@@ -480,6 +494,7 @@ export default function ProductForm(props) {
     setCropTab('crop');
     setImageFilters({ brightness: 100, contrast: 100, saturate: 100 });
     setShowPreview(false);
+    setActiveStep(0);
 
     setExpandedSections(createDefaultExpandedSections());
     setFieldErrors({});
@@ -517,6 +532,7 @@ export default function ProductForm(props) {
   const focusFirstInvalidField = useCallback((missingFields) => {
     const first = missingFields[0];
     if (!first) return;
+    setActiveStep(0);
     setExpandedSections((current) => ({ ...current, info: true }));
     window.setTimeout(() => {
       const target = fieldRefs.current[first.name];
@@ -565,8 +581,9 @@ export default function ProductForm(props) {
   }, [isEmbeddedMobile]);
 
   useEffect(() => {
-    const targetSection = installmentError || wholesaleError ? 'commercialisation' : warrantyError ? 'info' : '';
+    const targetSection = installmentError || wholesaleError ? 'commercialisation' : warrantyError ? 'fulfillment' : '';
     if (!targetSection) return;
+    setActiveStep(2);
     setExpandedSections((current) => ({ ...current, [targetSection]: true }));
     window.setTimeout(() => {
       sectionRefs.current[targetSection]?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
@@ -1551,104 +1568,34 @@ export default function ProductForm(props) {
   // photo order; a variant price requires the buyer to choose, so the
   // attribute becomes required as soon as any price is set).
   const buildImageVariantAttribute = () => {
-    const entries = Object.entries(imageVariants)
-      .map(([key, entry]) => ({
-        index: Number(key),
-        label: String(entry?.label || '').trim(),
-        price: Number(entry?.price),
-        outOfStock: Boolean(entry?.outOfStock)
-      }))
-      .filter((entry) => Number.isInteger(entry.index) && entry.index >= 0 && entry.label)
-      .sort((a, b) => a.index - b.index);
-    if (!entries.length) return null;
-    const seen = new Set();
-    const options = [];
-    const optionPrices = {};
-    const optionImages = {};
-    const optionOutOfStock = {};
-    entries.forEach((entry) => {
-      const key = entry.label.toLowerCase();
-      if (seen.has(key)) return;
-      seen.add(key);
-      options.push(entry.label);
-      optionImages[key] = entry.index;
-      if (Number.isFinite(entry.price) && entry.price > 0) optionPrices[key] = entry.price;
-      if (entry.outOfStock) optionOutOfStock[key] = true;
-    });
-    return {
-      name: String(imageVariantName || '').trim() || 'Variante',
-      type: 'select',
-      options,
-      required: Object.keys(optionPrices).length > 0,
-      defaultValue: '',
-      ...(Object.keys(optionPrices).length ? { optionPrices } : {}),
-      optionImages,
-      ...(Object.keys(optionOutOfStock).length ? { optionOutOfStock } : {})
-    };
+    return serializeImageVariants(imageVariants, imageVariantName);
   };
 
-  // Description, option, price, and availability fields rendered below each photo.
+  // Keep the option and its price together; descriptions are optional detail.
   const renderImageVariantFields = (combinedIndex) => {
     const entry = imageVariants[combinedIndex] || {};
     const imageDescription = imageDescriptions[combinedIndex] || '';
-    return (
-      <div className="space-y-2 border-t border-gray-200 bg-white p-2.5">
-        <label className="block">
-          <span className="mb-1 flex items-center justify-between gap-2 text-[10px] font-black text-gray-500">
-            <span>Description de cette photo</span>
-            <span className="font-semibold text-gray-400">
-              {imageDescription.length}/{MAX_IMAGE_DESCRIPTION_LENGTH}
-            </span>
-          </span>
-          <textarea
-            value={imageDescription}
-            onChange={(e) => updateImageDescription(combinedIndex, e.target.value)}
-            maxLength={MAX_IMAGE_DESCRIPTION_LENGTH}
-            rows={2}
-            placeholder="Ex : Vue de face, détail du tissu…"
-            className="w-full resize-y rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-medium focus:border-[#FF5000] focus:outline-none"
-          />
+    return <div className="pf-variant-fields">
+      <label><span>{String(imageVariantName || '').trim() || 'Option'}</span>
+        <input type="text" value={entry.label || ''} onChange={e => updateImageVariant(combinedIndex, 'label', e.target.value)}
+          placeholder={`Photo ${combinedIndex + 1} (nom optionnel)`} className="pf-input" />
+      </label>
+      <label><span>Prix de cette option</span>
+        <input type="number" min="0" inputMode="numeric" value={entry.price ?? ''}
+          onChange={e => updateImageVariant(combinedIndex, 'price', e.target.value)} placeholder="Utiliser le prix principal" className="pf-input" />
+      </label>
+      <p>Un prix différent ? Indiquez-le ici pour cette photo.</p>
+      <label className="pf-stock"><span>Rupture de stock</span>
+        <input type="checkbox" checked={Boolean(entry.outOfStock)} onChange={e => updateImageVariant(combinedIndex, 'outOfStock', e.target.checked)} />
+      </label>
+      <details><summary>Description de cette photo</summary>
+        <label><span className="sr-only">Description de la photo {combinedIndex + 1}</span>
+          <textarea value={imageDescription} onChange={e => updateImageDescription(combinedIndex, e.target.value)}
+            maxLength={MAX_IMAGE_DESCRIPTION_LENGTH} rows={2} placeholder="Vue de face, détail du tissu…" className="pf-input" />
         </label>
-        {entry.label && (
-          <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-emerald-700">
-            <CheckCircleIcon className="h-3.5 w-3.5" /> Option enregistrée
-          </div>
-        )}
-        <label className="block">
-          <span className="mb-1 block text-[10px] font-black text-gray-500">
-            {String(imageVariantName || '').trim() || 'Option'}
-          </span>
-          <input
-            type="text"
-            value={entry.label || ''}
-            onChange={(e) => updateImageVariant(combinedIndex, 'label', e.target.value)}
-            placeholder={`${String(imageVariantName || '').trim() || 'Option'} (ex: Rouge)`}
-            className="min-h-10 w-full rounded-lg border border-gray-200 px-2.5 text-xs font-semibold focus:border-[#FF5000] focus:outline-none"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[10px] font-black text-gray-500">Prix de cette option</span>
-          <input
-            type="number"
-            min="0"
-            inputMode="numeric"
-            value={entry.price ?? ''}
-            onChange={(e) => updateImageVariant(combinedIndex, 'price', e.target.value)}
-            placeholder="Prix (optionnel)"
-            className="min-h-10 w-full rounded-lg border border-gray-200 px-2.5 text-xs font-semibold focus:border-[#FF5000] focus:outline-none"
-          />
-        </label>
-        <label className={`flex min-h-9 cursor-pointer items-center justify-between rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${entry.outOfStock ? 'border-red-200 bg-red-50 text-red-700' : 'border-gray-200 bg-gray-50 text-gray-600'}`}>
-          <span>Rupture de stock</span>
-          <input
-            type="checkbox"
-            checked={Boolean(entry.outOfStock)}
-            onChange={(e) => updateImageVariant(combinedIndex, 'outOfStock', e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
-          />
-        </label>
-      </div>
-    );
+        <small>{imageDescription.length}/{MAX_IMAGE_DESCRIPTION_LENGTH}</small>
+      </details>
+    </div>;
   };
 
   const removeProductAttributeOption = (attributeIndex, optionIndex) => {
@@ -1719,6 +1666,9 @@ export default function ProductForm(props) {
 
   const submit = async (e) => {
     e.preventDefault();
+    if (loading || mediaOptimization.active || isCompressingVideo) return;
+    // Enter in a field advances the form; publishing is reserved for review.
+    if (activeStep !== 3) { continueStep(); return; }
     setInstallmentError('');
     setWholesaleError('');
     setWarrantyError('');
@@ -1737,6 +1687,7 @@ export default function ProductForm(props) {
     setValidationSummary([]);
 
     if (form.socialVideoUrl?.trim() && !isValidSocialVideoUrl(form.socialVideoUrl)) {
+      goToStep(1);
       await appAlert('Le lien vidéo doit être un lien Facebook ou TikTok valide.');
       return;
     }
@@ -1745,18 +1696,24 @@ export default function ProductForm(props) {
       const start = form.perishableStartDate ? new Date(form.perishableStartDate) : null;
       const end = form.perishableEndDate ? new Date(form.perishableEndDate) : null;
       if (!start || Number.isNaN(start.getTime()) || !end || Number.isNaN(end.getTime())) {
+        goToStep(0);
         await appAlert('Une date de début et une date de péremption sont requises pour cette catégorie.');
         return;
       }
       if (end <= start) {
+        goToStep(0);
         await appAlert('La date de péremption doit être postérieure à la date de début.');
         return;
       }
     }
 
+    const showSaleIssue = (setError, message) => {
+      goToStep(2);
+      setError(message);
+    };
     if (form.installmentEnabled) {
       if (!isBoutiqueOwner) {
-        setInstallmentError('Seules les boutiques peuvent activer le paiement par tranche.');
+        showSaleIssue(setInstallmentError, 'Seules les boutiques peuvent activer le paiement par tranche.');
         return;
       }
       const minAmount = Number(form.installmentMinAmount || 0);
@@ -1765,40 +1722,40 @@ export default function ProductForm(props) {
       const endDate = form.installmentEndDate ? new Date(form.installmentEndDate) : null;
       const priceValue = Number(form.price || 0);
       if (!Number.isFinite(minAmount) || minAmount <= 0) {
-        setInstallmentError('Le minimum du premier paiement est requis.');
+        showSaleIssue(setInstallmentError, 'Le minimum du premier paiement est requis.');
         return;
       }
       if (Number.isFinite(priceValue) && priceValue > 0 && minAmount > priceValue) {
-        setInstallmentError('Le minimum du premier paiement ne peut pas dépasser le prix du produit.');
+        showSaleIssue(setInstallmentError, 'Le minimum du premier paiement ne peut pas dépasser le prix du produit.');
         return;
       }
       if (!Number.isInteger(duration) || duration <= 0) {
-        setInstallmentError('La durée du paiement par tranche doit être exprimée en jours.');
+        showSaleIssue(setInstallmentError, 'La durée du paiement par tranche doit être exprimée en jours.');
         return;
       }
       if (!startDate || Number.isNaN(startDate.getTime()) || !endDate || Number.isNaN(endDate.getTime())) {
-        setInstallmentError('Les dates de début et de fin sont requises.');
+        showSaleIssue(setInstallmentError, 'Les dates de début et de fin sont requises.');
         return;
       }
       if (endDate <= startDate) {
-        setInstallmentError('La date de fin doit être après la date de début.');
+        showSaleIssue(setInstallmentError, 'La date de fin doit être après la date de début.');
         return;
       }
       const dateDuration = Math.round((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
       if (dateDuration !== duration) {
-        setInstallmentError(`La durée doit correspondre à l'écart des dates (${dateDuration} jours).`);
+        showSaleIssue(setInstallmentError, `La durée doit correspondre à l'écart des dates (${dateDuration} jours).`);
         return;
       }
     }
 
     if (form.wholesaleEnabled) {
       if (!isBoutiqueOwner) {
-        setWholesaleError('Seules les boutiques peuvent activer la vente en gros.');
+        showSaleIssue(setWholesaleError, 'Seules les boutiques peuvent activer la vente en gros.');
         return;
       }
       const rawTiers = Array.isArray(form.wholesaleTiers) ? form.wholesaleTiers : [];
       if (!rawTiers.length) {
-        setWholesaleError('Ajoutez au moins un palier de quantité.');
+        showSaleIssue(setWholesaleError, 'Ajoutez au moins un palier de quantité.');
         return;
       }
       const normalizedTiers = rawTiers
@@ -1813,20 +1770,20 @@ export default function ProductForm(props) {
       let previousUnitPrice = null;
       for (const tier of normalizedTiers) {
         if (!Number.isInteger(tier.minQty) || tier.minQty < 2) {
-          setWholesaleError('Chaque palier doit commencer à partir de 2 unités.');
+          showSaleIssue(setWholesaleError, 'Chaque palier doit commencer à partir de 2 unités.');
           return;
         }
         if (!Number.isFinite(tier.unitPrice) || tier.unitPrice <= 0) {
-          setWholesaleError('Chaque palier doit avoir un prix unitaire valide.');
+          showSaleIssue(setWholesaleError, 'Chaque palier doit avoir un prix unitaire valide.');
           return;
         }
         if (seen.has(tier.minQty)) {
-          setWholesaleError('Les quantités minimum doivent être uniques.');
+          showSaleIssue(setWholesaleError, 'Les quantités minimum doivent être uniques.');
           return;
         }
         seen.add(tier.minQty);
         if (previousUnitPrice !== null && tier.unitPrice > previousUnitPrice) {
-          setWholesaleError(
+          showSaleIssue(setWholesaleError,
             'Le prix unitaire ne peut pas augmenter quand la quantité minimum augmente.'
           );
           return;
@@ -1838,12 +1795,13 @@ export default function ProductForm(props) {
     if (form.warrantyEnabled) {
       const period = Number(form.warrantyPeriodValue || 0);
       if (!Number.isInteger(period) || period < 1 || period > 120) {
-        setWarrantyError('Indiquez une période de garantie entre 1 et 120.');
+        showSaleIssue(setWarrantyError, 'Indiquez une période de garantie entre 1 et 120.');
         return;
       }
     }
 
     if (!form.deliveryAvailable && !form.pickupAvailable) {
+      goToStep(2);
       await appAlert('Activez au moins un mode de réception: retrait boutique ou livraison.');
       return;
     }
@@ -1853,6 +1811,7 @@ export default function ProductForm(props) {
     if (form.deliveryAvailable && form.deliveryFeeEnabled) {
       const deliveryFeeValue = Number(form.deliveryFee || 0);
       if (!Number.isFinite(deliveryFeeValue) || deliveryFeeValue < 0) {
+        goToStep(2);
         await appAlert('Les frais de livraison doivent être un montant positif ou nul.');
         return;
       }
@@ -2390,10 +2349,6 @@ export default function ProductForm(props) {
     form.installmentEndDate
   ]);
 
-  const headerTitle = isEditing ? 'Modifier une annonce' : 'Publier une annonce';
-  const headerSubtitle = isEditing
-    ? 'Mettez à jour les informations de votre produit'
-    : 'Remplissez les détails de votre produit pour commencer à vendre';
   const requiredFields = useMemo(
     () => ({
       title: Boolean(String(form.title || '').trim()),
@@ -2403,17 +2358,6 @@ export default function ProductForm(props) {
     }),
     [form.category, form.description, form.price, form.title]
   );
-  const requiredCompletedCount = useMemo(
-    () => Object.values(requiredFields).filter(Boolean).length,
-    [requiredFields]
-  );
-  const requiredTotalCount = 4;
-  const missingRequiredCount = requiredTotalCount - requiredCompletedCount;
-  const completionPercent = Math.round((requiredCompletedCount / requiredTotalCount) * 100);
-  const buttonLabel = missingRequiredCount > 0
-    ? `${missingRequiredCount} champ${missingRequiredCount > 1 ? 's' : ''} à compléter`
-    : submitLabel || (isEditing ? "Mettre à jour l'annonce" : "Publier l'annonce");
-  const submitDisabled = loading;
   const listingReferencePrice = getHighestListingPrice();
   const listingFeeRequiredPreview = calculateCommission();
   const {
@@ -2484,121 +2428,38 @@ export default function ProductForm(props) {
       />
     </button>
   );
-  // Unified, branded header used by every section of the form. Collapsible
-  // sections fold on mobile (chevron); static sections always render expanded.
-  const renderSectionHeader = ({ id, icon: Icon, title, subtitle, collapsible = true, accent = 'orange', optional = false, recommended = false }) => {
-    const badgeClass = accent === 'amber' ? 'bg-amber-100 text-amber-600' : 'bg-[#FFEDE3] text-[#FF5000]';
-    const badge = (
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${badgeClass}`}>
-        <Icon className="h-[18px] w-[18px]" />
-      </span>
-    );
-
-    if (collapsible && isMobile) {
-      const expanded = expandedSections[id];
-      return (
-        <button
-          type="button"
-          onClick={() => toggleSection(id)}
-          className="flex w-full items-center justify-between gap-3 rounded-2xl bg-gray-50 px-3 py-3 text-left transition active:bg-gray-100"
-          aria-expanded={expanded}
-        >
-          <span className="flex min-w-0 items-center gap-3">
-            {badge}
-            <span className="min-w-0">
-              <span className="flex flex-wrap items-center gap-1.5 text-[15px] font-black text-gray-900">
-                {title}
-                {optional && <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500">Facultatif</span>}
-                {recommended && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700">Recommandé</span>}
-              </span>
-              {subtitle && <span className="mt-0.5 block truncate text-xs text-gray-500">{subtitle}</span>}
-            </span>
-          </span>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm">
-            {expanded ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
-          </span>
-        </button>
-      );
-    }
-
-    return (
-      <div className="mb-4 flex items-center gap-3">
-        {badge}
-        <div className="min-w-0">
-          <h2 className="flex flex-wrap items-center gap-2 text-base font-black text-gray-900 sm:text-lg">
-            {title}
-            {optional && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500">Facultatif</span>}
-            {recommended && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700">Recommandé</span>}
-          </h2>
-          {subtitle && <p className="text-xs text-gray-500 sm:text-sm">{subtitle}</p>}
-        </div>
+  const renderSectionHeader = ({ icon: Icon, title, subtitle, optional = false, recommended = false }) => (
+    <div className="pf-section-head">
+      <span className="pf-section-icon"><Icon /></span>
+      <div><h2>{title}{optional && <span className="pf-optional">Facultatif</span>}{recommended && <span className="pf-optional">Conseillé</span>}</h2>
+        {subtitle && <p>{subtitle}</p>}
       </div>
-    );
-  };
-  const sectionShellClass =
-    'hd-form-card rounded-2xl p-4 sm:p-5';
-  const innerPanelClass = 'rounded-2xl border border-gray-200 bg-gray-100/45 p-4';
-  const inputClass =
-    'ui-input w-full min-w-0 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400';
-  const sectionProgressItems = [
-    { key: 'title', label: 'Titre', done: requiredFields.title },
-    { key: 'description', label: 'Description', done: requiredFields.description },
-    { key: 'category', label: 'Catégorie', done: requiredFields.category },
-    { key: 'price', label: 'Prix', done: requiredFields.price }
-  ];
-
-  // Taobao-style shared input class
-  const tbInput = 'w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#FF5000] focus:ring-2 focus:ring-[#FF5000]/15 transition-colors';
-  // Section title with orange left accent
-  const SectionTitle = ({ children }) => (
-    <h3 className="flex items-center gap-2">
-      <span className="w-[3px] h-[18px] rounded-full bg-[#FF5000] flex-shrink-0" />
-      <span className="text-sm font-black text-gray-900">{children}</span>
-    </h3>
+    </div>
   );
+  const sectionShellClass = 'pf-card';
+  const innerPanelClass = 'pf-inner';
+  const inputClass = 'pf-input min-w-0 placeholder-gray-400';
+  const continueStep = () => {
+    if (activeStep === 0) {
+      const missing = getMissingProductFormFields(form);
+      if (missing.length) {
+        setFieldErrors(current => ({ ...current, ...Object.fromEntries(missing.map(field => [field.name, field.label + ' requis.'])) }));
+        setValidationSummary(missing);
+        focusFirstInvalidField(missing);
+        return;
+      }
+      setValidationSummary([]);
+    }
+    goToStep(Math.min(3, activeStep + 1));
+  };
 
   return (
     <div
       ref={formShellRef}
-      className={`mx-auto max-w-3xl ${
-        isMobile
-          ? isEmbeddedMobile
-            ? 'px-0 pb-24 scroll-pb-40'
-            : 'px-0 pb-28 bg-[#F6F6F6] min-h-screen'
-          : 'bg-[#F6F6F6]'
-      }`}
+      className={`pf-workspace ${isEmbeddedMobile ? 'pf-embedded' : ''}`}
     >
-      {/* ── TAOBAO HEADER ── */}
-      {!hideHeader && (
-        <div className="bg-white border-b border-gray-100 px-4 py-3.5 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[#FFEDE3] flex items-center justify-center flex-shrink-0">
-            {isEditing ? <PencilIcon className="w-4 h-4 text-[#FF5000]" /> : <PlusIcon className="w-4 h-4 text-[#FF5000]" />}
-          </div>
-          <div className="min-w-0">
-            <p className="text-[15px] font-black text-gray-900 leading-tight">{headerTitle}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">{headerSubtitle}</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── PROGRESS ── */}
-      <div className="bg-white px-4 py-3 border-b border-gray-50">
-        <div className="flex items-center justify-between mb-1.5">
-          <p className="text-xs font-semibold text-gray-500">Progression</p>
-          <span className="text-xs font-black text-[#FF5000]">{requiredCompletedCount}/{requiredTotalCount}</span>
-        </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-          <div className="h-full rounded-full bg-[#FF5000] transition-all duration-300" style={{ width: `${completionPercent}%` }} />
-        </div>
-        <div className="mt-2 flex gap-1.5">
-          {sectionProgressItems.map((item) => (
-            <span key={item.key}
-              className={`flex-1 py-1 text-center text-[10px] font-bold rounded transition-colors ${item.done ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-400'}`}>
-              {item.label}
-            </span>
-          ))}
-        </div>
-      </div>
+      <ProductFormNavigation activeStep={activeStep} onStep={goToStep} isEditing={isEditing} hideHeader={hideHeader}
+        disabled={loading || mediaOptimization.active || isCompressingVideo} />
 
       {draftOffer && !isEditing && (
         <div className="mx-4 mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sky-950" role="status">
@@ -2625,11 +2486,12 @@ export default function ProductForm(props) {
       )}
 
       {!draftOffer && draftSavedAt && !isEditing && (
-        <p className="px-4 pt-2 text-right text-[11px] font-semibold text-emerald-700" aria-live="polite">
+        <p className="px-4 pt-2 text-right text-[11px] font-semibold text-orange-700" aria-live="polite">
           Brouillon enregistré à {new Date(draftSavedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
         </p>
       )}
 
+      <div className="pf-layout">
       <form
         onSubmit={submit}
         noValidate
@@ -2638,14 +2500,19 @@ export default function ProductForm(props) {
         spellCheck="true"
         autoCorrect="on"
         autoCapitalize="sentences"
-        className={`space-y-4 ${
-          isMobile
-            ? isEmbeddedMobile
-              ? 'pb-6'
-              : 'mx-4 pb-6'
-            : 'pb-6'
-        }`}
+        className="pf-form"
       >
+        <div ref={stepHeadingRef} tabIndex={-1} className="pf-step-intro">
+          <p className="pf-eyebrow">ÉTAPE {String(activeStep + 1).padStart(2, '0')} / 04</p>
+          <h2>{PRODUCT_FORM_STEPS[activeStep].title}</h2>
+          <p>{PRODUCT_FORM_STEPS[activeStep].description}</p>
+        </div>
+        <div className="pf-panel" hidden={activeStep !== 0}>
+        <details className="pf-assistance">
+          <summary><SparklesIcon /> Un coup de main pour rédiger ?</summary>
+          <ProductWritingAssistant form={form} onApply={(suggestion) => { setForm(prev => ({ ...prev, ...suggestion })); Object.keys(suggestion).forEach(clearFieldIssue); }} />
+          <MarketingPackLauncher productFacts={form} />
+        </details>
         {/* Section Informations de base */}
         <div ref={(node) => { sectionRefs.current.info = node; }} className={sectionShellClass}>
           {renderSectionHeader({
@@ -2656,8 +2523,6 @@ export default function ProductForm(props) {
           })}
           {(!isMobile || expandedSections.info) && (
                 <div className="space-y-4 pt-1">
-          <ProductWritingAssistant form={form} onApply={(suggestion) => { setForm(prev => ({ ...prev, ...suggestion })); Object.keys(suggestion).forEach(clearFieldIssue); }} />
-          <MarketingPackLauncher productFacts={form} />
           {/* Titre */}
           <div className="space-y-2">
             <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
@@ -2665,6 +2530,8 @@ export default function ProductForm(props) {
               <span>Titre de l'annonce *</span>
             </label>
             <input
+              aria-label="Titre de l’annonce"
+              aria-invalid={Boolean(fieldErrors.title)}
               ref={(node) => { fieldRefs.current.title = node; }}
               className={`${inputClass} min-h-[50px] text-base ${fieldErrors.title ? 'border-red-300 ring-1 ring-red-200' : ''}`}
               placeholder="Ex: iPhone 13 Pro Max 256GB - État neuf"
@@ -2683,6 +2550,8 @@ export default function ProductForm(props) {
               <span>Description détaillée *</span>
             </label>
             <textarea
+              aria-label="Description détaillée"
+              aria-invalid={Boolean(fieldErrors.description)}
               ref={(node) => { fieldRefs.current.description = node; }}
               rows={4}
               className={`${inputClass} resize-none ${fieldErrors.description ? 'border-red-300 ring-1 ring-red-200' : ''}`}
@@ -2711,20 +2580,6 @@ export default function ProductForm(props) {
             </div>
           </div>
 
-          <TagSelector
-            value={form.tagIds || []}
-            aiValue={form.aiTagIds || []}
-            initialTags={Array.isArray(initialValues?.tags) ? initialValues.tags.filter((tag) => tag && typeof tag === 'object') : []}
-            onChange={(tagIds) => setForm((current) => ({ ...current, tagIds }))}
-            onAiChange={(aiTagIds) => setForm((current) => ({ ...current, aiTagIds }))}
-            productContext={{
-              title: form.title,
-              description: form.description,
-              category: form.category,
-              brand: form.brand
-            }}
-          />
-
           {/* Catégorie et Prix en ligne */}
           <div className={`grid ${priceGridClass} gap-4`}>
             {/* Catégorie */}
@@ -2734,6 +2589,8 @@ export default function ProductForm(props) {
                 <span>Catégorie *</span>
               </label>
               <select
+                aria-label="Catégorie"
+                aria-invalid={Boolean(fieldErrors.category)}
                 ref={(node) => { fieldRefs.current.category = node; }}
                 className={`${inputClass} ${fieldErrors.category ? 'border-red-300 ring-1 ring-red-200' : ''}`}
                 value={form.category}
@@ -2761,6 +2618,8 @@ export default function ProductForm(props) {
                 <span>Prix *</span>
               </label>
               <input
+                aria-label="Prix de vente"
+                aria-invalid={Boolean(fieldErrors.price)}
                 ref={(node) => { fieldRefs.current.price = node; }}
                 type="number"
                 className={`${inputClass} ${fieldErrors.price ? 'border-red-300 ring-1 ring-red-200' : ''}`}
@@ -2932,6 +2791,33 @@ export default function ProductForm(props) {
 
           </div>
 
+                </div>
+          )}
+        </div>
+
+        <details className="pf-assistance">
+          <summary><TagIcon /> Mots-clés & visibilité · Facultatif</summary>
+          <TagSelector
+            value={form.tagIds || []}
+            aiValue={form.aiTagIds || []}
+            initialTags={Array.isArray(initialValues?.tags) ? initialValues.tags.filter((tag) => tag && typeof tag === 'object') : []}
+            onChange={(tagIds) => setForm((current) => ({ ...current, tagIds }))}
+            onAiChange={(aiTagIds) => setForm((current) => ({ ...current, aiTagIds }))}
+            productContext={{
+              title: form.title,
+              description: form.description,
+              category: form.category,
+              brand: form.brand
+            }}
+          />
+
+        </details>
+        </div>
+
+        <div className="pf-panel" hidden={activeStep !== 2}>
+        <div ref={node => { sectionRefs.current.fulfillment = node; }} className={sectionShellClass}>
+          {renderSectionHeader({ icon: ShieldCheckIcon, title: 'Livraison & garantie', subtitle: 'Comment votre client recevra son produit.' })}
+          <div className="space-y-4">
           <div className={`${innerPanelClass} space-y-4`}>
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-start gap-3">
@@ -3071,10 +2957,8 @@ export default function ProductForm(props) {
               </p>
             )}
           </div>
-                </div>
-          )}
+          </div>
         </div>
-
         {/* Section Commercialisation */}
         <div ref={(node) => { sectionRefs.current.commercialisation = node; }} className={sectionShellClass}>
           {renderSectionHeader({
@@ -3735,6 +3619,8 @@ export default function ProductForm(props) {
           )}
         </div>
 
+        </div>
+        <div className="pf-panel" hidden={activeStep !== 1}>
         {/* Section Images */}
         <div className={sectionShellClass}>
           {renderSectionHeader({
@@ -3761,13 +3647,13 @@ export default function ProductForm(props) {
                 <p className="text-xs text-gray-500">
                   Jusqu&apos;à {maxImagesLimit} photos. Les images sont optimisées automatiquement avant l&apos;upload.
                 </p>
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 px-3 py-3 text-xs text-emerald-900">
+                <div className="rounded-2xl border border-orange-100 bg-orange-50/80 px-3 py-3 text-xs text-orange-900">
                   <div className="flex items-start gap-2">
-                    <CheckCircleIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-700" />
+                    <CheckCircleIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-orange-700" />
                     <div className="space-y-1">
                       <p className="font-semibold">Pour de meilleures photos publiées</p>
                       <p className="leading-relaxed">
-                        Utilisez une lumière naturelle, gardez le produit entier dans le cadre, prenez la première photo de face et évitez les captures WhatsApp floues. <span className="font-bold text-emerald-800">Le format carré (1:1, ex: 800×800px)</span> donne le rendu le plus propre sur les cartes produit et la page détail.
+                        Utilisez une lumière naturelle, gardez le produit entier dans le cadre, prenez la première photo de face et évitez les captures WhatsApp floues. <span className="font-bold text-orange-800">Le format carré (1:1, ex: 800×800px)</span> donne le rendu le plus propre sur les cartes produit et la page détail.
                       </p>
                     </div>
                   </div>
@@ -3778,7 +3664,7 @@ export default function ProductForm(props) {
                   </p>
                 )}
                 {!mediaOptimization.active && mediaOptimization.optimizedCount > 0 && (
-                  <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                  <p className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">
                     {mediaOptimization.optimizedCount} photo(s) optimisée(s), {formatFileSize(mediaOptimization.savedBytes)} économisés.
                   </p>
                 )}
@@ -3806,7 +3692,7 @@ export default function ProductForm(props) {
                         ? 'La première photo devient la photo principale. Utilisez les flèches pour réorganiser les photos, quel que soit l’ordre d’ajout.'
                         : 'Cette photo sera utilisée comme photo principale.'}
                     </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="pf-photo-grid">
                       {orderedStudioImages.map((image, displayIndex) => {
                         const combinedIndex =
                           Array.isArray(displayOrder) && displayOrder.length === totalImageCount
@@ -3832,12 +3718,12 @@ export default function ProductForm(props) {
                                   </span>
                                 )}
                                 {isExisting && imageReplacements[localIndex] && (
-                                  <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded font-black">
+                                  <span className="bg-orange-600 text-white text-[10px] px-2 py-0.5 rounded font-black">
                                     Studio appliqué
                                   </span>
                                 )}
                                 {!isExisting && previewItem?.cropped && (
-                                  <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded font-semibold">
+                                  <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded font-semibold">
                                     Recadré
                                   </span>
                                 )}
@@ -3850,7 +3736,7 @@ export default function ProductForm(props) {
                               <button
                                 type="button"
                                 onClick={() => (isExisting ? removeExistingImage(localIndex) : removeImage(localIndex))}
-                                className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 shadow flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute top-2 right-2 h-9 w-9 rounded-full bg-white shadow flex items-center justify-center text-red-600 transition-colors hover:bg-red-50"
                                 aria-label="Supprimer l'image"
                               >
                                 <XMarkIcon className="h-3 w-3" />
@@ -3916,18 +3802,15 @@ export default function ProductForm(props) {
                   </div>
                 )}
 
-                <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 active:bg-gray-100 transition-colors group ${isMobile ? 'h-28 min-h-[120px] py-4' : 'h-32'}`}>
-                  <ArrowUpTrayIcon className={`text-gray-400 group-hover:text-neutral-500 transition-colors mb-2 ${isMobile ? 'w-10 h-10' : 'w-8 h-8'}`} />
-                  <span className={`text-gray-500 text-center ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                    <span className="text-neutral-600 font-medium">{isMobile ? 'Appuyez pour ajouter des photos' : 'Cliquez pour uploader'}</span>
-                    <br />
-                    <span className="text-xs">JPG, PNG, WEBP optimisés</span>
-                  </span>
+                <label className="pf-upload">
+                  <CameraIcon />
+                  <span><strong>Ajouter des photos</strong><small>JPG, PNG, WEBP · Jusqu’à {maxImagesLimit} photos</small></span>
                   <input
+                    aria-label="Ajouter des photos"
                     type="file"
                     multiple
                     onChange={handleImageChange}
-                    className="hidden"
+                    className="sr-only"
                     accept={PRODUCT_IMAGE_ACCEPT}
                   />
                 </label>
@@ -3981,7 +3864,7 @@ export default function ProductForm(props) {
                     <button
                       type="button"
                       onClick={handleKeepExistingVideo}
-                      className="px-3 py-2 text-sm font-semibold rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                      className="px-3 py-2 text-sm font-semibold rounded-full bg-orange-600 text-white hover:bg-orange-700 transition-colors"
                     >
                       Conserver
                     </button>
@@ -4031,7 +3914,7 @@ export default function ProductForm(props) {
                 htmlFor="product-form-video-input"
                 className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group"
               >
-                <VideoCameraIcon className="w-8 h-8 text-gray-400 group-hover:text-emerald-500 transition-colors mb-2" />
+                <VideoCameraIcon className="w-8 h-8 text-gray-400 group-hover:text-orange-500 transition-colors mb-2" />
                 <span className="text-sm text-gray-500 text-center">
                   {removeExistingVideo ? 'Ajouter une vidéo de remplacement' : 'Cliquez pour uploader votre vidéo'}
                 </span>
@@ -4129,7 +4012,7 @@ export default function ProductForm(props) {
                       {originalVideoSize > videoFile.size && (
                         <>
                           <span className="text-xs text-gray-400">•</span>
-                          <p className="text-xs text-emerald-600 font-semibold">
+                          <p className="text-xs text-orange-600 font-semibold">
                             Réduit de {((1 - videoFile.size / originalVideoSize) * 100).toFixed(1)}%
                           </p>
                         </>
@@ -4145,9 +4028,9 @@ export default function ProductForm(props) {
                   </button>
                 </div>
                 {originalVideoSize > MAX_VIDEO_SIZE_MB * 1024 * 1024 && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200">
-                    <CheckCircleIcon className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                    <p className="text-xs text-emerald-700">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50 border border-orange-200">
+                    <CheckCircleIcon className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                    <p className="text-xs text-orange-700">
                       Vidéo optimisée avec succès pour un upload plus rapide.
                     </p>
                   </div>
@@ -4164,7 +4047,7 @@ export default function ProductForm(props) {
             {isUploadingVideo && (
               <div className="mt-2 space-y-1">
                 <div className="flex items-center justify-between text-xs text-gray-600">
-                  <span>ArrowUpTrayIcon en cours...</span>
+                  <span>Envoi en cours…</span>
                   <span>{uploadProgress}%</span>
                 </div>
                 <div className="w-full rounded-full bg-gray-100 h-2 overflow-hidden">
@@ -4300,6 +4183,20 @@ export default function ProductForm(props) {
           </div>
         )}
 
+        </div>
+        <div className="pf-panel" hidden={activeStep !== 3}>
+        <div className="pf-review-note">Votre annonce est presque prête. Relisez les informations et consultez les frais ci-dessous avant de confirmer.</div>
+        <div className={sectionShellClass}>
+          {renderSectionHeader({ icon: DocumentTextIcon, title: 'Votre annonce en bref' })}
+          <dl className="pf-review-details">
+            <div><dt>Produit</dt><dd>{form.title || 'Titre à compléter'}</dd><button type="button" onClick={() => goToStep(0)}>Modifier</button></div>
+            <div><dt>Prix de vente</dt><dd>{formatPriceWithStoredSettings(getEffectiveBaseListingPrice())}</dd><button type="button" onClick={() => goToStep(0)}>Modifier</button></div>
+            <div><dt>Catégorie</dt><dd>{getCategoryMeta(form.category)?.label || 'À compléter'}</dd></div>
+            <div><dt>Photos</dt><dd>{existingImages.length + files.length} photo(s)</dd><button type="button" onClick={() => goToStep(1)}>Modifier</button></div>
+            <div><dt>Réception</dt><dd>{[form.deliveryAvailable && 'Livraison', form.pickupAvailable && 'Retrait boutique'].filter(Boolean).join(' · ') || 'À compléter'}</dd><button type="button" onClick={() => goToStep(2)}>Modifier</button></div>
+          </dl>
+          <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-gray-600">{form.description}</p>
+        </div>
         <div className={sectionShellClass}>
             {renderSectionHeader({
               icon: ShieldCheckIcon,
@@ -4341,7 +4238,7 @@ export default function ProductForm(props) {
                       <div className={`rounded-xl border px-3 py-2.5 font-bold ${
                         additionalListingFeePreview > 0
                           ? 'border-orange-200 bg-orange-100 text-orange-900'
-                          : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                          : 'border-orange-200 bg-orange-50 text-orange-800'
                       }`}>
                         {returnsToApprovedPrice
                           ? 'Aucun paiement supplémentaire : ce prix correspond au prix approuvé et l’annonce retrouvera le statut approuvé.'
@@ -4420,7 +4317,7 @@ export default function ProductForm(props) {
                       description: form.description || 'Description du produit',
                       price: form.price || 0,
                       category: form.category || '',
-                      condition: form.condition || 'used',
+                      condition: form.condition || 'new',
                       discount: form.discount || 0,
                       warrantyEnabled: Boolean(form.warrantyEnabled),
                       warrantyPeriodValue: form.warrantyPeriodValue || null,
@@ -4450,6 +4347,7 @@ export default function ProductForm(props) {
           </div>
         )}
 
+        </div>
         {validationSummary.length > 0 && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4" role="alert" aria-live="assertive">
             <div className="flex items-start gap-3">
@@ -4466,65 +4364,14 @@ export default function ProductForm(props) {
           </div>
         )}
 
-        {/* Bouton de soumission — sticky sur mobile (Apple-style primary) */}
-        {isMobile ? (
-          <div
-            className={
-              isEmbeddedMobile
-                ? 'sticky bottom-0 z-30 mt-4 border-t border-neutral-200/80 bg-white/95 px-0 pt-3 pb-[calc(0.9rem+env(safe-area-inset-bottom))] safe-area-pb'
-                : 'fixed bottom-0 left-0 right-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#F6F6F6]/95 border-t border-neutral-200/70 safe-area-pb'
-            }
-          >
-            {isEmbeddedMobile && onCancel ? (
-              <div className="mb-2">
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  disabled={loading}
-                  className="hd-soft-button w-full min-h-[46px] rounded-xl text-sm font-semibold"
-                >
-                  Annuler
-                </button>
-              </div>
-            ) : null}
-            <button
-              type="submit"
-              disabled={submitDisabled}
-              className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF5000] to-[#FF3D00] py-4 text-[17px] font-black text-white shadow-lg shadow-[#FF5000]/25 transition hover:brightness-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>{isEditing ? 'Mise à jour...' : 'Publication...'}</span>
-                </>
-              ) : (
-                <>
-                  <PaperAirplaneIcon className="w-5 h-5" />
-                  <span>{buttonLabel}</span>
-                </>
-              )}
-            </button>
-          </div>
-        ) : (
-          <button
-            type="submit"
-            disabled={submitDisabled}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF5000] to-[#FF3D00] py-4 font-black text-white shadow-lg shadow-[#FF5000]/25 transition hover:brightness-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>{isEditing ? 'Mise à jour en cours...' : 'Publication en cours...'}</span>
-              </>
-            ) : (
-              <>
-                <PaperAirplaneIcon className="w-5 h-5" />
-                <span>{buttonLabel}</span>
-              </>
-            )}
-          </button>
-        )}
+        <ProductFormActions activeStep={activeStep} onStep={goToStep} onContinue={continueStep}
+          loading={loading} processing={mediaOptimization.active || isCompressingVideo} isEditing={isEditing}
+          submitLabel={submitLabel} onCancel={onCancel} />
       </form>
+      <ProductFormSummary form={form} image={orderedStudioImages[0]?.url} photoCount={existingImages.length + files.length}
+        requiredFields={requiredFields} fee={isEditing ? additionalListingFeePreview : listingFeeRequiredPreview}
+        isEditing={isEditing} onStep={goToStep} />
+      </div>
 
       {/* ── CROP MODAL (new system: fixed frame, image pans/zooms) ── */}
       {croppingImage && (() => {

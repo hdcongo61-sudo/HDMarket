@@ -88,7 +88,7 @@ export default function EditProduct() {
   return (
     <div className="min-h-screen bg-[#f5f2ee] pb-24">
       <header className="sticky top-0 z-30 border-b border-[#e2dcd2] bg-white/95">
-        <div className="mx-auto flex min-h-16 max-w-3xl items-center gap-3 px-4">
+        <div className="mx-auto flex min-h-16 max-w-6xl items-center gap-3 px-4">
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -107,7 +107,7 @@ export default function EditProduct() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-3xl px-3 pt-4 sm:px-4">
+      <div className="mx-auto max-w-6xl pt-4 sm:px-4">
         <ProductForm
           key={product._id || product.id || slug}
           initialValues={product}

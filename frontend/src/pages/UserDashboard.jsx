@@ -1912,11 +1912,11 @@ export default function UserDashboard() {
         panelClassName={
           isMobile
             ? 'min-h-0 h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-gray-50 sm:rounded-none'
-            : 'sm:max-w-5xl sm:max-h-[90vh] sm:rounded-2xl border-gray-200 bg-gray-50'
+            : 'sm:max-w-6xl sm:max-h-[92vh] sm:rounded-3xl border-gray-200 bg-[#f6f6f6]'
         }
       >
             {/* Modal Header */}
-            <div className={`hd-my-hero text-white flex-shrink-0 ${isMobile ? 'px-4 py-4 safe-area-top' : 'px-6 py-5'}`}>
+            <div className={`bg-[#e85d00] text-white flex-shrink-0 ${isMobile ? 'px-4 py-3 safe-area-top' : 'px-7 py-5'}`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`rounded-xl bg-white/20 flex-shrink-0 ${isMobile ? 'p-2.5' : 'p-3'}`}>
@@ -1935,7 +1935,7 @@ export default function UserDashboard() {
                     </h3>
                     {isMobile ? (
                       <p className="mt-1 text-[11px] text-white/80">
-                        Mobile optimisé: sections repliables, sauvegarde rapide.
+                        Votre produit, prêt à rencontrer ses acheteurs.
                       </p>
                     ) : null}
                   </div>
@@ -1952,7 +1952,7 @@ export default function UserDashboard() {
             </div>
 
             {/* Modal Content */}
-            <div className={`flex-1 overflow-y-auto min-h-0 ${isMobile ? 'p-3 pb-[max(1rem,env(safe-area-inset-bottom,0px))] scroll-pb-44' : 'p-6'}`}>
+            <div className={`flex-1 overflow-y-auto min-h-0 bg-[#f6f6f6] ${isMobile ? 'p-0 scroll-pb-28' : 'p-2'}`}>
               {!sellingEnabled && !editingProduct ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                   La publication de nouvelles annonces est temporairement désactivée par l’administration.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildImageVariantAttribute,
   getHighestProductPrice,
   getLowestProductPrice,
   hydrateImageVariantsFromAttributes,
@@ -9,6 +10,33 @@ import {
   resolveSelectedAttributesPrice,
   validateSelectedAttributes
 } from './productAttributes';
+
+describe('saving photo prices', () => {
+  it('preserves an unnamed fourth photo price through save, reload and gallery lookup', () => {
+    const saved = buildImageVariantAttribute({ 3: { price: '45000', label: '' } });
+    const attributes = normalizeProductAttributes(JSON.parse(JSON.stringify([saved])));
+    expect(resolveProductImagePrice({ productAttributes: attributes, imageIndex: 3 }))
+      .toEqual({ applied: true, unitPrice: 45000 });
+    expect(hydrateImageVariantsFromAttributes(attributes).imageVariants[3].price).toBe(45000);
+    expect(resolveProductImagePrice({ productAttributes: attributes, imageIndex: 0 }).applied).toBe(false);
+  });
+
+  it('keeps prices for repeated labels and avoids generated name collisions', () => {
+    const attribute = buildImageVariantAttribute({
+      0: { label: 'Photo 4', price: 10000 },
+      1: { label: 'Photo 4', price: 20000 },
+      3: { price: 30000 }
+    });
+    for (const [imageIndex, unitPrice] of [[0, 10000], [1, 20000], [3, 30000]]) {
+      expect(resolveProductImagePrice({ productAttributes: [attribute], imageIndex }))
+        .toEqual({ applied: true, unitPrice });
+    }
+  });
+
+  it('does not create options for untouched photo fields', () => {
+    expect(buildImageVariantAttribute({ 0: { label: '', price: '' } })).toBeNull();
+  });
+});
 
 // Mirrors backend/utils/productAttributes.test.js for the rules the two
 // implementations must agree on (see CLAUDE.md — these files are hand-kept in

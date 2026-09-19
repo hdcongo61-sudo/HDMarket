@@ -1,5 +1,40 @@
 const toTrimmedString = (value) => String(value == null ? '' : value).trim();
 
+// Keep photo prices even when the seller has not supplied an option label.
+export const buildImageVariantAttribute = (imageVariants = {}, name = '') => {
+  const entries = Object.entries(imageVariants)
+    .map(([index, entry]) => ({
+      index: Number(index), label: toTrimmedString(entry?.label),
+      price: Number(entry?.price), outOfStock: Boolean(entry?.outOfStock)
+    }))
+    .filter(entry => Number.isInteger(entry.index) && entry.index >= 0 &&
+      (entry.label || (Number.isFinite(entry.price) && entry.price > 0) || entry.outOfStock))
+    .sort((a, b) => a.index - b.index);
+  if (!entries.length) return null;
+  const reserved = new Set(entries.map(entry => entry.label.toLowerCase()).filter(Boolean));
+  const seen = new Set();
+  const options = [], optionPrices = {}, optionImages = {}, optionOutOfStock = {};
+  entries.forEach(entry => {
+    let label = entry.label || `Photo ${entry.index + 1}`;
+    let suffix = 2;
+    while (seen.has(label.toLowerCase()) || (!entry.label && reserved.has(label.toLowerCase()))) {
+      label = `${entry.label || `Photo ${entry.index + 1}`} (${suffix++})`;
+    }
+    const key = label.toLowerCase();
+    seen.add(key);
+    options.push(label);
+    optionImages[key] = entry.index;
+    if (Number.isFinite(entry.price) && entry.price > 0) optionPrices[key] = entry.price;
+    if (entry.outOfStock) optionOutOfStock[key] = true;
+  });
+  return {
+    name: toTrimmedString(name) || 'Variante', type: 'select', options,
+    required: Object.keys(optionPrices).length > 0, defaultValue: '', optionImages,
+    ...(Object.keys(optionPrices).length ? { optionPrices } : {}),
+    ...(Object.keys(optionOutOfStock).length ? { optionOutOfStock } : {})
+  };
+};
+
 // Optional per-option unit prices (e.g. size → price), keys lowercased.
 const normalizeOptionPrices = (input, options = []) => {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return null;

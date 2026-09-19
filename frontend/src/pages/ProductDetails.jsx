@@ -420,7 +420,7 @@ export default function ProductDetails() {
   }, [defaultSelectedAttributes, product?._id, productOptionDefinitions]);
 
   // Jump the gallery to the photo linked to the selected option (e.g. the red
-  // photo when "Rouge" is picked). Gallery indexes the deduplicated image list.
+  // photo when "Rouge" is picked). Match the gallery's filtered image list.
   useEffect(() => {
     const images = Array.isArray(product?.images) ? product.images : [];
     const variantImage = resolveSelectedAttributesImage({
@@ -429,10 +429,11 @@ export default function ProductDetails() {
       images
     });
     if (!variantImage.applied || !variantImage.image) return;
-    const unique = Array.from(
-      new Set(images.map((value) => String(value || '').trim()).filter(Boolean))
-    ).slice(0, 10);
-    const galleryIndex = unique.indexOf(String(variantImage.image).trim());
+    const visibleImages = images
+      .map((value, imageIndex) => ({ src: String(value || '').trim(), imageIndex }))
+      .filter((item) => item.src)
+      .slice(0, 10);
+    const galleryIndex = visibleImages.findIndex((item) => item.imageIndex === variantImage.imageIndex);
     if (galleryIndex >= 0) setSelectedImage(galleryIndex);
   }, [normalizedSelectedAttributes, productOptionDefinitions, product?.images]);
 
@@ -1710,10 +1711,10 @@ export default function ProductDetails() {
   });
   const displayedPhotoPricing = resolveProductImagePrice({
     productAttributes: productOptionDefinitions,
-    imageIndex:
-      selectedImage >= 0 && selectedImage < (Array.isArray(product?.images) ? product.images.length : 0)
-        ? selectedImage
-        : -1
+    imageIndex: (Array.isArray(product?.images) ? product.images : [])
+      .map((src, imageIndex) => ({ src: String(src || '').trim(), imageIndex }))
+      .filter((item) => item.src)
+      .slice(0, 10)[selectedImage]?.imageIndex ?? -1
   });
   const finalPrice = displayedPhotoPricing.applied
     ? Number(displayedPhotoPricing.unitPrice || 0)
@@ -1782,7 +1783,12 @@ export default function ProductDetails() {
   );
   const hasMultiSelectionTotal =
     selectedAttributeCombinations.length > 1 && selectedCombinationsPricing.applied;
-  const displayUnitPrice = hasMultiSelectionTotal ? selectedCombinationsPricing.total : appliedUnitPrice;
+  // The gallery describes the visible item, even when several options are
+  // selected or a wholesale tier applies to the order.
+  const showSelectionTotal = hasMultiSelectionTotal && !displayedPhotoPricing.applied;
+  const displayUnitPrice = displayedPhotoPricing.applied
+    ? displayedPhotoPricing.unitPrice
+    : hasMultiSelectionTotal ? selectedCombinationsPricing.total : appliedUnitPrice;
   const computedLineTotal = Number((appliedUnitPrice * normalizedQuantity).toFixed(2));
   const wholesaleSavingsAmount = Math.max(
     0,
@@ -2608,7 +2614,7 @@ export default function ProductDetails() {
 
       {/* ── PRIMARY PRODUCT INFORMATION ── */}
       <section className="bg-white px-4 pt-3.5 pb-3">
-        {hasMultiSelectionTotal && (
+        {showSelectionTotal && (
           <p className="mb-1 text-[11px] font-black text-gray-500">
             Total de la sélection ({selectedAttributeCombinations.length} éléments) :
           </p>
@@ -3403,7 +3409,7 @@ export default function ProductDetails() {
                 />
               </button>
               <div className="min-w-0 flex-1">
-                {hasMultiSelectionTotal && (
+                {showSelectionTotal && (
                   <p className="text-[11px] font-black text-gray-500">
                     Total de la sélection ({selectedAttributeCombinations.length} éléments)
                   </p>
