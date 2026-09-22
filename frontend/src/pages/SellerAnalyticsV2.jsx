@@ -31,7 +31,7 @@ const StatCard = ({ label, value, change, icon: Icon }) => (
       </span>
     </div>
     <p className="mt-2 text-xl font-black text-[#231f1b]">{value}</p>
-    {change !== undefined && <div className="mt-0.5">{formatChange(change)}</div>}
+    {change != null && <div className="mt-0.5">{formatChange(change)}</div>}
   </div>
 );
 
@@ -185,9 +185,12 @@ export default function SellerAnalyticsV2() {
             <div className="grid grid-cols-2 gap-3">
               <StatCard label="Revenu (30j)" value={formatPrice(overview.revenue.current)} change={overview.revenue.change} icon={CurrencyDollarIcon} />
               <StatCard label="Commandes (30j)" value={overview.orders.current} change={overview.orders.change} icon={ShoppingCartIcon} />
-              <StatCard label="Vues (30j)" value={overview.views.current} change={overview.views.change} icon={EyeIcon} />
-              <StatCard label="Taux de conversion" value={`${overview.conversion.current}%`} icon={ArrowTrendingUpIcon} />
+              <StatCard label="Vues mesurées (30j)" value={overview.views.current ?? '—'} change={overview.views.change} icon={EyeIcon} />
+              <StatCard label="Commandes / vues" value={overview.conversion.current == null ? '—' : `${overview.conversion.current}%`} icon={ArrowTrendingUpIcon} />
             </div>
+            <p className="text-xs leading-5 text-[#8a8378]">Commandes avec paiement confirmé (acompte ou intégralité), hors annulations. Revenus : valeur des articles après remises, hors livraison. Le ratio commandes/vues utilise la même période de mesure ; ce n’est pas un taux par visiteur unique.
+              {overview.measurement?.partial ? ` Historique des vues incomplet${overview.measurement.since ? ` : mesure depuis le ${new Date(overview.measurement.since).toLocaleDateString('fr-FR')}` : ' : en attente des premières vues'}.` : ''}
+            </p>
 
             {/* Sales Chart */}
             <div className="rounded-2xl bg-white p-4 ring-1 ring-[#e2dcd2]">
@@ -230,7 +233,7 @@ export default function SellerAnalyticsV2() {
                       <th className="px-3 py-2 text-right font-black text-[#8a8378]">Prix</th>
                       <th className="px-3 py-2 text-right font-black text-[#8a8378]">Ventes</th>
                       <th className="px-3 py-2 text-right font-black text-[#8a8378]">Vues</th>
-                      <th className="px-3 py-2 text-right font-black text-[#8a8378]">Conv.</th>
+                      <th className="px-3 py-2 text-right font-black text-[#8a8378]">Cmd/vues (30j mesurés)</th>
                       <th className="px-3 py-2 text-right font-black text-[#8a8378]">Revenu 30j</th>
                     </tr>
                   </thead>
@@ -241,7 +244,7 @@ export default function SellerAnalyticsV2() {
                         <td className="px-3 py-2 text-right">{formatPrice(p.price)}</td>
                         <td className="px-3 py-2 text-right">{p.salesCount}</td>
                         <td className="px-3 py-2 text-right">{p.views}</td>
-                        <td className="px-3 py-2 text-right">{p.conversionRate}%</td>
+                        <td className="px-3 py-2 text-right">{p.conversionRate == null ? '—' : `${p.conversionRate}%`}</td>
                         <td className="px-3 py-2 text-right font-black text-[#e85d00]">{formatPrice(p.revenue30)}</td>
                       </tr>
                     ))}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useContext, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../services/api';
+import OrderCashCollection from '../components/OrderCashCollection';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeftIcon, ArrowPathIcon, BuildingStorefrontIcon, CalendarIcon, ChatBubbleLeftIcon, CheckCircleIcon, CheckIcon, ClipboardDocumentListIcon, ClockIcon, CreditCardIcon, CubeIcon, DocumentDuplicateIcon, EnvelopeIcon, ExclamationCircleIcon, InformationCircleIcon, MapPinIcon, PaperAirplaneIcon, PhoneIcon, ReceiptPercentIcon, ShieldCheckIcon, TruckIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -1708,6 +1709,7 @@ export default function SellerOrderDetail() {
                 </div>
                 {showPayment && (
                   <>
+                    <OrderCashCollection order={order} seller onRecorded={updated => { applyOrderSnapshot(updated); invalidateOrderQueries(); }} />
                     <div className="flex justify-between pt-2 border-t border-gray-200">
                       <span className="text-sm text-gray-600">
                         {paidAmountLabel}

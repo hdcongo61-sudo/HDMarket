@@ -1,18 +1,25 @@
 import asyncHandler from 'express-async-handler';
 import ShopConversionRequest from '../models/shopConversionRequestModel.js';
 import User from '../models/userModel.js';
-import { uploadToCloudinary } from '../utils/cloudinaryUploader.js';
+import Country from '../models/countryModel.js';
+import { uploadToCloudinary, destroyCloudinaryAsset } from '../utils/cloudinaryUploader.js';
 import {
   createNotification,
   resolveValidationTaskNotifications
 } from '../utils/notificationService.js';
-import { getSettingValue, SETTING_KEYS } from '../utils/settingsResolver.js';
+import { SETTING_KEYS } from '../utils/settingsResolver.js';
 import {
   buildShopNameExactRegex,
   findShopNameConflict,
   normalizeShopName
 } from '../utils/shopNameUtils.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { ensureDefaultCountry, getAdminCountryFilter, assertCountryRecordAccess } from '../services/countryService.js';
+import { hasPermission } from '../services/rbacService.js';
+import crypto from 'crypto';
+import PawaPayCheckout from '../models/pawapayCheckoutModel.js';
+import { initiatePawaPayRefund, getPawaPayRefundStatus } from '../services/pawapayService.js';
+import { shouldHonorConversionRequestAmount } from '../utils/shopConversionPolicy.js';
 
 const normalizeBoolean = (value, fallback = false) => {
   if (typeof value === 'boolean') return value;
@@ -31,17 +38,18 @@ const normalizeLimitNumber = (value, fallback = 0) => {
   return Math.max(0, Math.floor(parsed));
 };
 
-const getShopCreationLimitState = async () => {
+const getShopCreationLimitState = async (countryId = '') => {
   const [limitRaw, periodRaw] = await Promise.all([
-    getRuntimeConfig('shop_creation_limit_count', { fallback: 100 }),
-    getRuntimeConfig('shop_creation_limit_period_days', { fallback: 30 })
+    getRuntimeConfig('shop_creation_limit_count', { countryId, fallback: 100 }),
+    getRuntimeConfig('shop_creation_limit_period_days', { countryId, fallback: 30 })
   ]);
   const limit = normalizeLimitNumber(limitRaw, 100);
   const periodDays = Math.max(1, normalizeLimitNumber(periodRaw, 30));
   const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
   const createdCount = await ShopConversionRequest.countDocuments({
     status: 'approved',
-    processedAt: { $gte: since }
+    processedAt: { $gte: since },
+    ...(countryId ? { countryId } : {})
   });
   return {
     limit,
@@ -51,9 +59,9 @@ const getShopCreationLimitState = async () => {
   };
 };
 
-const assertShopConversionOpen = async () => {
+const assertShopConversionOpen = async (countryId = '') => {
   const enabled = normalizeBoolean(
-    await getRuntimeConfig('enable_shop_conversion', { fallback: true }),
+    await getRuntimeConfig('enable_shop_conversion', { countryId, fallback: true }),
     true
   );
   if (!enabled) {
@@ -64,7 +72,7 @@ const assertShopConversionOpen = async () => {
     };
   }
 
-  const limitState = await getShopCreationLimitState();
+  const limitState = await getShopCreationLimitState(countryId);
   if (limitState.reached) {
     return {
       ok: false,
@@ -74,6 +82,14 @@ const assertShopConversionOpen = async () => {
   }
 
   return { ok: true, limitState };
+};
+
+const ensureConversionAdmin = (req) => {
+  const role = String(req.user?.role || '').toLowerCase();
+  if (['admin', 'founder'].includes(role) || hasPermission(req.user, 'manage_sellers')) return;
+  const error = new Error('Vous n’êtes pas autorisé à gérer les conversions boutique.');
+  error.status = 403;
+  throw error;
 };
 
 const notifyShopConversionManagers = async ({ request, user }) => {
@@ -130,11 +146,6 @@ const notifyShopConversionManagers = async ({ request, user }) => {
  * Create a shop conversion request (for particulier users only)
  */
 export const createShopConversionRequest = asyncHandler(async (req, res) => {
-  const conversionState = await assertShopConversionOpen();
-  if (!conversionState.ok) {
-    return res.status(conversionState.status).json({ message: conversionState.message });
-  }
-
   const user = await User.findById(req.user.id);
   if (!user) {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
@@ -155,6 +166,15 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
       message: 'Vérifiez d’abord votre numéro de téléphone depuis votre profil avant de faire une demande Devenir Boutique.',
       code: 'PHONE_NOT_VERIFIED'
     });
+  }
+
+  const country = user.countryId
+    ? (await Country.findById(user.countryId).lean()) || await ensureDefaultCountry()
+    : await ensureDefaultCountry();
+  const countryId = country?._id || user.countryId || null;
+  const conversionState = await assertShopConversionOpen(countryId);
+  if (!conversionState.ok) {
+    return res.status(conversionState.status).json({ message: conversionState.message });
   }
 
   // Check if user already has a pending request
@@ -204,7 +224,10 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     }
   }
 
-  const configuredAmount = Number(await getSettingValue(SETTING_KEYS.SHOP_CONVERSION_AMOUNT, 50000));
+  const configuredAmount = Number(await getRuntimeConfig(SETTING_KEYS.SHOP_CONVERSION_AMOUNT, {
+    countryId,
+    fallback: 50000
+  }));
   const requiredAmount = Number.isFinite(configuredAmount) && configuredAmount > 0 ? configuredAmount : 50000;
 
   // Validate payment amount based on admin setting
@@ -231,6 +254,7 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
   }
 
   const verificationDocuments = {};
+  const verificationDocumentsPublicIds = {};
   try {
     const uploads = await Promise.all(
       verificationFileDefinitions.map(async ([key]) => {
@@ -240,10 +264,13 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
           folder: `shop-conversions/verification/${key}`,
           options: { quality: 'auto', fetch_format: 'auto', flags: 'progressive' }
         });
-        return [key, uploaded.secure_url || uploaded.url || ''];
+        return [key, uploaded.secure_url || uploaded.url || '', uploaded.public_id || ''];
       })
     );
-    uploads.forEach(([key, url]) => { verificationDocuments[key] = url; });
+    uploads.forEach(([key, url, publicId]) => {
+      verificationDocuments[key] = url;
+      verificationDocumentsPublicIds[key] = publicId;
+    });
   } catch (error) {
     console.error('Shop verification upload error:', error);
     return res.status(500).json({ message: 'Erreur lors de l’envoi des justificatifs de la boutique.' });
@@ -251,6 +278,7 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
 
   // Handle logo upload
   let shopLogoUrl = '';
+  let shopLogoPublicId = '';
   const logoFile = req.files?.shopLogo?.[0] || req.file || null;
   if (logoFile) {
     try {
@@ -266,6 +294,7 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
         }
       });
       shopLogoUrl = uploaded.secure_url || uploaded.url;
+      shopLogoPublicId = uploaded.public_id || '';
     } catch (error) {
       console.error('Logo upload error:', error);
       return res.status(500).json({ message: 'Erreur lors de l\'upload du logo.' });
@@ -276,6 +305,8 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
   // after PawaPay confirms the checkout.
   const request = await ShopConversionRequest.create({
     user: user._id,
+    countryId,
+    currency: String(user.preferredCurrency || country?.currency?.code || 'XAF').toUpperCase(),
     shopName: normalizedShopName,
     shopAddress: shopAddress.trim(),
     shopLogo: shopLogoUrl,
@@ -283,12 +314,15 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     verificationDocuments,
     paymentProof: '',
     paymentAmount: amount,
+    feeSnapshot: amount,
     paymentMethod,
     paymentStatus: 'awaiting_payment',
     operator: 'PawaPay',
     transactionName: 'PawaPay',
     transactionNumber: '',
-    status: 'awaiting_payment'
+    status: 'awaiting_payment',
+    verificationDocumentsPublicIds,
+    shopLogoPublicId
   });
 
   res.status(201).json({
@@ -319,12 +353,10 @@ export const completeShopConversionPawaPay = async ({ checkout, requestId }) => 
     throw new Error('Cette demande boutique ne peut plus être payée.');
   }
 
-  const configuredAmount = Number(await getSettingValue(SETTING_KEYS.SHOP_CONVERSION_AMOUNT, 50000));
-  const requiredAmount = Number.isFinite(configuredAmount) && configuredAmount > 0 ? configuredAmount : 50000;
-  if (
-    Math.abs(Number(checkout.amount || 0) - Number(request.paymentAmount || 0)) > 0.01 ||
-    Math.abs(Number(checkout.amount || 0) - requiredAmount) > 0.01
-  ) {
+  if (!shouldHonorConversionRequestAmount({
+    requestAmount: request.paymentAmount,
+    checkoutAmount: checkout.amount
+  })) {
     throw new Error('Le montant confirmé par PawaPay ne correspond pas aux frais boutique.');
   }
 
@@ -332,7 +364,7 @@ export const completeShopConversionPawaPay = async ({ checkout, requestId }) => 
   request.status = 'pending';
   request.operator = 'PawaPay';
   request.transactionName = 'PawaPay';
-  request.transactionNumber = checkout.checkoutId;
+  request.transactionNumber = checkout.providerTransactionId || checkout.depositId || checkout.checkoutId;
   request.pawaPayCheckoutId = checkout.checkoutId;
   await request.save();
 
@@ -365,8 +397,10 @@ export const getUserShopConversionRequests = asyncHandler(async (req, res) => {
  * Get all shop conversion requests (admin only)
  */
 export const getAllShopConversionRequests = asyncHandler(async (req, res) => {
+  ensureConversionAdmin(req);
   const { status } = req.query;
-  const filter = {};
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query.countryId });
+  const filter = { ...(countryFilter || {}) };
   if (status && ['pending', 'approved', 'rejected'].includes(status)) {
     filter.status = status;
   }
@@ -384,6 +418,7 @@ export const getAllShopConversionRequests = asyncHandler(async (req, res) => {
  * Get a single shop conversion request (admin only)
  */
 export const getShopConversionRequest = asyncHandler(async (req, res) => {
+  ensureConversionAdmin(req);
   const { id } = req.params;
   const request = await ShopConversionRequest.findById(id)
     .populate('user', 'name email phone accountType')
@@ -393,6 +428,7 @@ export const getShopConversionRequest = asyncHandler(async (req, res) => {
   if (!request) {
     return res.status(404).json({ message: 'Demande introuvable.' });
   }
+  assertCountryRecordAccess(request, req);
 
   res.json(request);
 });
@@ -401,12 +437,14 @@ export const getShopConversionRequest = asyncHandler(async (req, res) => {
  * Approve a shop conversion request (admin only)
  */
 export const approveShopConversionRequest = asyncHandler(async (req, res) => {
+  ensureConversionAdmin(req);
   const { id } = req.params;
   const request = await ShopConversionRequest.findById(id).populate('user');
 
   if (!request) {
     return res.status(404).json({ message: 'Demande introuvable.' });
   }
+  assertCountryRecordAccess(request, req);
 
   if (request.status !== 'pending') {
     return res.status(400).json({ message: 'Cette demande a déjà été traitée.' });
@@ -424,11 +462,6 @@ export const approveShopConversionRequest = asyncHandler(async (req, res) => {
     return res.status(400).json({
       message: 'Demande incomplète : les quatre justificatifs de la boutique sont obligatoires avant approbation.'
     });
-  }
-
-  const conversionState = await assertShopConversionOpen();
-  if (!conversionState.ok) {
-    return res.status(conversionState.status).json({ message: conversionState.message });
   }
 
   const user = request.user;
@@ -457,7 +490,16 @@ export const approveShopConversionRequest = asyncHandler(async (req, res) => {
   user.shopAddress = request.shopAddress;
   user.shopLogo = request.shopLogo || '';
   user.shopDescription = request.shopDescription || '';
+  // A conversion is tied to the market whose fee and review rules were used.
+  // Persist that market on the account so later product creation, payments,
+  // and public visibility checks cannot drift back to a legacy/default country.
+  if (request.countryId) {
+    user.countryId = request.countryId;
+    user.selectedCountryId = request.countryId;
+    user.preferredCurrency = String(request.currency || user.preferredCurrency || 'XAF').toUpperCase();
+  }
   user.shopVerified = false; // Will need separate verification
+  user.shopVerificationSnapshot = { verified: false, verifiedBy: null, verifiedAt: null };
   user.accountTypeChangedBy = req.user.id;
   user.accountTypeChangedAt = new Date();
   await user.save();
@@ -498,10 +540,107 @@ export const approveShopConversionRequest = asyncHandler(async (req, res) => {
   });
 });
 
+const conversionRefundStatus = (value) => {
+  const status = String(value || '').toUpperCase();
+  if (['COMPLETED', 'SUCCESSFUL'].includes(status)) return 'completed';
+  if (['FAILED', 'REJECTED', 'CANCELLED', 'EXPIRED'].includes(status)) return 'failed';
+  return 'processing';
+};
+
+export const reconcileShopConversionRefund = async (refundId, payload) => {
+  const request = await ShopConversionRequest.findOne({ refundId });
+  if (!request) return null;
+  const status = conversionRefundStatus(payload?.status || payload?.data?.status);
+  const reason = payload?.failureReason?.failureMessage || payload?.data?.failureReason?.failureMessage || payload?.failureReason?.message || '';
+  request.refundStatus = status;
+  request.refundFailureReason = status === 'failed' ? String(reason || 'Le remboursement PawaPay a échoué.').slice(0, 500) : '';
+  if (status === 'completed') request.paymentStatus = 'refunded';
+  await request.save();
+  return request;
+};
+
+const refundPaidConversionRequest = async (request) => {
+  if (request.paymentStatus !== 'paid') return request;
+  if (request.refundStatus === 'completed') return request;
+  const checkout = request.pawaPayCheckoutId
+    ? await PawaPayCheckout.findOne({ checkoutId: request.pawaPayCheckoutId }).lean()
+    : null;
+  const depositId = String(checkout?.depositId || '').trim();
+  if (!depositId) {
+    request.refundStatus = 'needs_attention';
+    request.refundFailureReason = 'Le dépôt PawaPay d’origine est introuvable.';
+    await request.save();
+    return request;
+  }
+  const refundId = request.refundId || crypto.randomUUID();
+  request.refundId = refundId;
+  request.refundStatus = 'processing';
+  request.refundFailureReason = '';
+  await request.save();
+  try {
+    const response = await initiatePawaPayRefund({
+      refundId,
+      depositId,
+      amount: String(request.paymentAmount),
+      currency: request.currency || checkout?.currency || 'XAF',
+      clientReferenceId: String(request._id),
+      metadata: [{ requestId: String(request._id) }, { source: 'SHOP_CONVERSION_REJECTION' }]
+    });
+    return reconcileShopConversionRefund(refundId, response);
+  } catch (error) {
+    request.refundStatus = 'needs_attention';
+    request.refundFailureReason = String(error?.message || 'Impossible de lancer le remboursement PawaPay.').slice(0, 500);
+    await request.save();
+    return request;
+  }
+};
+
+export const cleanupAbandonedShopConversionRequests = async ({ olderThanMs = 24 * 60 * 60 * 1000, limit = 100 } = {}) => {
+  const cutoff = new Date(Date.now() - Math.max(60 * 60 * 1000, Number(olderThanMs) || 0));
+  const requests = await ShopConversionRequest.find({
+    status: 'awaiting_payment',
+    paymentStatus: 'awaiting_payment',
+    createdAt: { $lt: cutoff },
+    documentsCleanedAt: null
+  }).sort({ createdAt: 1 }).limit(Math.min(500, Math.max(1, Number(limit) || 100)));
+  let cleaned = 0;
+  for (const request of requests) {
+    const ids = Object.values(request.verificationDocumentsPublicIds || {}).filter(Boolean);
+    if (request.shopLogoPublicId) ids.push(request.shopLogoPublicId);
+    await Promise.allSettled(ids.map((publicId) => destroyCloudinaryAsset(publicId, { resourceType: 'image' })));
+    request.documentsCleanedAt = new Date();
+    request.verificationDocuments = {
+      shopPaper: '', shopInvoice: '', insidePhoto: '', outsidePhoto: ''
+    };
+    request.shopLogo = '';
+    request.shopLogoPublicId = '';
+    await request.save();
+    cleaned += 1;
+  }
+  return cleaned;
+};
+
+export const reconcilePendingShopConversionRefunds = async ({ limit = 25 } = {}) => {
+  const requests = await ShopConversionRequest.find({
+    refundStatus: { $in: ['processing', 'needs_attention'] },
+    refundId: { $nin: ['', null] }
+  }).sort({ updatedAt: 1 }).limit(Math.min(100, Math.max(1, Number(limit) || 25)));
+  for (const request of requests) {
+    try {
+      const status = await getPawaPayRefundStatus(request.refundId, { timeoutMs: 12_000 });
+      await reconcileShopConversionRefund(request.refundId, status);
+    } catch {
+      // Provider retries and the next scheduled pass remain authoritative.
+    }
+  }
+  return requests.length;
+};
+
 /**
  * Reject a shop conversion request (admin only)
  */
 export const rejectShopConversionRequest = asyncHandler(async (req, res) => {
+  ensureConversionAdmin(req);
   const { id } = req.params;
   const { rejectionReason } = req.body;
 
@@ -510,6 +649,7 @@ export const rejectShopConversionRequest = asyncHandler(async (req, res) => {
   if (!request) {
     return res.status(404).json({ message: 'Demande introuvable.' });
   }
+  assertCountryRecordAccess(request, req);
 
   if (request.status !== 'pending') {
     return res.status(400).json({ message: 'Cette demande a déjà été traitée.' });
@@ -520,6 +660,9 @@ export const rejectShopConversionRequest = asyncHandler(async (req, res) => {
   request.processedAt = new Date();
   request.rejectionReason = (rejectionReason || '').trim();
   await request.save();
+  if (request.paymentStatus === 'paid') {
+    await refundPaidConversionRequest(request);
+  }
 
   // Notify the user that their conversion was rejected
   try {

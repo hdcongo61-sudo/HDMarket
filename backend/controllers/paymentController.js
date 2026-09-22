@@ -2,6 +2,8 @@ import asyncHandler from 'express-async-handler';
 import Payment from '../models/paymentModel.js';
 import Product from '../models/productModel.js';
 import ListingFeePayment from '../models/listingFeePaymentModel.js';
+import { buildCountryDataFilter, getAdminCountryFilter } from '../services/countryService.js';
+import { listingPaymentMatch, listingPaymentStatuses } from '../services/listingPaymentReportService.js';
 import User from '../models/userModel.js';
 import {
   createNotification,
@@ -318,7 +320,12 @@ export const getMyPayments = asyncHandler(async (req, res) => {
 
 export const listPaymentsAdmin = asyncHandler(async (req, res) => {
   const { status, search, startDate, endDate, operator, paymentMethod, sort } = req.query;
-  const query = status ? { status } : {};
+  const countryFilter = { $and: [
+    buildCountryDataFilter(req.countryContext),
+    getAdminCountryFilter(req.user, { countryId: String(req.countryContext?.countryId || '') }) || {}
+  ] };
+  const query = { $and: [countryFilter, listingPaymentMatch], ...(status ? { status: { $in: listingPaymentStatuses[status] || [status] } } : {}) };
+  const productFilter = { ...countryFilter };
 
   const allowedOperators = new Set(['MTN_MONEY', 'AIRTEL_MONEY', 'ORANGE_MONEY', 'OTHER']);
   if (allowedOperators.has(String(operator || '').toUpperCase())) {
@@ -331,7 +338,8 @@ export const listPaymentsAdmin = asyncHandler(async (req, res) => {
 
   if (search && search.trim()) {
     const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    const products = await Product.find({ title: regex }).select('_id');
+    productFilter.title = regex;
+    const products = await Product.find(productFilter).select('_id');
     if (!products.length) {
       return res.json([]);
     }
@@ -361,9 +369,10 @@ export const listPaymentsAdmin = asyncHandler(async (req, res) => {
   const payments = await Payment.find(query)
     .sort({ submittedAt: sortDirection, createdAt: sortDirection, _id: sortDirection })
     .populate('user', 'name email')
-    .populate('product', 'title price status images slug')
+    .populate('product', 'title price status images slug countryId currency')
     .populate('promoCode', 'code discountType discountValue usageLimit usedCount')
-    .populate('validatedBy', 'name email');
+    .populate('validatedBy', 'name email')
+    .lean();
 
   const reconciliationStatus = {
     waiting: 'PENDING',
@@ -375,11 +384,14 @@ export const listPaymentsAdmin = asyncHandler(async (req, res) => {
     submittedAt: { $ne: null },
     ...(reconciliationStatus ? { status: reconciliationStatus } : {})
   };
-  if (query.product) reconciliationQuery.productId = query.product;
+  const productsInCountry = query.product?.$in || (await Product.find(productFilter).select('_id')).map((product) => product._id);
+  reconciliationQuery.productId = { $in: productsInCountry };
   if (query.createdAt) {
     reconciliationQuery.submittedAt = { ...query.createdAt, $ne: null };
   }
-  if (query.paymentMethod && query.paymentMethod !== 'mobile_money') {
+  if (query.paymentMethod === 'pawapay') reconciliationQuery.paymentMethod = 'pawapay';
+  if (query.paymentMethod === 'mobile_money') reconciliationQuery.paymentMethod = { $ne: 'pawapay' };
+  if (query.paymentMethod === 'promo') {
     reconciliationQuery._id = { $exists: false };
   }
   const normalizedOperator = String(operator || '').toUpperCase();
@@ -390,13 +402,16 @@ export const listPaymentsAdmin = asyncHandler(async (req, res) => {
       ORANGE_MONEY: 'Orange',
       OTHER: 'Other'
     };
-    reconciliationQuery.paymentMethod = methodByOperator[normalizedOperator] || normalizedOperator;
+    const method = methodByOperator[normalizedOperator] || normalizedOperator;
+    reconciliationQuery.paymentMethod = normalizedOperator === 'OTHER' && query.paymentMethod !== 'mobile_money'
+      ? { $in: [method, 'pawapay'] } : method;
+    if (query.paymentMethod === 'pawapay' && normalizedOperator !== 'OTHER') reconciliationQuery._id = { $exists: false };
   }
 
   const reconciliationPayments = await ListingFeePayment.find(reconciliationQuery)
     .sort({ submittedAt: sortDirection, createdAt: sortDirection, _id: sortDirection })
     .populate('sellerId', 'name email')
-    .populate('productId', 'title price status images slug pendingPrice')
+    .populate('productId', 'title price status images slug pendingPrice countryId currency')
     .populate('validatedBy', 'name email');
 
   const normalizedReconciliations = reconciliationPayments.map((entry) => ({
@@ -413,8 +428,10 @@ export const listPaymentsAdmin = asyncHandler(async (req, res) => {
     commissionDueAmount: entry.remainingFee,
     commissionBaseAmount: entry.requiredFee,
     commissionReferencePrice: entry.newPrice,
-    paymentMethod: 'mobile_money',
-    operator: entry.paymentMethod,
+    paymentMethod: entry.paymentMethod === 'pawapay' ? 'pawapay' : 'mobile_money',
+    operator: entry.paymentMethod === 'pawapay' ? 'OTHER' : entry.paymentMethod,
+    currency: entry.currency || entry.productId?.currency || 'XAF',
+    countryId: entry.countryId || entry.productId?.countryId || null,
     oldPrice: entry.oldPrice,
     newPrice: entry.newPrice,
     oldFee: entry.oldFee,
@@ -427,7 +444,11 @@ export const listPaymentsAdmin = asyncHandler(async (req, res) => {
     validatedBy: entry.validatedBy
   }));
 
-  const combined = [...payments.map((payment) => payment.toObject()), ...normalizedReconciliations];
+  const combined = [...payments.map((payment) => ({
+    ...payment,
+    status: Object.entries(listingPaymentStatuses).find(([, values]) => values.includes(payment.status))?.[0] || payment.status,
+    currency: payment.currency || payment.product?.currency || 'XAF'
+  })), ...normalizedReconciliations];
   combined.sort((left, right) => {
     const leftDate = new Date(left.submittedAt || left.createdAt || 0).getTime();
     const rightDate = new Date(right.submittedAt || right.createdAt || 0).getTime();
@@ -436,7 +457,7 @@ export const listPaymentsAdmin = asyncHandler(async (req, res) => {
   res.json(combined);
 });
 
-const approveListingFeeReconciliation = async ({ payment, reviewerId }) => {
+export const approveListingFeeReconciliation = async ({ payment, reviewerId, productSnapshot = payment.productId }) => {
   if (payment.status === 'APPROVED') {
     return { message: 'Complément déjà validé, nouveau prix déjà publié.' };
   }
@@ -445,7 +466,10 @@ const approveListingFeeReconciliation = async ({ payment, reviewerId }) => {
     error.status = 409;
     throw error;
   }
-  if (Math.abs(Number(payment.amountPaid || 0) - Number(payment.remainingFee || 0)) > 0.02) {
+  const expected = payment.paymentMethod === 'pawapay'
+    ? Math.max(10, Math.ceil(Number(payment.remainingFee || 0)))
+    : Number(payment.remainingFee || 0);
+  if (Math.abs(Number(payment.amountPaid || 0) - expected) > 0.02) {
     const error = new Error('Le montant reçu ne correspond pas au complément requis.');
     error.status = 409;
     throw error;
@@ -466,15 +490,15 @@ const approveListingFeeReconciliation = async ({ payment, reviewerId }) => {
     priceChangeApprovedAt: now,
     listingFeeSettled: true
   };
-  if (payment.productId?.pendingPriceBeforeDiscount != null) {
-    setFields.priceBeforeDiscount = Number(payment.productId.pendingPriceBeforeDiscount);
+  if (productSnapshot?.pendingPriceBeforeDiscount != null) {
+    setFields.priceBeforeDiscount = Number(productSnapshot.pendingPriceBeforeDiscount);
   }
-  if (payment.productId?.pendingDiscount != null) {
-    setFields.discount = Number(payment.productId.pendingDiscount);
+  if (productSnapshot?.pendingDiscount != null) {
+    setFields.discount = Number(productSnapshot.pendingDiscount);
   }
 
   const productUpdate = { $set: setFields };
-  if (payment.productId?.pendingPriceBeforeDiscount == null) {
+  if (productSnapshot?.pendingPriceBeforeDiscount == null) {
     productUpdate.$unset = { priceBeforeDiscount: 1 };
   }
   let product = await Product.findOneAndUpdate(

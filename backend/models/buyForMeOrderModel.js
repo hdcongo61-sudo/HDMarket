@@ -101,8 +101,8 @@ const buyForMeOrderSchema = new mongoose.Schema(
     },
     balancePreference: {
       type: String,
-      enum: ['WALLET_REFUND', 'DRIVER_TIP', 'PLATFORM_DONATION'],
-      default: 'WALLET_REFUND'
+      enum: ['ORIGINAL_PAYMENT', 'WALLET_REFUND', 'DRIVER_TIP', 'PLATFORM_DONATION'],
+      default: 'ORIGINAL_PAYMENT'
     },
     payment: {
       method: { type: String, enum: ['PAWAPAY'], default: 'PAWAPAY' },
@@ -114,6 +114,10 @@ const buyForMeOrderSchema = new mongoose.Schema(
     receiptId: { type: mongoose.Schema.Types.ObjectId, ref: 'BuyForMeReceipt', default: null },
     amountSpent: { type: Number, min: 0, default: 0 },
     remainingBalance: { type: Number, min: 0, default: 0 },
+    settlementVersion: { type: Number, default: 0 },
+    refundDue: { type: Number, min: 0, default: 0 },
+    refundedAmount: { type: Number, min: 0, default: 0 },
+    disputeOpen: { type: Boolean, default: false },
     additionalPayment: {
       required: { type: Boolean, default: false },
       amount: { type: Number, min: 0, default: 0 },
@@ -151,7 +155,7 @@ const buyForMeOrderSchema = new mongoose.Schema(
     cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     timeline: { type: [timelineSchema], default: [] }
   },
-  { timestamps: true, collection: 'shopping_orders' }
+  { timestamps: true, collection: 'shopping_orders', optimisticConcurrency: true }
 );
 
 buyForMeOrderSchema.index({ status: 1, createdAt: -1 });

@@ -7,7 +7,7 @@ import globals from 'globals';
 // as they're touched, rather than fixing 189k lines in one pass.
 export default [
   {
-    ignores: ['node_modules/**', 'seed/**/*.json', 'uploads/**']
+    ignores: ['node_modules/**', 'seed/**/*.json', 'uploads/**', 'private-uploads/**']
   },
   {
     files: ['**/*.js'],

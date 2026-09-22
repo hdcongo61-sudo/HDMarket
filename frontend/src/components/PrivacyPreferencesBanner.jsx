@@ -1,12 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { CakeIcon } from '@heroicons/react/24/outline';
-import { getPrivacyPreference, setPrivacyPreference } from '../services/privacyPreferences';
+import { Link, useLocation } from 'react-router-dom';
+import { getPrivacyPreference, setPrivacyPreference, subscribePrivacyPreference } from '../services/privacyPreferences';
 
 export default function PrivacyPreferencesBanner() {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => setVisible(!getPrivacyPreference()), []);
-  if (!visible) return null;
-  const choose = (value) => { setPrivacyPreference(value); setVisible(false); };
-  return <aside className="fixed inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] z-[80] mx-auto max-w-3xl rounded-2xl border border-neutral-300 bg-white p-4 shadow-sm md:bottom-4" role="dialog" aria-label="Préférences de confidentialité"><div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#e85d00]"><CakeIcon className="h-5 w-5" /></span><div className="min-w-0 flex-1"><h2 className="font-black">Votre confidentialité</h2><p className="mt-1 text-xs leading-5 text-neutral-600">Les fonctions essentielles utilisent le stockage local. Avec votre accord, nous utilisons aussi une mesure d’audience pour améliorer HDMarket.</p><Link to="/cookies" className="mt-1 inline-block text-xs font-bold text-[#c2410c] underline">Voir les détails</Link></div></div><div className="mt-3 grid gap-2 sm:grid-cols-2"><button type="button" onClick={() => choose('essential')} className="min-h-11 rounded-xl border border-neutral-300 px-4 text-sm font-black">Essentiels uniquement</button><button type="button" onClick={() => choose('analytics')} className="min-h-11 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white">Tout autoriser</button></div></aside>;
+  const [visible, setVisible] = useState(() => !getPrivacyPreference());
+  const { pathname } = useLocation();
+  useEffect(() => subscribePrivacyPreference(() => setVisible(!getPrivacyPreference())), []);
+  if (!visible || pathname === '/cookies') return null;
+  const buttonClass = 'min-h-11 rounded-xl border border-neutral-500 bg-white px-4 py-2 text-sm font-bold text-neutral-900 hover:bg-orange-50';
+  return <aside className="fixed inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] z-[80] mx-auto max-h-[60dvh] max-w-3xl overflow-y-auto rounded-2xl border border-neutral-300 bg-white p-4 text-neutral-900 shadow-lg md:bottom-4" aria-labelledby="privacy-banner-title">
+    <h2 id="privacy-banner-title" className="font-black">Votre confidentialité</h2>
+    <p className="mt-1 text-sm leading-6 text-neutral-700">Le stockage essentiel permet la connexion et le panier. Avec votre accord, nous activons les statistiques d’utilisation et le diagnostic des erreurs. Refuser n’empêche pas d’utiliser HDMarket.</p>
+    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+      <button type="button" onClick={() => setPrivacyPreference('essential')} className={buttonClass}>Tout refuser</button>
+      <button type="button" onClick={() => setPrivacyPreference({ analytics: true, diagnostics: true })} className={buttonClass}>Tout autoriser</button>
+      <Link to="/cookies" className={`${buttonClass} inline-flex items-center justify-center underline`}>Personnaliser</Link>
+    </div>
+    <p className="mt-2 text-xs leading-5 text-neutral-600">Modifiable à tout moment depuis « Cookies et confidentialité » en bas de page. <Link to="/confidentialite" className="font-bold text-[#9a3412] underline">Politique de confidentialité</Link></p>
+  </aside>;
 }

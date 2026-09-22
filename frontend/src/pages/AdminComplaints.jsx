@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import { ArrowPathIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon, MagnifyingGlassIcon, PaperClipIcon, ScaleIcon, ShieldExclamationIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
+import PrivateAttachmentLink from '../components/PrivateAttachmentLink';
 import { useToast } from '../context/ToastContext';
 import { AdminCommandHero, AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
 
@@ -186,7 +187,7 @@ export default function AdminComplaints() {
     }
     setActioningId(id);
     try {
-      await api.patch(`/disputes/admin/${id}/decision`, {
+      const { data } = await api.patch(`/disputes/admin/${id}/decision`, {
         resolutionType: draft.resolutionType,
         resolutionAmount: ['refund_partial', 'compensation'].includes(draft.resolutionType)
           ? Number(draft.resolutionAmount)
@@ -194,7 +195,7 @@ export default function AdminComplaints() {
         favor: draft.favor,
         adminDecision: draft.adminDecision.trim()
       });
-      showToast('Litige résolu.', { variant: 'success' });
+      showToast(data.message || 'Litige résolu.', { variant: data.dispute?.refundError ? 'error' : 'success' });
       await loadDisputes();
     } catch (err) {
       showToast(err.response?.data?.message || 'Impossible de résoudre ce litige.', {
@@ -217,6 +218,19 @@ export default function AdminComplaints() {
         variant: 'error'
       });
     } finally {
+      setActioningId('');
+    }
+  };
+
+  const retryRefund = async (disputeId) => {
+    setActioningId(`retry-${disputeId}`);
+    try {
+      const { data } = await api.post(`/disputes/admin/${disputeId}/retry-refund`);
+      showToast(data.message, { variant: data.refund?.status === 'FAILED' ? 'error' : 'success' });
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Impossible de relancer le remboursement.', { variant: 'error' });
+    } finally {
+      await loadDisputes();
       setActioningId('');
     }
   };
@@ -436,16 +450,14 @@ export default function AdminComplaints() {
                   {item.proofImages?.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {item.proofImages.map((file, index) => (
-                        <a
+                        <PrivateAttachmentLink
                           key={`${item._id}-cp-${index}`}
-                          href={file.url}
-                          target="_blank"
-                          rel="noreferrer"
+                          file={file}
                           className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs text-gray-700"
                         >
                           <PaperClipIcon className="h-3.5 w-3.5" />
                           {file.originalName || file.filename || 'preuve client'}
-                        </a>
+                        </PrivateAttachmentLink>
                       ))}
                     </div>
                   )}
@@ -460,16 +472,14 @@ export default function AdminComplaints() {
                   {item.sellerProofImages?.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {item.sellerProofImages.map((file, index) => (
-                        <a
+                        <PrivateAttachmentLink
                           key={`${item._id}-sp-${index}`}
-                          href={file.url}
-                          target="_blank"
-                          rel="noreferrer"
+                          file={file}
                           className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-700"
                         >
                           <PaperClipIcon className="h-3.5 w-3.5" />
                           {file.originalName || file.filename || 'preuve vendeur'}
-                        </a>
+                        </PrivateAttachmentLink>
                       ))}
                     </div>
                   )}
@@ -509,6 +519,13 @@ export default function AdminComplaints() {
                             </button>
                           )}
                         </div>
+                      )}
+                      {item.refundError && <p className="mt-2 text-sm text-red-700" role="alert">{item.refundError}</p>}
+                      {['refund_full', 'refund_partial', 'compensation'].includes(item.resolutionType) && item.orderId?.refundStatus !== 'processed' && (
+                        <button type="button" onClick={() => retryRefund(item._id)} disabled={Boolean(actioningId)}
+                          className="mt-2 min-h-11 rounded-lg bg-[#c2410c] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                          {actioningId === `retry-${item._id}` ? 'Vérification…' : 'Relancer / vérifier le remboursement'}
+                        </button>
                       )}
                       {item.resolvedAt && (
                         <p className="inline-flex items-center gap-1 text-xs text-emerald-700 mt-1">

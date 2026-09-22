@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUturnLeftIcon, BellIcon, BoltIcon, BuildingStorefrontIcon, CalendarDaysIcon, ChartBarIcon, ChatBubbleLeftIcon, CheckBadgeIcon, CheckCircleIcon, CheckIcon, ChevronRightIcon, ClockIcon, DevicePhoneMobileIcon, DocumentTextIcon, FilmIcon, GiftIcon, HashtagIcon, HeartIcon, LockClosedIcon, MapPinIcon, ReceiptPercentIcon, RocketLaunchIcon, ShieldCheckIcon, ShieldExclamationIcon, ShoppingBagIcon, ShoppingCartIcon, SparklesIcon, Square3Stack3DIcon, StarIcon, TicketIcon, TruckIcon, UsersIcon, WifiIcon } from '@heroicons/react/24/outline';
 import { useAppSettings } from '../context/AppSettingsContext';
+import useServiceAvailability from '../hooks/useServiceAvailability';
 
 const SECTION_IDS = {
   shopping: 'achat-malin',
@@ -95,22 +96,19 @@ function SectionHeader({ id, eyebrow, title, subtitle }) {
 }
 
 export default function Benefits() {
+  const { buyForMeEnabled, parcelDeliveryEnabled, payForOtherEnabled, fullPaymentFreeDeliveryEnabled: fullPaymentFreeDelivery } = useServiceAvailability();
   const { getRuntimeValue, isFeatureEnabled } = useAppSettings();
 
   const isFlagOn = (key, fallback = false) =>
     ['true', '1', 'yes', 'on'].includes(String(getRuntimeValue(key, fallback)).trim().toLowerCase());
 
-  const payForOtherEnabled = isFlagOn('enable_pay_for_other');
   const wholesaleEnabled = isFlagOn('enable_wholesale');
   const groupBuyingEnabled = isFlagOn('enable_group_buying');
   const platformDeliveryEnabled = isFlagOn('enable_platform_delivery');
-  const fullPaymentFreeDelivery = isFlagOn('enable_full_payment_free_delivery', true);
   const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
   const referralProgramEnabled = isFlagOn('enable_referral_program');
-  const parcelDeliveryEnabled = isFlagOn('enable_parcel_delivery', true);
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', { defaultValue: false });
-  // "Acheter pour moi" and the fast-registration card always render in this
-  // section, so it's never empty regardless of the other three flags.
+  // Registration is always available, even when optional services are disabled.
   const hasServicesSection = true;
 
   const navChips = useMemo(
@@ -623,14 +621,14 @@ export default function Benefits() {
                   cta="Envoyer un colis"
                 />
               )}
-              <FeatureCard
+              {buyForMeEnabled && <FeatureCard
                 icon={ShoppingBagIcon}
                 title="Acheter pour moi"
                 benefit="Pas le temps d’aller en boutique ? Décrivez ce qu’il vous faut : un livreur fait les achats à votre place et vous les apporte."
                 steps={['Décrivez les articles et le magasin si vous en avez un', 'Un livreur achète et vous livre', 'Suivez la demande dans « Mes demandes »']}
                 to="/buy-for-me"
                 cta="Faire mes courses"
-              />
+              />}
               {aiRecommendationsEnabled && (
                 <FeatureCard
                   icon={SparklesIcon}

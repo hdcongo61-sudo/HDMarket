@@ -5,6 +5,7 @@ import { ArrowLeftIcon, ArrowUpTrayIcon, ChatBubbleLeftIcon, CheckCircleIcon, Cl
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
+import PrivateAttachmentLink from '../components/PrivateAttachmentLink';
 import { useAppSettings } from '../context/AppSettingsContext';
 
 const MAX_DESCRIPTION = 2000;
@@ -167,38 +168,22 @@ export default function MyComplaints() {
 
   const loadEligibleOrders = useCallback(async () => {
     try {
-      const [proofSubmittedRes, deliveredRes, completedRes] = await Promise.allSettled([
-        api.get('/orders', { params: { status: 'delivery_proof_submitted', limit: 50, page: 1 } }),
-        api.get('/orders', { params: { status: 'delivered', limit: 50, page: 1 } }),
-        api.get('/orders', { params: { status: 'completed', limit: 50, page: 1 } })
-      ]);
-      const proofSubmitted =
-        proofSubmittedRes.status === 'fulfilled' && Array.isArray(proofSubmittedRes.value?.data?.items)
-          ? proofSubmittedRes.value.data.items
-          : [];
-      const delivered =
-        deliveredRes.status === 'fulfilled' && Array.isArray(deliveredRes.value?.data?.items)
-          ? deliveredRes.value.data.items
-          : [];
-      const completed =
-        completedRes.status === 'fulfilled' && Array.isArray(completedRes.value?.data?.items)
-          ? completedRes.value.data.items
-          : [];
-      const map = new Map();
-      [...proofSubmitted, ...delivered, ...completed].forEach((order) => {
-        if (order?._id) map.set(order._id, order);
-      });
-      setOrders(
-        Array.from(map.values()).filter((order) => {
-          if (String(order?.paymentSource || '').toLowerCase() !== 'pawapay') return true;
-          if (!escrowDisputeEnabled || ['RELEASED', 'REFUNDED'].includes(order?.escrowStatus)) return false;
-          return !order?.autoReleaseAt || new Date(order.autoReleaseAt).getTime() > Date.now();
-        })
-      );
+      const { data } = await api.get('/disputes/eligible-orders', { skipCache: true });
+      setOrders(Array.isArray(data) ? data : []);
     } catch (err) {
       setOrders([]);
     }
   }, [escrowDisputeEnabled]);
+
+  const selectedOrder = orders.find(order => order._id === orderId);
+  const reasonOptions = selectedOrder
+    ? REASON_OPTIONS.filter(option => selectedOrder.allowedDisputeReasons?.includes(option.value))
+    : REASON_OPTIONS;
+  useEffect(() => {
+    if (selectedOrder && !selectedOrder.allowedDisputeReasons?.includes(reason)) {
+      setReason(selectedOrder.allowedDisputeReasons?.[0] || 'not_received');
+    }
+  }, [selectedOrder, reason]);
 
   useEffect(() => {
     if (!user) return;
@@ -232,7 +217,7 @@ export default function MyComplaints() {
     event.preventDefault();
     setSubmitError('');
     if (!orderId) {
-      setSubmitError('Sélectionnez une commande livrée.');
+      setSubmitError('Sélectionnez une commande.');
       return;
     }
     if (!description.trim() || description.trim().length < 10) {
@@ -256,6 +241,7 @@ export default function MyComplaints() {
       setDescription('');
       setFiles([]);
       await loadDisputes();
+      await loadEligibleOrders();
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Impossible de créer le litige.';
       setSubmitError(message);
@@ -302,7 +288,7 @@ export default function MyComplaints() {
             <div>
                 <h1 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">Réclamations</h1>
                 <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/86">
-                Vous pouvez bloquer les fonds d’une commande livrée pendant {escrowDisputeMinutes} minutes.
+                Signalez une commande non reçue. Après la remise, vous pouvez contester la livraison pendant {escrowDisputeMinutes} minutes avant la libération des fonds.
               </p>
             </div>
           </div>
@@ -321,7 +307,7 @@ export default function MyComplaints() {
                   disabled={submitLoading}
                   required
                 >
-                  <option value="">Sélectionnez une commande livrée</option>
+                  <option value="">Sélectionnez une commande</option>
                   {orders.map((order) => (
                     <option key={order._id} value={order._id}>
                       #{String(order._id).slice(-6)} · {amount(order.totalAmount)} · {formatDate(order.deliveredAt || order.createdAt)}
@@ -337,7 +323,7 @@ export default function MyComplaints() {
                   onChange={(e) => setReason(e.target.value)}
                   disabled={submitLoading}
                 >
-                  {REASON_OPTIONS.map((option) => (
+                  {reasonOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -491,16 +477,14 @@ export default function MyComplaints() {
                   {dispute.proofImages?.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {dispute.proofImages.map((file, index) => (
-                        <a
+                        <PrivateAttachmentLink
                           key={`${dispute._id}-proof-${index}`}
-                          href={file.url}
-                          target="_blank"
-                          rel="noreferrer"
+                          file={file}
                           className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-500"
                         >
                           <PaperClipIcon className="h-3.5 w-3.5" />
                           {file.originalName || file.filename || 'preuve'}
-                        </a>
+                        </PrivateAttachmentLink>
                       ))}
                     </div>
                   )}

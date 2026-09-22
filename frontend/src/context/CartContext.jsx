@@ -3,6 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import api from '../services/api';
 import AuthContext from './AuthContext';
 import { useCountry } from './CountryContext';
+import { readGuestCart, writeGuestCart, clearGuestCart, guestCartSelections } from '../utils/guestCart';
 import {
   buildCartItemMutationKey,
   patchCartItemQuantity,
@@ -31,9 +32,17 @@ const CartContext = createContext({
 
 export const CartProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
-  const { country } = useCountry();
+  const { country, loading: countryLoading } = useCountry();
+  const countryId = String(country?.id || country?._id || '');
+  const userId = String(user?._id || user?.id || '');
+  const scope = `${userId}:${countryId}`;
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const mergeRef = useRef(null);
+  const guestQueue = useRef(Promise.resolve());
   const [cart, setCart] = useState(initialCart);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadedScope, setLoadedScope] = useState('');
   const [error, setError] = useState('');
   const mutationSeqRef = useRef(0);
   const latestItemMutationRef = useRef(new Map());
@@ -49,50 +58,116 @@ export const CartProvider = ({ children }) => {
         countryId: data.countryId || '',
         currency: data.currency || '',
         updatedAt: data.updatedAt || null
-      }));
+      }, { preservePricing: true }));
     }
   }, []);
 
+  const ensureGuestMerged = useCallback(async () => {
+    if (!userId) return;
+    await guestQueue.current.catch(() => {});
+    if (scopeRef.current !== scope) return;
+    if (mergeRef.current?.scope === scope) return mergeRef.current.promise;
+    const guest = readGuestCart(countryId);
+    if (!guest.items?.length || !guest.mergeId) return;
+    const promise = api.post('/cart/merge', { mergeId: guest.mergeId, items: guestCartSelections(guest) }, { headers: { 'x-country-id': countryId } })
+      .then(({ data }) => {
+        clearGuestCart(countryId, guest.mergeId);
+        if (scopeRef.current === scope && data.rejected?.length) {
+          setError(`${data.rejected.length} article(s) ne sont plus disponibles. Les autres ont été conservés.`);
+        }
+        return data;
+      }).finally(() => { if (mergeRef.current?.promise === promise) mergeRef.current = null; });
+    mergeRef.current = { scope, promise };
+    return promise;
+  }, [countryId, scope, userId]);
+
+  const mutateGuest = useCallback((mutation) => {
+    const operation = guestQueue.current.catch(() => {}).then(async () => {
+      const current = readGuestCart(countryId);
+      const next = await mutation(current);
+      const saved = writeGuestCart(countryId, { ...next, countryId, currency: country?.currency?.code || 'XAF' });
+      if (scopeRef.current === scope) handleResponse(saved);
+      return saved;
+    });
+    guestQueue.current = operation;
+    return operation;
+  }, [countryId, country?.currency?.code, handleResponse, scope]);
+
   const fetchCart = useCallback(async () => {
+    if (!countryId) {
+      setLoading(false);
+      setLoadedScope(scope);
+      return;
+    }
     if (!user) {
-      setCart(initialCart);
+      const guest = readGuestCart(countryId);
+      handleResponse(guest);
+      setLoading(false);
+      setLoadedScope(scope);
       setError('');
+      if (guest.items.length) {
+        try {
+          const { data } = await api.post('/cart/preview', { items: guestCartSelections(guest) }, { headers: { 'x-country-id': countryId } });
+          if (scopeRef.current !== scope || readGuestCart(countryId).mergeId !== guest.mergeId) return;
+          handleResponse(writeGuestCart(countryId, { ...data, mergeId: guest.mergeId }, { changed: false }));
+          if (data.rejected?.length) setError('Certains articles ne sont plus disponibles et ont été retirés du panier.');
+        } catch { /* Keep the saved cart when offline; checkout revalidates on the server. */ }
+      }
       return;
     }
     setLoading(true);
     try {
-      const { data } = await api.get('/cart');
-      handleResponse(data);
       setError('');
+      const merged = await ensureGuestMerged();
+      const { data } = merged ? { data: merged } : await api.get('/cart', { skipCache: true, headers: { 'x-country-id': countryId } });
+      if (scopeRef.current === scope) handleResponse(data);
     } catch (e) {
+      if (scopeRef.current !== scope) return;
       if (e.response?.status === 401) {
         setCart(initialCart);
       } else {
         setError(e.response?.data?.message || e.message || 'Erreur lors du chargement du panier.');
       }
     } finally {
-      setLoading(false);
+      if (scopeRef.current === scope) { setLoading(false); setLoadedScope(scope); }
     }
-  }, [country?.id, country?._id, handleResponse, user]);
+  }, [countryId, ensureGuestMerged, handleResponse, scope, user]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchCart();
-    }, user ? 700 : 0);
-    return () => clearTimeout(timer);
+    setCart(initialCart);
+    void fetchCart();
   }, [fetchCart]);
 
   const addItem = useCallback(
     async (productId, quantity = 1, selectedAttributes = []) => {
-      if (!user) return;
+      if (!countryId) throw new Error('Choisissez votre pays avant d’ajouter un article.');
+      if (!user) {
+        setLoading(true);
+        setError('');
+        try {
+          await mutateGuest(async (current) => {
+            const items = [...guestCartSelections(current), { productId, quantity, selectedAttributes }];
+            const { data } = await api.post('/cart/preview', { items }, { headers: { 'x-country-id': countryId } });
+            if (data.rejected?.some((item) => item.productId === productId)) throw new Error('Ce produit ou cette option est indisponible.');
+            return data;
+          });
+          captureMonitoring('cart_item_added', { quantity: Number(quantity) || 1 });
+        } catch (e) {
+          setError(e.response?.data?.message || e.message);
+          throw e;
+        } finally { setLoading(false); }
+        return;
+      }
       setLoading(true);
       try {
+        await ensureGuestMerged();
+        if (scopeRef.current !== scope) return;
         const { data } = await api.post('/cart/items', {
           productId,
           quantity,
           selectedAttributes
         });
-        handleResponse(data);
+        if (scopeRef.current === scope) handleResponse(data);
         captureMonitoring('cart_item_added', { quantity: Number(quantity) || 1 });
         setError('');
       } catch (e) {
@@ -102,12 +177,16 @@ export const CartProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    [handleResponse, user]
+    [countryId, ensureGuestMerged, handleResponse, mutateGuest, scope, user]
   );
 
   const updateItem = useCallback(
     async (productId, quantity, selectedAttributes = [], selectionKey = '') => {
-      if (!user) return;
+      if (!user) return mutateGuest(async (current) => {
+        const next = patchCartItemQuantity(current, { productId, quantity, selectedAttributes, selectionKey });
+        const { data } = await api.post('/cart/preview', { items: guestCartSelections(next) }, { headers: { 'x-country-id': countryId } });
+        return data;
+      });
       const mutationKey = buildCartItemMutationKey({ productId, selectionKey, selectedAttributes });
       const mutationSeq = mutationSeqRef.current + 1;
       mutationSeqRef.current = mutationSeq;
@@ -129,7 +208,7 @@ export const CartProvider = ({ children }) => {
             data: { selectionKey, selectedAttributes },
             silentGlobalError: true
           });
-          if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+          if (scopeRef.current === scope && latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
             handleResponse(data);
           }
         } else {
@@ -138,7 +217,7 @@ export const CartProvider = ({ children }) => {
             selectionKey,
             selectedAttributes
           });
-          if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+          if (scopeRef.current === scope && latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
             handleResponse(data);
           }
         }
@@ -148,7 +227,7 @@ export const CartProvider = ({ children }) => {
           setError('');
           return;
         }
-        if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+        if (scopeRef.current === scope && latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
           setCart(rollbackCart);
           setError(e.response?.data?.message || e.message || 'Impossible de mettre à jour le panier.');
         }
@@ -159,12 +238,12 @@ export const CartProvider = ({ children }) => {
         }
       }
     },
-    [cart, handleResponse, user]
+    [cart, countryId, handleResponse, mutateGuest, scope, user]
   );
 
   const removeItem = useCallback(
     (productId, selectedAttributes = [], selectionKey = '') => {
-      if (!user) return;
+      if (!user) return updateItem(productId, 0, selectedAttributes, selectionKey);
       const mutationKey = buildCartItemMutationKey({ productId, selectionKey, selectedAttributes });
       const pendingRemoval = pendingRemovalPromisesRef.current.get(mutationKey);
       if (pendingRemoval) return pendingRemoval;
@@ -192,7 +271,7 @@ export const CartProvider = ({ children }) => {
             data: { selectionKey, selectedAttributes },
             silentGlobalError: true
           });
-          if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+          if (scopeRef.current === scope && latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
             handleResponse(data);
           }
           setError('');
@@ -203,7 +282,7 @@ export const CartProvider = ({ children }) => {
             setError('');
             return;
           }
-          if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+          if (scopeRef.current === scope && latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
             setCart(rollbackCart);
             setError(e.response?.data?.message || e.message || 'Impossible de retirer l’article.');
           }
@@ -224,18 +303,17 @@ export const CartProvider = ({ children }) => {
       void removalPromise.then(clearPendingRemoval, clearPendingRemoval);
       return removalPromise;
     },
-    [cart, handleResponse, user]
+    [cart, handleResponse, scope, updateItem, user]
   );
 
   const clearCart = useCallback(async () => {
     if (!user) {
-      setCart(initialCart);
-      return;
+      return mutateGuest(() => initialCart);
     }
     setLoading(true);
     try {
       const { data } = await api.delete('/cart');
-      handleResponse(data);
+      if (scopeRef.current === scope) handleResponse(data);
       setError('');
     } catch (e) {
       setError(e.response?.data?.message || e.message || 'Impossible de vider le panier.');
@@ -243,12 +321,12 @@ export const CartProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [handleResponse, user]);
+  }, [handleResponse, mutateGuest, scope, user]);
 
   const value = useMemo(
     () => ({
-      cart,
-      loading,
+      cart: loadedScope === scope ? cart : initialCart,
+      loading: loading || Boolean(countryLoading) || loadedScope !== scope,
       error,
       addItem,
       updateItem,
@@ -256,7 +334,7 @@ export const CartProvider = ({ children }) => {
       clearCart,
       refresh: fetchCart
     }),
-    [addItem, cart, clearCart, error, fetchCart, loading, removeItem, updateItem]
+    [addItem, cart, clearCart, error, fetchCart, loading, countryLoading, loadedScope, scope, removeItem, updateItem]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

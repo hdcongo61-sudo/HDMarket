@@ -6,7 +6,7 @@ const buyForMeTransactionSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     type: {
       type: String,
-      enum: ['FUNDING', 'ADDITIONAL_FUNDING', 'DRIVER_EARNING', 'WALLET_REFUND', 'DRIVER_TIP', 'PLATFORM_DONATION'],
+      enum: ['FUNDING', 'ADDITIONAL_FUNDING', 'DRIVER_EARNING', 'DRIVER_REIMBURSEMENT', 'REFUND', 'WALLET_REFUND', 'DRIVER_TIP', 'PLATFORM_DONATION'],
       required: true
     },
     amount: { type: Number, required: true, min: 0 },

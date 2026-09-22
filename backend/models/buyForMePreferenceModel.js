@@ -5,8 +5,8 @@ const buyForMePreferenceSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true, index: true },
     defaultBalancePreference: {
       type: String,
-      enum: ['WALLET_REFUND', 'DRIVER_TIP', 'PLATFORM_DONATION'],
-      default: 'WALLET_REFUND'
+      enum: ['ORIGINAL_PAYMENT', 'WALLET_REFUND', 'DRIVER_TIP', 'PLATFORM_DONATION'],
+      default: 'ORIGINAL_PAYMENT'
     }
   },
   { timestamps: true, collection: 'shopping_preferences' }

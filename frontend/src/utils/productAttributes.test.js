@@ -8,10 +8,21 @@ import {
   resolveProductImagePrice,
   resolveSelectedAttributesImage,
   resolveSelectedAttributesPrice,
+  selectAttributesForImage,
   validateSelectedAttributes
 } from './productAttributes';
 
 describe('saving photo prices', () => {
+  it('selects the pictured item for purchase and preserves unrelated options', () => {
+    const attributes = [buildImageVariantAttribute({ 0: { label: 'Commode', price: 170000 }, 3: { label: 'Miroir', price: 45000 } }), { name: 'Couleur', type: 'select', options: ['Blanc', 'Noir'] }];
+    const selection = selectAttributesForImage({ productAttributes: attributes, imageIndex: 3, selectedAttributes: [{ name: attributes[0].name, value: 'Commode' }, { name: 'Couleur', value: 'Blanc' }] });
+    expect(selection.selectedAttributes).toContainEqual({ name: 'Couleur', value: 'Blanc' });
+    expect(selection.selectedAttributes).toContainEqual({ name: attributes[0].name, value: 'Miroir' });
+    expect(resolveSelectedAttributesPrice({ productAttributes: attributes, selectedAttributes: selection.selectedAttributes, basePrice: 170000 }).unitPrice).toBe(45000);
+    const back = selectAttributesForImage({ productAttributes: attributes, imageIndex: 0, selectedAttributes: selection.selectedAttributes });
+    expect(resolveSelectedAttributesPrice({ productAttributes: attributes, selectedAttributes: back.selectedAttributes, basePrice: 170000 }).unitPrice).toBe(170000);
+    expect(selectAttributesForImage({ productAttributes: attributes, imageIndex: 2, selectedAttributes: back.selectedAttributes }).selectedAttributes).toEqual(back.selectedAttributes);
+  });
   it('preserves an unnamed fourth photo price through save, reload and gallery lookup', () => {
     const saved = buildImageVariantAttribute({ 3: { price: '45000', label: '' } });
     const attributes = normalizeProductAttributes(JSON.parse(JSON.stringify([saved])));

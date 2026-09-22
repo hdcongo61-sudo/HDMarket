@@ -1,20 +1,23 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
-import { hasAnalyticsConsent, PRIVACY_EVENT } from '../services/privacyPreferences';
+import CartContext from '../context/CartContext';
+import { hasAnalyticsConsent, subscribePrivacyPreference } from '../services/privacyPreferences';
 import { initProductMonitoring, disableProductMonitoring, setMonitoringUser, monitoringPage, captureMonitoring } from '../services/productMonitoring';
 
 export default function ProductMonitoring() {
   const { user, loading } = useContext(AuthContext);
+  const { cart, loading: cartLoading } = useContext(CartContext);
   const location = useLocation();
   const [consent, setConsent] = useState(() => { try { return hasAnalyticsConsent(); } catch { return false; } });
   const [ready, setReady] = useState(false);
   const lastView = useRef('');
-  useEffect(() => {
-    const update = () => { try { setConsent(hasAnalyticsConsent()); } catch { setConsent(false); } };
-    window.addEventListener(PRIVACY_EVENT, update);
-    return () => window.removeEventListener(PRIVACY_EVENT, update);
-  }, []);
+  const lastCheckoutView = useRef('');
+  useEffect(() => subscribePrivacyPreference(() => {
+    const allowed = hasAnalyticsConsent();
+    if (!allowed) disableProductMonitoring();
+    setConsent(allowed);
+  }), []);
   useEffect(() => {
     let active = true;
     if (!consent) { disableProductMonitoring(); setReady(false); lastView.current = ''; return; }
@@ -30,9 +33,15 @@ export default function ProductMonitoring() {
     lastView.current = viewKey;
     const page = monitoringPage(location.pathname);
     captureMonitoring('$pageview', { page, $pathname: page, $current_url: `${window.location.origin}${page}` });
-    const event = page === '/product/:item' ? 'product_viewed' : page === '/cart' ? 'cart_viewed' : page === '/orders/checkout' || location.pathname.endsWith('/checkout') ? 'checkout_viewed' : page === '/payment' ? 'payment_return_viewed' : page === '/search' ? 'search_viewed' : null;
+    const event = page === '/product/:item' ? 'product_viewed' : page === '/cart' ? 'cart_viewed' : page === '/payment' ? 'payment_return_viewed' : page === '/search' ? 'search_viewed' : null;
     if (event) captureMonitoring(event, { page });
   }, [ready, consent, loading, user, location.key, location.pathname]);
+  useEffect(() => {
+    if (!ready || !consent || loading || cartLoading || !user || !cart.items?.length || location.pathname !== '/orders/checkout') return;
+    const key = `${location.key}:${user._id || user.id}`;
+    if (lastCheckoutView.current === key) return;
+    if (captureMonitoring('checkout_viewed', { page: '/orders/checkout' })) lastCheckoutView.current = key;
+  }, [ready, consent, loading, cartLoading, cart.items?.length, user, location.key, location.pathname]);
   useEffect(() => {
     if (!ready || !consent || loading) return;
     const page = monitoringPage(location.pathname);

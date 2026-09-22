@@ -1012,7 +1012,6 @@ export default function ProductVideos() {
   };
 
   const addToCart = async (video) => {
-    if (!requireLogin()) return;
     // Products with mandatory options (size, color…) open an in-page option
     // sheet so the viewer never leaves the feed.
     if (requiresAttributeSelection(video.product)) {

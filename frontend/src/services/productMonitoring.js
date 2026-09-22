@@ -1,12 +1,14 @@
 import { hasAnalyticsConsent } from './privacyPreferences';
+import { guardMonitoringTransport } from './monitoringTransport';
 
 let client;
 let initializing;
 let identity = '';
+let transportGuard;
 export const isPublicPostHogKey = value => typeof value === 'string' && /^phc_[A-Za-z0-9_-]+$/.test(value);
 const key = import.meta.env.VITE_POSTHOG_KEY;
 const host = import.meta.env.VITE_POSTHOG_HOST || 'https://eu.i.posthog.com';
-const allowedEvents = new Set(['$pageview', '$pageleave', '$identify', '$set', 'page_engagement', 'product_viewed', 'cart_viewed', 'checkout_viewed', 'cart_item_added', 'payment_return_viewed', 'payment_confirmed_in_browser', 'search_viewed', 'signed_in']);
+const allowedEvents = new Set(['$pageview', '$pageleave', '$identify', '$set', 'page_engagement', 'product_viewed', 'cart_viewed', 'checkout_viewed', 'cart_item_added', 'payment_return_viewed', 'payment_confirmed_in_browser', 'order_checkout_completed', 'search_viewed', 'signed_in']);
 const allowedProperties = new Set(['distinct_id', '$anon_distinct_id', '$session_id', '$window_id', '$device_id', '$lib', '$lib_version', '$browser', '$browser_version', '$os', '$os_version', '$device_type', '$screen_height', '$screen_width', '$viewport_height', '$viewport_width', '$current_url', '$pathname', 'page', 'auth_state', 'account_type', 'role', 'active_seconds', 'scroll_percent', 'quantity', '$process_person_profile', '$is_identified', '$set', '$set_once']);
 
 // Route groups deliberately omit product slugs, order IDs, search terms, tokens and hashes.
@@ -44,23 +46,29 @@ const permitted = () => {
 };
 export const initProductMonitoring = async () => {
   if (!permitted()) return null;
-  if (client) return client;
+  if (client) { transportGuard?.resume(); return client; }
   if (!initializing) initializing = import('posthog-js').then(({ default: posthog }) => {
     if (!permitted()) return null;
     posthog.init(key, {
       api_host: host, autocapture: false, capture_pageview: false, capture_pageleave: false,
       capture_exceptions: false, capture_performance: false, capture_heatmaps: false,
       disable_session_recording: true, disable_surveys: true, advanced_disable_feature_flags: true,
+      advanced_disable_flags: true, disable_external_dependency_loading: true,
+      disable_conversations: true, disable_product_tours: true,
       person_profiles: 'identified_only', ip: false, save_referrer: false, save_campaign_params: false,
-      before_send: sanitizeMonitoringEvent
+      opt_out_persistence_by_default: true,
+      cookie_expiration: 180,
+      before_send: event => permitted() ? sanitizeMonitoringEvent(event) : null
     });
+    transportGuard = guardMonitoringTransport(posthog, permitted);
+    if (!transportGuard) { posthog.opt_out_capturing(); return null; }
     client = posthog;
     return client;
   }).catch(() => null).finally(() => { initializing = null; });
   return initializing;
 };
 export const disableProductMonitoring = () => {
-  if (client) { client.reset(); client.opt_out_capturing(); }
+  if (client) { client.opt_out_capturing(); transportGuard?.revoke(); }
   identity = '';
 };
 export const setMonitoringUser = (user) => {
@@ -76,6 +84,25 @@ export const setMonitoringUser = (user) => {
   if (newlySignedIn) client.capture('signed_in');
 };
 export const captureMonitoring = (name, properties = {}) => {
-  if (!client || !permitted()) return;
-  try { client.capture(name, properties); } catch { /* Analytics must not interrupt shopping. */ }
+  if (!client || !permitted()) return false;
+  try { client.capture(name, properties); return true; } catch { return false; }
+};
+
+const confirmedEvents = new Set();
+export const captureConfirmedPayment = async (checkout, user) => {
+  if (checkout?.status !== 'COMPLETED' || checkout?.paymentState !== 'CONFIRMED' || !checkout?.checkoutId) return;
+  const instance = await initProductMonitoring();
+  if (!instance) return;
+  setMonitoringUser(user);
+  const events = ['payment_confirmed_in_browser'];
+  if (['ORDER_CHECKOUT', 'INSTALLMENT_CHECKOUT'].includes(checkout.actionKind) && checkout.autoValidationState === 'COMPLETED') events.push('order_checkout_completed');
+  for (const name of events) {
+    const key = `hdmarket:monitoring:${name}:${checkout.checkoutId}`;
+    if (confirmedEvents.has(key)) continue;
+    try { if (sessionStorage.getItem(key)) continue; } catch { /* In-memory deduplication remains available. */ }
+    if (captureMonitoring(name, { page: '/payment' })) {
+      confirmedEvents.add(key);
+      try { sessionStorage.setItem(key, '1'); } catch { /* Optional storage. */ }
+    }
+  }
 };

@@ -1,12 +1,13 @@
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
+  await page.route('https://**', route => route.abort());
   // Never hit the real payment backend from browser regression tests.
   await page.route('**/api/**', (route) => route.fulfill({ json: [] }));
 });
 
 test('a missing runtime key falls back to the configured rate instead of zero', async ({ page }) => {
-  await page.goto('/e2e/fixtures/publication-payment.html?fallback');
+  await page.goto('/e2e/fixtures/publication-payment.html?fallback', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('rate')).toHaveText('0.1');
   await expect(page.getByRole('button', { name: /Confirmer et payer avec PawaPay/ })).toContainText('190');
 });
@@ -38,4 +39,11 @@ test('verification displays amountPaid consistently even if the legacy amount is
   await page.goto('/e2e/fixtures/publication-payment.html?verify&status=verified');
   const paid = page.getByText('Payé', { exact: true }).locator('..');
   await expect(paid).toContainText('190');
+});
+
+test('commission top-ups use PawaPay without a manual transaction form', async ({ page }) => {
+  await page.goto('/e2e/fixtures/publication-payment.html?fallback&topup', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('button', { name: /Confirmer et payer avec PawaPay/ })).toContainText('10');
+  await expect(page.getByText(/Le nouveau prix sera publié après confirmation/)).toBeVisible();
+  await expect(page.getByRole('textbox', { name: /transaction/i })).toHaveCount(0);
 });

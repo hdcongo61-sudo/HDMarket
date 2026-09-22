@@ -6,6 +6,11 @@ import { createNotification } from '../utils/notificationService.js';
 import { invalidateAdminCache, invalidateSellerCache, invalidateUserCache } from '../utils/cache.js';
 
 const RELEASEABLE_STATUSES = ['DELIVERED', 'WAITING_BUYER_CONFIRMATION'];
+const safeToRelease = {
+  status: { $nin: ['cancelled', 'dispute_opened'] },
+  cancellationRefundRequired: { $ne: true }, installmentRefundRequired: { $ne: true },
+  refundStatus: { $nin: ['pending', 'failed', 'processed'] }
+};
 
 const clampNumber = (value, fallback, min, max) => {
   const parsed = Number(value);
@@ -92,12 +97,15 @@ export const startEscrowBuyerConfirmation = async ({
   now = new Date(),
   audit = {}
 }) => {
-  const order = orderOrId?._id ? orderOrId : await Order.findById(orderOrId);
+  const order = await Order.findById(orderOrId?._id || orderOrId);
   if (!order) return null;
   if (String(order.paymentSource || '').toLowerCase() !== 'pawapay' || Number(order.paidAmount || 0) <= 0) {
     return order;
   }
   if (['RELEASED', 'REFUNDED', 'ON_HOLD'].includes(order.escrowStatus)) return order;
+  if (['cancelled', 'dispute_opened'].includes(order.status) || order.disputeOpened ||
+    order.cancellationRefundRequired || order.installmentRefundRequired || ['pending', 'processed', 'failed'].includes(order.refundStatus)) return order;
+  if (order.escrowStatus === 'WAITING_BUYER_CONFIRMATION' && order.autoReleaseAt) return order;
 
   const settings = await getEscrowSettings();
   const fromStatus = order.escrowStatus || 'IN_ESCROW';
@@ -169,6 +177,7 @@ export const releaseEscrowForOrder = async ({
   actor = null,
   actorRole = 'system',
   reason = 'AUTO_RELEASE',
+  expectedRefundId = null,
   now = new Date(),
   audit = {}
 }) => {
@@ -179,6 +188,10 @@ export const releaseEscrowForOrder = async ({
   const order = await Order.findOneAndUpdate(
     {
       _id: orderId,
+      ...safeToRelease,
+      ...(reason === 'DISPUTE_RESOLVED_SELLER' || expectedRefundId ? { status: { $ne: 'cancelled' } } : {}),
+      $expr: { $gt: [{ $ifNull: ['$paidAmount', 0] }, { $ifNull: ['$refundAmount', 0] }] },
+      ...(expectedRefundId ? { refundId: expectedRefundId, refundStatus: 'processed' } : {}),
       escrowStatus: { $in: allowedStatuses },
       disputeOpened: { $ne: true }
     },
@@ -280,10 +293,11 @@ export const holdEscrowForDispute = async ({ order: orderOrId, actor, audit = {}
   return current;
 };
 
-export const markEscrowRefunded = async ({ order: orderOrId, actor = null, audit = {}, disputeId = null }) => {
+export const markEscrowRefunded = async ({ order: orderOrId, actor = null, audit = {}, disputeId = null, expectedRefundId = null }) => {
   const orderId = orderOrId?._id || orderOrId;
-  const order = await Order.findByIdAndUpdate(
-    orderId,
+  const order = await Order.findOneAndUpdate(
+    { _id: orderId, escrowStatus: { $ne: 'REFUNDED' },
+      ...(expectedRefundId ? { refundId: expectedRefundId, refundStatus: 'processed' } : {}) },
     {
       $set: {
         escrowStatus: 'REFUNDED',
@@ -294,7 +308,7 @@ export const markEscrowRefunded = async ({ order: orderOrId, actor = null, audit
     },
     { new: true }
   );
-  if (!order) return null;
+  if (!order) return Order.findById(orderId);
   await recordEscrowAudit({
     order,
     actor,
@@ -311,6 +325,7 @@ export const markEscrowRefunded = async ({ order: orderOrId, actor = null, audit
 
 export const processEscrowAutoReleases = async ({ limit = 100, now = new Date() } = {}) => {
   const due = await Order.find({
+    ...safeToRelease,
     escrowStatus: 'WAITING_BUYER_CONFIRMATION',
     autoReleaseAt: { $ne: null, $lte: now },
     disputeOpened: { $ne: true }

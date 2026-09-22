@@ -1,7 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowPathIcon, CheckCircleIcon, ClockIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
+import AuthContext from '../context/AuthContext';
+import { useCountry } from '../context/CountryContext';
+import { clearCheckoutDraft } from '../utils/checkoutDraft';
+import { clearPawaPayAttemptByCheckout } from '../utils/pawapayAttempt';
+import { captureConfirmedPayment } from '../services/productMonitoring';
 import { getPawaPayFailure, getPawaPayRequestError } from '../utils/pawapayErrors';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import {
@@ -86,6 +91,8 @@ const isTerminalCheckout = (checkout) => {
 };
 
 export default function PawaPayReturn() {
+  const { user } = useContext(AuthContext);
+  const { country } = useCountry();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const checkoutCode = searchParams.get('checkoutCode') || '';
@@ -177,6 +184,10 @@ export default function PawaPayReturn() {
 
   useEffect(() => {
     if (!completed) return undefined;
+    clearPawaPayAttemptByCheckout(resolvedCheckoutId);
+    if (['ORDER_CHECKOUT', 'INSTALLMENT_CHECKOUT'].includes(checkout?.actionKind)) {
+      clearCheckoutDraft(user?._id || user?.id, country?.id || country?._id);
+    }
     if (isPawaPayCheckoutWindow()) {
       publishPawaPayResult({
         status: 'completed',
@@ -191,13 +202,18 @@ export default function PawaPayReturn() {
       navigate(successPath, { replace: true });
     }, 700);
     return () => clearTimeout(timer);
-  }, [completed, navigate, resolvedCheckoutId, successPath]);
+  }, [completed, navigate, resolvedCheckoutId, successPath, checkout?.actionKind, user?._id, user?.id, country?.id, country?._id]);
+
+  useEffect(() => { void captureConfirmedPayment(checkout, user); }, [checkout, user]);
 
   useEffect(() => {
     if (!failed) return undefined;
+    const retryAllowed = FAILED_STATUSES.has(checkout?.status);
+    if (retryAllowed) clearPawaPayAttemptByCheckout(resolvedCheckoutId);
     if (isPawaPayCheckoutWindow()) {
       publishPawaPayResult({
         status: 'failed',
+        retryAllowed,
         checkoutId: resolvedCheckoutId,
         path: errorPath,
         message: failureMessage
@@ -218,7 +234,7 @@ export default function PawaPayReturn() {
       });
     }, 2200);
     return () => clearTimeout(timer);
-  }, [errorPath, failed, failureMessage, navigate, resolvedCheckoutId]);
+  }, [errorPath, failed, failureMessage, navigate, resolvedCheckoutId, checkout?.status]);
 
   return (
     <div className="min-h-[70vh] bg-[#f7f5f2] px-4 py-10">

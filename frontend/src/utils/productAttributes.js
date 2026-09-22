@@ -232,6 +232,18 @@ export const resolveProductImagePrice = ({ productAttributes = [], imageIndex = 
   return { unitPrice, applied };
 };
 
+// A gallery choice is also a purchase choice when the seller links the photo
+// to an option. Preserve unrelated groups; replace only the mapped groups.
+export const selectAttributesForImage = ({ productAttributes = [], selectedAttributes = [], imageIndex = -1 }) => {
+  const mapped = [];
+  normalizeProductAttributes(productAttributes).forEach((attribute) => {
+    const options = (attribute.options || []).filter((option) => attribute.optionImages?.[String(option).trim().toLowerCase()] === imageIndex);
+    if (attribute.type === 'select' && options.length) mapped.push({ name: attribute.name, value: options[options.length - 1] });
+  });
+  const names = new Set(mapped.map((entry) => entry.name.toLowerCase()));
+  return { mapped, selectedAttributes: [...normalizeSelectedAttributes(selectedAttributes).filter((entry) => !names.has(entry.name.toLowerCase())), ...mapped] };
+};
+
 export const getHighestProductPrice = ({ productAttributes = [], basePrice = 0 }) => {
   let highest = Number(basePrice) || 0;
   normalizeProductAttributes(productAttributes).forEach((attribute) => {

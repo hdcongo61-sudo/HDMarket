@@ -19,7 +19,7 @@ import ImagePreviewModal from './media/ImagePreviewModal';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { trackEvent } from '../services/analytics';
 import { getProductCardImageUrl, getProductCardSrcSet } from '../utils/productImageUrl';
-import { getLowestProductPrice } from '../utils/productAttributes';
+import { getProductCardPricing } from '../utils/productPricing';
 import ProductCardGallery from './product-card/ProductCardGallery';
 import { resolveProductCardGalleryConfig } from '../utils/productCardGalleryConfig';
 
@@ -334,7 +334,8 @@ function ProductCard({
   }, [inCart]);
 
   // === CALCULS ET DÉRIVATIONS ===
-  const hasDiscount = typeof p.discount === 'number' && p.discount > 0;
+  const cardPricing = getProductCardPricing(p);
+  const hasDiscount = cardPricing.productHasDiscount;
   const promoPercent = Number(p?.promoPercent || 0);
   const hasActivePromo = Boolean(p?.hasActivePromo && promoPercent > 0);
   const hasActiveBoost = Boolean(p?.boosted || p?.isBoosted || p?.activeBoostRequestId);
@@ -372,20 +373,10 @@ function ProductCard({
       (p?.deliveryAvailable !== false &&
         (p?.deliveryFeeEnabled === false || Number(p?.deliveryFee || 0) <= 0))
   );
-  const lowestAvailablePrice = getLowestProductPrice({
-    productAttributes: p.attributes,
-    basePrice: hasDiscount ? p.priceAfterDiscount || p.price : p.price
-  });
-  const hasPhotoPrices = (Array.isArray(p.attributes) ? p.attributes : []).some(
-    (attribute) =>
-      attribute?.optionImages &&
-      attribute?.optionPrices &&
-      Object.keys(attribute.optionImages).some((key) => Number(attribute.optionPrices?.[key]) > 0)
-  );
-  const discountedPrice = formatPrice(lowestAvailablePrice);
+  const discountedPrice = formatPrice(cardPricing.currentPrice);
   const priceDisplay = String(discountedPrice).split(/(FCFA|XAF|XOF)/g).map((part, index) => /^(FCFA|XAF|XOF)$/.test(part) ? <span key={index} className="text-[0.6em] font-bold">{part}</span> : part);
-  const originalPrice = hasDiscount && !hasPhotoPrices && p.priceBeforeDiscount
-    ? formatPrice(p.priceBeforeDiscount)
+  const originalPrice = cardPricing.originalPrice
+    ? formatPrice(cardPricing.originalPrice)
     : null;
   
   const ratingAverage = Number(p.ratingAverage || 0).toFixed(1);
@@ -559,12 +550,6 @@ function ProductCard({
           focusProductOptions: true
         }
       });
-      return;
-    }
-    if (!user) {
-      trackCardInteraction('cart_auth_redirect');
-      setPendingAction({ type: 'addToCart', payload: { productId: p._id, quantity: 1 } });
-      redirectToLogin();
       return;
     }
     if (inCart) return;

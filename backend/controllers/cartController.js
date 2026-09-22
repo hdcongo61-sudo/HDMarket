@@ -1,8 +1,12 @@
 import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
 import Cart from '../models/cartModel.js';
+import GuestCartMerge from '../models/guestCartMergeModel.js';
 import Product from '../models/productModel.js';
 import Bundle from '../models/bundleModel.js';
+import Commune from '../models/communeModel.js';
+import City from '../models/cityModel.js';
+import { resolveDeliveryPricing } from '../utils/deliveryPricing.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { getWholesalePricing, normalizeWholesaleTiers } from '../utils/wholesaleUtils.js';
 import { applyBundleDiscounts } from '../services/bundleService.js';
@@ -273,6 +277,96 @@ const formatCart = async (cart) => {
 export const getCart = asyncHandler(async (req, res) => {
   const cart = await ensureCart(req.user.id, req.countryContext);
   res.json(await formatCart(cart));
+});
+
+const resolveGuestItems = async (items, countryContext) => {
+  const products = await Product.find({ _id: { $in: items.map((item) => item.productId) }, status: 'approved' })
+    .select(`${productSelectFields} payment listingFeeSettled`)
+    .populate('user', 'name phone accountType shopName freeDeliveryEnabled freeDeliveryNote');
+  const byId = new Map(products.map((product) => [String(product._id), product]));
+  const accepted = [];
+  const rejected = [];
+  for (const item of items) {
+    const product = byId.get(item.productId);
+    const valid = product && await isListingFeeSettledForProduct(product);
+    const selection = product && validateSelectedAttributesForProduct({ productAttributes: product.attributes, selectedAttributes: item.selectedAttributes });
+    if (!valid || (!product.countryId && countryContext.code !== 'CG') || String(product.countryId || countryContext.countryId) !== String(countryContext.countryId) ||
+        String(product.currency || countryContext.currency.code) !== countryContext.currency.code || !selection?.valid) {
+      rejected.push({ productId: item.productId, message: selection?.message || 'Produit indisponible dans ce pays.' });
+      continue;
+    }
+    const existing = accepted.find((entry) => String(entry.product._id) === item.productId && entry.selectionKey === selection.selectionKey);
+    if (existing) existing.quantity = Math.min(9999, existing.quantity + item.quantity);
+    else accepted.push({ product, quantity: item.quantity, selectionKey: selection.selectionKey, selectedAttributes: selection.selectedAttributes });
+  }
+  return { accepted, rejected };
+};
+
+export const previewGuestCart = asyncHandler(async (req, res) => {
+  const { accepted, rejected } = await resolveGuestItems(req.body.items, req.countryContext);
+  const cart = await formatCart({ items: accepted, countryId: req.countryContext.countryId, currency: req.countryContext.currency.code });
+  res.json({ ...cart, rejected });
+});
+
+export const estimateCartDelivery = asyncHandler(async (req, res) => {
+  const { items, cityId, communeId } = req.body;
+  const [city, commune, selection] = await Promise.all([
+    City.findOne({ _id: cityId, isActive: true }).lean(),
+    Commune.findOne({ _id: communeId, cityId, isActive: true }).lean(),
+    resolveGuestItems(items, req.countryContext)
+  ]);
+  const wrongCountry = (record) => record?.countryId
+    ? String(record.countryId) !== String(req.countryContext.countryId)
+    : req.countryContext.code !== 'CG';
+  if (!city || !commune || wrongCountry(city) || wrongCountry(commune)) return res.status(400).json({ message: 'Choisissez une ville et une commune de livraison valides.' });
+  if (selection.rejected.length) return res.status(409).json({ message: 'Un article ou une option n’est plus disponible. Actualisez votre panier.' });
+  if (selection.accepted.some((item) => item.product.deliveryAvailable === false)) return res.status(400).json({ message: 'Ce panier contient un article disponible uniquement en retrait.' });
+  const groups = new Map();
+  for (const item of selection.accepted) {
+    const id = String(item.product.user?._id || '');
+    if (!id) return res.status(409).json({ message: 'Vendeur indisponible. Actualisez votre panier.' });
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id).push(item);
+  }
+  const bySeller = {};
+  let deliveryFeeTotal = 0;
+  for (const [sellerId, sellerItems] of groups) {
+    const pricing = resolveDeliveryPricing({ deliveryMode: 'DELIVERY', commune, shop: sellerItems[0].product.user, items: sellerItems });
+    bySeller[sellerId] = { fee: pricing.deliveryFeeTotal, source: pricing.deliveryFeeSource, pending: false };
+    deliveryFeeTotal += pricing.deliveryFeeTotal;
+  }
+  const cart = await formatCart({ items: selection.accepted, countryId: req.countryContext.countryId, currency: req.countryContext.currency.code });
+  res.json({ bySeller, deliveryFeeTotal, subtotal: cart.totals.subtotal, total: cart.totals.subtotal + deliveryFeeTotal, currency: cart.currency });
+});
+
+export const mergeGuestCart = asyncHandler(async (req, res) => {
+  const { mergeId, items } = req.body;
+  const { accepted, rejected } = await resolveGuestItems(items, req.countryContext);
+  const receipt = { user: req.user.id, countryId: req.countryContext.countryId, mergeId };
+  const commitMerge = () => mongoose.connection.transaction(async (session) => {
+    if (await GuestCartMerge.exists(receipt).session(session)) return;
+    let cart = await Cart.findOne(cartCountryFilter(req.user.id, req.countryContext)).session(session);
+    if (!cart) cart = new Cart({ user: req.user.id, countryId: req.countryContext.countryId, currency: req.countryContext.currency.code, items: [] });
+    cart.countryId = req.countryContext.countryId;
+    for (const item of accepted) {
+      const existing = cart.items.find((entry) => getItemProductId(entry) === String(item.product._id) && getItemSelectionKey(entry) === item.selectionKey);
+      if (existing) existing.quantity = Math.min(9999, existing.quantity + item.quantity);
+      else cart.items.push({ ...item, product: item.product._id });
+    }
+    await cart.save({ session });
+    await GuestCartMerge.create([receipt], { session });
+  });
+  try {
+    await commitMerge();
+  } catch (error) {
+    // Another request may create the user's first cart (or this receipt) concurrently.
+    // Retry the whole transaction; the receipt check makes replay safe.
+    if (error?.code !== 11000) throw error;
+    await commitMerge();
+  }
+  await invalidateUserCache(req.user.id, ['cart']);
+  const populated = await populateCart(req.user.id, req.countryContext);
+  res.json({ ...await formatCart(populated), rejected });
 });
 
 export const addItem = asyncHandler(async (req, res) => {

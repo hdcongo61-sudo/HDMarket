@@ -4,6 +4,7 @@ import User from '../models/userModel.js';
 import Country from '../models/countryModel.js';
 import Product from '../models/productModel.js';
 import Payment from '../models/paymentModel.js';
+import { getListingPaymentReport, listingPaymentMatch } from '../services/listingPaymentReportService.js';
 import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
 import Order from '../models/orderModel.js';
@@ -268,13 +269,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     productsApproved,
     productsRejected,
     productsDisabled,
-    totalPayments,
-    paymentsWaiting,
-    paymentsVerified,
-    paymentsRejected,
-    totalRevenueAgg,
-    revenueLast30Agg,
-    paymentChannelAgg,
+    listingReport,
     orderStatusAgg,
     favoritesAgg,
     totalComments,
@@ -286,7 +281,6 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     latestPaymentsRaw,
     usersByMonthRaw,
     productsByMonthRaw,
-    revenueByMonthRaw,
     cityStatsRaw,
     genderStatsRaw,
     cityStatsRawProducts,
@@ -302,61 +296,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     Product.countDocuments({ status: 'approved', ...(countryFilter || {}) }),
     Product.countDocuments({ status: 'rejected', ...(countryFilter || {}) }),
     Product.countDocuments({ status: 'disabled', ...(countryFilter || {}) }),
-    Payment.countDocuments({ ...(countryFilter || {}) }),
-    Payment.countDocuments({ status: 'waiting', ...(countryFilter || {}) }),
-    Payment.countDocuments({ status: 'verified', ...(countryFilter || {}) }),
-    Payment.countDocuments({ status: 'rejected', ...(countryFilter || {}) }),
-    Payment.aggregate([
-      { $match: { status: 'verified', ...(countryFilter || {}) } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]),
-    Payment.aggregate([
-      { $match: { status: 'verified', createdAt: { $gte: thirtyDaysAgo }, ...(countryFilter || {}) } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]),
-    Payment.aggregate([
-      {
-        $match: {
-          $or: [
-            { paymentType: 'LISTING_FEE' },
-            { product: { $exists: true, $ne: null } }
-          ],
-          ...(countryFilter || {})
-        }
-      },
-      {
-        $addFields: {
-          resolvedPaymentChannel: {
-            $cond: [
-              {
-                $eq: ['$paymentMethod', 'pawapay']
-              },
-              'pawapay',
-              'mobile_money'
-            ]
-          }
-        }
-      },
-      {
-        $group: {
-          _id: '$resolvedPaymentChannel',
-          count: { $sum: 1 },
-          amount: { $sum: { $ifNull: ['$amount', 0] } },
-          verifiedCount: {
-            $sum: { $cond: [{ $eq: ['$status', 'verified'] }, 1, 0] }
-          },
-          verifiedAmount: {
-            $sum: { $cond: [{ $eq: ['$status', 'verified'] }, { $ifNull: ['$amount', 0] }, 0] }
-          },
-          waitingCount: {
-            $sum: { $cond: [{ $eq: ['$status', 'waiting'] }, 1, 0] }
-          },
-          rejectedCount: {
-            $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] }
-          }
-        }
-      }
-    ]),
+    getListingPaymentReport({ countryFilter: countryFilter || {}, now }),
     Order.aggregate([
       {
         $match: {
@@ -400,11 +340,11 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       .select('title price status createdAt')
       .populate('user', 'name')
       .lean(),
-    Payment.find({ ...(countryFilter || {}) })
+    Payment.find({ $and: [listingPaymentMatch, countryFilter || {}] })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('payerName amount status operator paymentMethod createdAt validatedAt')
-      .populate('product', 'title')
+      .select('payerName amount amountPaid currency status operator paymentMethod createdAt validatedAt')
+      .populate('product', 'title currency')
       .populate('user', 'name')
       .populate('validatedBy', 'name')
       .lean(),
@@ -423,15 +363,6 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
         $group: {
           _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
           count: { $sum: 1 }
-        }
-      }
-    ]),
-    Payment.aggregate([
-      { $match: { status: 'verified', createdAt: { $gte: sixMonthsAgo }, ...(countryFilter || {}) } },
-      {
-        $group: {
-          _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
-          total: { $sum: '$amount' }
         }
       }
     ]),
@@ -503,40 +434,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     ])
   ]);
 
-  const totalRevenue = totalRevenueAgg[0]?.total || 0;
-  const revenueLast30Days = revenueLast30Agg[0]?.total || 0;
   const totalFavorites = favoritesAgg[0]?.total || 0;
-  const emptyPaymentChannel = () => ({
-    count: 0,
-    amount: 0,
-    verifiedCount: 0,
-    verifiedAmount: 0,
-    waitingCount: 0,
-    rejectedCount: 0
-  });
-  const paymentChannels = {
-    mobileMoney: emptyPaymentChannel(),
-    pawapay: emptyPaymentChannel(),
-    total: emptyPaymentChannel()
-  };
-  paymentChannelAgg.forEach((entry) => {
-    const key = entry?._id === 'pawapay' ? 'pawapay' : 'mobileMoney';
-    const normalized = {
-      count: Number(entry?.count || 0),
-      amount: Number(entry?.amount || 0),
-      verifiedCount: Number(entry?.verifiedCount || 0),
-      verifiedAmount: Number(entry?.verifiedAmount || 0),
-      waitingCount: Number(entry?.waitingCount || 0),
-      rejectedCount: Number(entry?.rejectedCount || 0)
-    };
-    paymentChannels[key] = normalized;
-    paymentChannels.total.count += normalized.count;
-    paymentChannels.total.amount += normalized.amount;
-    paymentChannels.total.verifiedCount += normalized.verifiedCount;
-    paymentChannels.total.verifiedAmount += normalized.verifiedAmount;
-    paymentChannels.total.waitingCount += normalized.waitingCount;
-    paymentChannels.total.rejectedCount += normalized.rejectedCount;
-  });
   const orderStatuses = ['pending', 'confirmed', 'delivering', 'delivered'];
   const ordersByStatus = orderStatuses.reduce((acc, status) => {
     acc[status] = { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0 };
@@ -594,7 +492,8 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   const latestPayments = latestPaymentsRaw.map((payment) => ({
     id: payment._id,
     payerName: payment.payerName,
-    amount: payment.amount,
+    amount: payment.amountPaid ?? payment.amount ?? 0,
+    currency: payment.currency || payment.product?.currency || 'XAF',
     status: payment.status,
     operator: payment.operator,
     paymentMethod: payment.paymentMethod || '',
@@ -634,7 +533,11 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
 
   const usersByMonth = buildMonthMap(usersByMonthRaw, 'count');
   const productsByMonth = buildMonthMap(productsByMonthRaw, 'count');
-  const revenueByMonth = buildMonthMap(revenueByMonthRaw, 'total');
+  const revenueByMonth = new Map();
+  listingReport.monthly.forEach((row) => {
+    const key = monthKey(row._id.year, row._id.month);
+    revenueByMonth.set(key, [...(revenueByMonth.get(key) || []), { currency: row._id.currency, amount: row.total }]);
+  });
 
   const monthly = [];
   for (let i = 5; i >= 0; i -= 1) {
@@ -644,7 +547,8 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       month: key,
       newUsers: usersByMonth.get(key) || 0,
       newProducts: productsByMonth.get(key) || 0,
-      revenue: revenueByMonth.get(key) || 0
+      revenues: revenueByMonth.get(key) || [],
+      revenue: (revenueByMonth.get(key) || []).length === 1 ? revenueByMonth.get(key)[0].amount : null
     });
   }
 
@@ -664,15 +568,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       rejected: productsRejected,
       disabled: productsDisabled
     },
-    payments: {
-      total: totalPayments,
-      waiting: paymentsWaiting,
-      verified: paymentsVerified,
-      rejected: paymentsRejected,
-      revenue: totalRevenue,
-      revenueLast30Days,
-      channels: paymentChannels
-    },
+    payments: listingReport,
     engagement: {
       favorites: totalFavorites,
       comments: totalComments,

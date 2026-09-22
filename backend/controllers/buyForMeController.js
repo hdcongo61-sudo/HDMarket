@@ -2,6 +2,10 @@ import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
 import { canManageDeliveryRequests, getPlatformDeliveryRuntime } from '../services/platformDeliveryService.js';
 import { persistDeliveryProofFile } from '../utils/deliveryProofStorage.js';
+import { resolveCountryContext } from '../services/countryService.js';
+import { shoppingAdminFilter, shoppingConfigCountry } from '../services/buyForMeAccessService.js';
+import Transfer from '../models/buyForMeTransferModel.js';
+import { processShoppingTransfer } from '../services/buyForMeTransferService.js';
 import {
   adminCancelBuyForMeOrder,
   adjustBuyForMeOverage,
@@ -21,7 +25,8 @@ import {
   quoteBuyForMe,
   respondToBuyForMeItem,
   STORE_TYPES,
-  updateBuyForMeConfig
+  updateBuyForMeConfig,
+  listShoppingDisputes, resolveShoppingDispute
 } from '../services/buyForMeService.js';
 
 const actorId = (req) => req.user?.id || req.user?._id;
@@ -37,6 +42,7 @@ const parseJson = (value, fallback = {}) => {
 };
 
 const sendServiceError = (res, error) => {
+  if (error?.name === 'VersionError') return res.status(409).json({ message: 'La demande a changé. Actualisez avant de réessayer.' });
   const statusCode = Number(error?.statusCode || 500);
   if (statusCode < 500) return res.status(statusCode).json({ message: error.message });
   throw error;
@@ -44,8 +50,10 @@ const sendServiceError = (res, error) => {
 
 const validId = (value) => mongoose.isValidObjectId(value);
 
-export const getBuyForMeCapabilities = asyncHandler(async (_req, res) => {
-  const config = await getBuyForMeConfig();
+const customerCountry = async req => resolveCountryContext({ requestedCountry: req.headers?.['x-country-id'] || req.user?.selectedCountryId || req.user?.countryId, user: req.user });
+export const getBuyForMeCapabilities = asyncHandler(async (req, res) => {
+  const context = await customerCountry(req);
+  const config = await getBuyForMeConfig(context.countryId);
   return res.json({
     enabled: Boolean(config?.enabled),
     storeTypes: config?.supportedStoreTypes || STORE_TYPES,
@@ -57,7 +65,9 @@ export const getBuyForMeCapabilities = asyncHandler(async (_req, res) => {
 
 export const estimateBuyForMe = asyncHandler(async (req, res) => {
   try {
+    const context = await customerCountry(req);
     const quote = await quoteBuyForMe({
+      countryId: context.countryId,
       storeType: req.body?.storeType,
       pickup: parseJson(req.body?.pickup),
       dropoff: parseJson(req.body?.dropoff),
@@ -79,7 +89,7 @@ export const uploadBuyForMeItemImage = asyncHandler(async (req, res) => {
 });
 
 export const getMyBuyForMeOrders = asyncHandler(async (req, res) => {
-  return res.json(await listMyBuyForMeOrders({ customerId: actorId(req), page: req.query?.page, limit: req.query?.limit }));
+  return res.json(await listMyBuyForMeOrders({ customerId: actorId(req), page: req.query?.page, limit: req.query?.limit, scope: req.query?.scope }));
 });
 
 export const getMyBuyForMeOrder = asyncHandler(async (req, res) => {
@@ -212,13 +222,15 @@ const requireBuyForMeAdmin = async (req, res) => {
 
 export const getAdminBuyForMeConfig = asyncHandler(async (req, res) => {
   if (!(await requireBuyForMeAdmin(req, res))) return;
-  return res.json(await getBuyForMeConfig());
+  const countryId = await shoppingConfigCountry(req.user, req.query?.countryId || req.headers?.['x-admin-country-id']);
+  return res.json(await getBuyForMeConfig(countryId));
 });
 
 export const patchAdminBuyForMeConfig = asyncHandler(async (req, res) => {
   if (!(await requireBuyForMeAdmin(req, res))) return;
   try {
-    return res.json(await updateBuyForMeConfig(req.body || {}));
+    const countryId = await shoppingConfigCountry(req.user, req.body?.countryId || req.headers?.['x-admin-country-id']);
+    return res.json(await updateBuyForMeConfig(req.body || {}, countryId));
   } catch (error) {
     return sendServiceError(res, error);
   }
@@ -226,19 +238,19 @@ export const patchAdminBuyForMeConfig = asyncHandler(async (req, res) => {
 
 export const getAdminBuyForMeOrders = asyncHandler(async (req, res) => {
   if (!(await requireBuyForMeAdmin(req, res))) return;
-  return res.json(await getAdminBuyForMeOrdersService({ status: req.query?.status, search: req.query?.search, page: req.query?.page, limit: req.query?.limit }));
+  return res.json(await getAdminBuyForMeOrdersService({ status: req.query?.status, search: req.query?.search, page: req.query?.page, limit: req.query?.limit, user: req.user, countryId: req.query?.countryId || req.headers?.['x-admin-country-id'] }));
 });
 
 export const getAdminBuyForMeStats = asyncHandler(async (req, res) => {
   if (!(await requireBuyForMeAdmin(req, res))) return;
-  return res.json(await getAdminBuyForMeStatsService());
+  return res.json(await getAdminBuyForMeStatsService({ user: req.user, countryId: req.query?.countryId || req.headers?.['x-admin-country-id'] }));
 });
 
 export const assignAdminBuyForMeDriver = asyncHandler(async (req, res) => {
   if (!(await requireBuyForMeAdmin(req, res))) return;
   if (!validId(req.params?.id) || !validId(req.body?.driverId)) return res.status(400).json({ message: 'Demande ou livreur invalide.' });
   try {
-    return res.json(await assignBuyForMeDriver({ orderId: req.params.id, driverId: req.body.driverId, actorId: actorId(req) }));
+    return res.json(await assignBuyForMeDriver({ orderId: req.params.id, driverId: req.body.driverId, actorId: actorId(req), user: req.user }));
   } catch (error) {
     return sendServiceError(res, error);
   }
@@ -248,10 +260,28 @@ export const cancelAdminBuyForMeOrder = asyncHandler(async (req, res) => {
   if (!(await requireBuyForMeAdmin(req, res))) return;
   if (!validId(req.params?.id)) return res.status(400).json({ message: 'Demande invalide.' });
   try {
-    return res.json(await adminCancelBuyForMeOrder({ orderId: req.params.id, actorId: actorId(req), reason: req.body?.reason }));
+    return res.json(await adminCancelBuyForMeOrder({ orderId: req.params.id, actorId: actorId(req), reason: req.body?.reason, user: req.user }));
   } catch (error) {
     return sendServiceError(res, error);
   }
 });
 
 export { BALANCE_PREFERENCES, STORE_TYPES };
+
+export const getShoppingDisputesAdmin = asyncHandler(async (req, res) => res.json({ items: await listShoppingDisputes({ user: req.user, countryId: req.headers?.['x-admin-country-id'] }) }));
+export const patchShoppingDisputeAdmin = asyncHandler(async (req, res) => {
+  if (!validId(req.params.id)) return res.status(400).json({ message: 'Litige invalide.' });
+  return res.json(await resolveShoppingDispute({ disputeId: req.params.id, user: req.user, status: req.body?.status, resolution: req.body?.resolution }));
+});
+export const getShoppingTransfersAdmin = asyncHandler(async (req, res) => {
+  const filter = await shoppingAdminFilter(req.user, req.headers?.['x-admin-country-id']);
+  return res.json({ items: await Transfer.find(filter).select('orderId type amount currency status reason failureReason providerId createdAt completedAt').sort({ createdAt: -1 }).limit(100).lean() });
+});
+export const retryShoppingTransferAdmin = asyncHandler(async (req, res) => {
+  if (!validId(req.params.id)) return res.status(400).json({ message: 'Transfert invalide.' });
+  const filter = await shoppingAdminFilter(req.user);
+  const transfer = await Transfer.findOne({ _id: req.params.id, ...filter }).lean();
+  if (!transfer) return res.status(404).json({ message: 'Transfert introuvable.' });
+  await processShoppingTransfer(transfer._id, { retry: true });
+  return res.json({ item: await Transfer.findById(transfer._id).select('type amount currency status failureReason completedAt').lean() });
+});

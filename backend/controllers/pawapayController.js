@@ -1,4 +1,7 @@
 import crypto from 'crypto';
+import { findActiveOrderPayment, reserveOrderPayment, releaseOrderPromos, assertNegotiatedPayable, completeNegotiatedPayment } from '../services/orderPaymentService.js';
+import { quoteInstallmentCheckout, reserveInstallmentCheckout } from '../services/installmentPaymentService.js';
+import { getPawaPayRequestIdentity } from '../utils/pawapayIdempotency.js';
 import mongoose from 'mongoose';
 import ImageEditJob from '../models/imageEditJobModel.js';
 import { imageEditPricing } from '../services/paidImageEditService.js';
@@ -8,6 +11,8 @@ import PawaPayEvent from '../models/pawapayEventModel.js';
 import PawaPayCheckout from '../models/pawapayCheckoutModel.js';
 import Refund from '../models/refundModel.js';
 import Product from '../models/productModel.js';
+import ListingFeePayment from '../models/listingFeePaymentModel.js';
+import { approveListingFeeReconciliation } from './paymentController.js';
 import ShopConversionRequest from '../models/shopConversionRequestModel.js';
 import User from '../models/userModel.js';
 import Order from '../models/orderModel.js';
@@ -19,6 +24,8 @@ import {
   initiatePawaPayCheckout
 } from '../services/pawapayService.js';
 import { reconcileRefund } from '../services/refundService.js';
+import { quoteShoppingCheckout, reserveShoppingCheckout, releaseShoppingCheckout } from '../services/buyForMePaymentService.js';
+import { reconcileShoppingTransfer } from '../services/buyForMeTransferService.js';
 import { reconcileSellerPayout } from '../services/sellerSettlementService.js';
 import { getPawaPayFailurePresentation } from '../utils/pawapayErrors.js';
 import { createNotification } from '../utils/notificationService.js';
@@ -29,8 +36,8 @@ import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promo
 import { getRuntimeConfig } from '../services/configService.js';
 import { getListingCommissionRate } from '../services/listingCommissionService.js';
 import { getConfirmedListingFee, getPawaPayListingAmount } from '../utils/pawapayListingFee.js';
-import { recordEscrowAudit } from '../services/escrowService.js';
 import { resolvePaymentProvider } from '../services/paymentService.js';
+import { quoteSponsoredCheckout, reserveSponsoredCheckout } from '../services/sponsoredPaymentService.js';
 
 /** Founder/admin diagnostic: report PawaPay config without any financial call. */
 export const getPawaPayConfigCheckHandler = asyncHandler(async (_req, res) => {
@@ -40,7 +47,8 @@ import { getHighestProductPrice } from '../utils/productAttributes.js';
 import {
   paySelfSponsorship,
   respondSponsorship,
-  pawaPayCheckoutOrder
+  pawaPayCheckoutOrder,
+  quotePawaPayOrder
 } from './orderController.js';
 import {
   checkoutInstallmentOrder,
@@ -48,7 +56,7 @@ import {
 } from './installmentController.js';
 import { createBoostRequest } from './boostController.js';
 import { createGlobalNotificationRequest } from './globalNotificationController.js';
-import { completeShopConversionPawaPay } from './shopConversionController.js';
+import { completeShopConversionPawaPay, reconcileShopConversionRefund } from './shopConversionController.js';
 import { pawaPayCreateParcelRequest } from './parcelRequestController.js';
 import {
   pawaPayCompleteBuyForMeAdditionalPayment,
@@ -162,6 +170,21 @@ const checkoutVerificationUrl = (checkout) => {
 };
 
 export const createPawaPayCheckout = asyncHandler(async (req, res) => {
+  const requestIdentity = getPawaPayRequestIdentity(req);
+  const replay = (existing) => {
+    if (existing.requestFingerprint !== requestIdentity.requestFingerprint) {
+      return sendPawaPayError(res, 409, 'IDEMPOTENCY_CONFLICT', 'Cette tentative de paiement correspond à une autre commande.');
+    }
+    const canResume = existing.status === 'WAITING_PAYMENT' && existing.redirectUrl && (!existing.expiresAt || new Date(existing.expiresAt) > new Date());
+    return res.status(canResume ? 200 : 202).json({
+      checkoutId: existing.checkoutId, status: existing.status,
+      ...(canResume ? { redirectUrl: existing.redirectUrl } : { pending: true, verificationUrl: checkoutVerificationUrl(existing) })
+    });
+  };
+  if (requestIdentity) {
+    const existing = await PawaPayCheckout.findOne({ checkoutId: requestIdentity.checkoutId, user: req.user._id }).select('+requestFingerprint');
+    if (existing) return replay(existing);
+  }
   let resourceCountryId = null;
   let resourceCurrency = null;
   const amount = Number(req.body?.amount);
@@ -170,6 +193,12 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
   const productId = String(req.body?.productId || '').trim();
   const promoCode = normalizePromoCode(req.body?.promoCode);
   const actionContext = normalizeActionContext(req.body?.actionContext, purpose);
+  if (purpose === 'INSTALLMENT_FUNDING' && !actionContext?.kind?.startsWith('INSTALLMENT_')) {
+    return sendPawaPayError(res, 400, 'INSTALLMENT_REQUIRED', 'Une commande et une tranche valides sont requises.');
+  }
+  if (['BUY_FOR_ME_FUNDING', 'BUY_FOR_ME_ADDITIONAL_FUNDING'].includes(purpose) && !actionContext?.kind?.startsWith('BUY_FOR_ME_')) {
+    return sendPawaPayError(res, 400, 'SHOPPING_REQUEST_REQUIRED', 'Une demande d’achat valide est requise.');
+  }
   if (req.body?.actionContext && !actionContext) {
     return sendPawaPayError(
       res,
@@ -178,7 +207,10 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
       'Les informations permettant de finaliser ce paiement sont invalides.'
     );
   }
-  if (actionContext?.kind === 'ORDER_CHECKOUT') {
+  if (actionContext?.kind === 'ORDER_CHECKOUT' && Array.isArray(actionContext.items) && actionContext.items.length) {
+    const existing = mongoose.isValidObjectId(req.user._id) ? await findActiveOrderPayment(req.user._id, actionContext) : null;
+    if (existing) return res.status(202).json({ checkoutId: existing.checkoutId, status: existing.status,
+      pending: true, verificationUrl: checkoutVerificationUrl(existing) });
     const minimumDepositPercent = Math.max(
       50,
       Math.min(100, Number(await getRuntimeConfig('escrow_minimum_deposit_percent', { fallback: 50 })) || 50)
@@ -213,8 +245,21 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
       { providerCode: 'INVALID_PARAMETER', retryable: false, action: 'CHECK_DETAILS' }
     );
   }
+  if (actionContext?.kind?.startsWith('SPONSORSHIP_')) {
+    actionContext.paymentOption = actionContext.paymentOption || 'full';
+    try {
+      const quote = await quoteSponsoredCheckout({ groupId: actionContext.groupId, kind: actionContext.kind,
+        paymentOption: actionContext.paymentOption, userId: req.user._id, amount });
+      resourceCountryId = quote.countryId;
+      resourceCurrency = quote.currency;
+    } catch (error) {
+      return sendPawaPayError(res, error.status || 400, 'SPONSORSHIP_PAYMENT_INVALID', error.message);
+    }
+  }
   if (actionContext?.kind === 'ORDER_PAYMENT') {
     const order = await Order.findOne({ _id: actionContext.orderId, customer: req.user._id }).lean();
+    try { assertNegotiatedPayable(order, req.user._id, amount); }
+    catch (error) { return sendPawaPayError(res, error.status || 409, 'ORDER_PAYMENT_INVALID', error.message); }
     if (!order) {
       return sendPawaPayError(res, 404, 'PAWAPAY_ORDER_NOT_FOUND', 'Commande introuvable.');
     }
@@ -250,6 +295,7 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
   }
   let product = null;
   let listingFeeSnapshot = null;
+  let listingAdjustment = null;
   if (purpose === 'LISTING_FEE_FUNDING') {
     if (!productId) {
       return sendPawaPayError(
@@ -260,7 +306,7 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
       );
     }
     product = await Product.findById(productId)
-      .select('_id user status requiresAdditionalPayment countryId currency price attributes')
+      .select('_id user status requiresAdditionalPayment countryId currency price attributes listingFeeStatus approvedPrice +pendingPrice +listingFeeRemaining +listingFeePaid +listingFeeRequired')
       .lean();
     if (!product) {
       return sendPawaPayError(res, 404, 'PAWAPAY_PRODUCT_NOT_FOUND', 'Annonce introuvable.');
@@ -279,13 +325,41 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
       );
     }
     if (product.requiresAdditionalPayment) {
-      return sendPawaPayError(
-        res,
-        409,
-        'PAWAPAY_LISTING_FEE_RECONCILIATION_UNSUPPORTED',
-        'Utilisez le formulaire de complément pour payer uniquement la différence de commission.'
-      );
-    }
+      listingAdjustment = await ListingFeePayment.findOne({ productId: product._id, sellerId: product.user, status: 'PENDING' });
+      // A rejected manual submission has no pending record. Preserve its audit
+      // history and create a fresh receipt for this still-required difference.
+      if (!listingAdjustment && product.pendingPrice != null && Number(product.listingFeeRemaining) > 0) {
+        try {
+          listingAdjustment = await ListingFeePayment.findOneAndUpdate(
+            { productId: product._id, status: 'PENDING' },
+            { $setOnInsert: { sellerId: product.user, oldPrice: Number(product.approvedPrice ?? product.price), newPrice: Number(product.pendingPrice), oldFee: Number(product.listingFeePaid || 0), requiredFee: Number(product.listingFeeRequired || 0), remainingFee: Number(product.listingFeeRemaining) } },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+          );
+        } catch (error) {
+          if (error?.code !== 11000) throw error;
+          listingAdjustment = await ListingFeePayment.findOne({ productId: product._id, sellerId: product.user, status: 'PENDING' });
+        }
+      }
+      if (!listingAdjustment) return sendPawaPayError(res, 409, 'PAWAPAY_LISTING_ADJUSTMENT_CHANGED', 'Ce complément de commission n’est plus disponible. Actualisez l’annonce.');
+      if (listingAdjustment.pawaPayCheckoutId) {
+        const previous = await PawaPayCheckout.findOne({ checkoutId: listingAdjustment.pawaPayCheckoutId });
+        if (!previous) return sendPawaPayError(res, 409, 'PAWAPAY_LISTING_PAYMENT_PENDING', 'Le paiement est en cours de préparation. Réessayez dans un instant.');
+        if (!FINAL_FAILURE.has(previous.status) || previous.paymentState === 'CONFIRMED' || ['AMOUNT_MISMATCH', 'CURRENCY_MISMATCH'].includes(previous.failureReason?.failureCode)) {
+          return res.status(202).json({ checkoutId: previous.checkoutId, status: previous.status, pending: true, verificationUrl: checkoutVerificationUrl(previous) });
+        }
+      } else if (listingAdjustment.submittedAt) {
+        return sendPawaPayError(res, 409, 'PAWAPAY_LISTING_PAYMENT_PENDING', 'Ce complément est déjà en cours de vérification.');
+      }
+      const expectedAmount = getPawaPayListingAmount(listingAdjustment.remainingFee);
+      if (!(expectedAmount > 0) || amount !== expectedAmount || Number(product.pendingPrice) !== Number(listingAdjustment.newPrice) || Number(product.listingFeeRemaining) !== Number(listingAdjustment.remainingFee)) {
+        return sendPawaPayError(res, 409, 'PAWAPAY_LISTING_AMOUNT_CHANGED', 'Le complément de commission a changé. Actualisez l’annonce.', { expectedAmount, retryable: true });
+      }
+      listingFeeSnapshot = {
+        kind: 'reconciliation', reconciliationId: String(listingAdjustment._id),
+        newPrice: listingAdjustment.newPrice, requiredFee: listingAdjustment.requiredFee,
+        dueAmount: listingAdjustment.remainingFee, capturedAt: new Date()
+      };
+    } else {
     const commissionRate = await getListingCommissionRate(product.countryId);
     const referencePrice = getHighestProductPrice({ productAttributes: product.attributes, basePrice: product.price });
     const preview = promoCode
@@ -305,6 +379,7 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
       ...commission, referencePrice, ratePercent: commissionRate,
       promo: preview?.promo || null, capturedAt: new Date()
     };
+    }
   }
   if (actionContext?.kind === 'SHOP_CONVERSION_REQUEST') {
     const requestId = String(actionContext.requestId || '').trim();
@@ -367,6 +442,39 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
     }
   }
 
+  if (actionContext?.kind === 'BUY_FOR_ME_ADDITIONAL_PAYMENT') {
+    try {
+      const quote = await quoteShoppingCheckout({ userId: req.user._id, amount, action: actionContext });
+      resourceCountryId = quote.countryId;
+      resourceCurrency = quote.currency;
+    } catch (error) {
+      return sendPawaPayError(res, error.statusCode || 400, 'SHOPPING_PAYMENT_INVALID', error.message);
+    }
+  }
+  if (actionContext?.kind?.startsWith('INSTALLMENT_')) {
+    try {
+      const quote = await quoteInstallmentCheckout({ userId: req.user._id, action: actionContext, amount });
+      resourceCountryId = quote.countryId;
+      resourceCurrency = quote.currency;
+    } catch (error) {
+      return sendPawaPayError(res, error.status || 400, 'INSTALLMENT_PAYMENT_INVALID', error.message);
+    }
+  }
+  if (actionContext?.kind === 'ORDER_CHECKOUT' && Array.isArray(actionContext.items) && actionContext.items.length) {
+    try {
+      const firstProduct = mongoose.isValidObjectId(actionContext.items?.[0]?.productId)
+        ? await Product.findById(actionContext.items[0].productId).select('countryId').lean() : null;
+      actionContext.fullPaymentFreeDelivery = (await Promise.all([
+        getRuntimeConfig('full_payment_promotion_enabled', { countryId: firstProduct?.countryId, fallback: true }),
+        getRuntimeConfig('enable_full_payment_free_delivery', { countryId: firstProduct?.countryId, fallback: true })
+      ])).every(Boolean);
+      const quote = await quotePawaPayOrder({ userId: req.user._id, action: actionContext, amount });
+      resourceCountryId = quote.countryId;
+      resourceCurrency = quote.currency;
+    } catch (error) {
+      return sendPawaPayError(res, error.status || 400, 'ORDER_CHECKOUT_INVALID', error.message);
+    }
+  }
   let paymentProvider;
   try {
     paymentProvider = await resolvePaymentProvider({
@@ -384,15 +492,37 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
     );
   }
 
-  const checkoutId = crypto.randomUUID();
+  if (actionContext?.kind === 'ORDER_CHECKOUT') {
+    const settings = await Promise.all([
+      getRuntimeConfig('full_payment_promotion_enabled', { countryId: paymentProvider.countryContext.countryId, fallback: true }),
+      getRuntimeConfig('enable_full_payment_free_delivery', { countryId: paymentProvider.countryContext.countryId, fallback: true })
+    ]);
+    actionContext.fullPaymentFreeDelivery = settings.every(Boolean);
+  }
+
+  const checkoutId = requestIdentity?.checkoutId || crypto.randomUUID();
+  if (listingAdjustment) {
+    const reserved = await ListingFeePayment.findOneAndUpdate({
+      _id: listingAdjustment._id, status: 'PENDING', newPrice: listingAdjustment.newPrice,
+      remainingFee: listingAdjustment.remainingFee,
+      pawaPayCheckoutId: listingAdjustment.pawaPayCheckoutId || { $in: ['', null] }
+    }, { $set: { pawaPayCheckoutId: checkoutId, paymentMethod: 'pawapay', currency: paymentProvider.currency, countryId: paymentProvider.countryContext.countryId } });
+    if (!reserved) return sendPawaPayError(res, 409, 'PAWAPAY_LISTING_PAYMENT_PENDING', 'Un paiement est déjà en cours pour ce complément.');
+    const locked = await Product.findOneAndUpdate({ _id: product._id, pendingPrice: listingAdjustment.newPrice, listingFeeRemaining: listingAdjustment.remainingFee, requiresAdditionalPayment: true }, { $set: { listingFeeStatus: 'UNDER_REVIEW' } });
+    if (!locked) {
+      await ListingFeePayment.updateOne({ _id: listingAdjustment._id, pawaPayCheckoutId: checkoutId }, { $set: { pawaPayCheckoutId: listingAdjustment.pawaPayCheckoutId || '' } });
+      return sendPawaPayError(res, 409, 'PAWAPAY_LISTING_ADJUSTMENT_CHANGED', 'Le prix a changé. Actualisez l’annonce.');
+    }
+  }
   if (imageEditJob) {
     const locked = await ImageEditJob.findOneAndUpdate({ _id: imageEditJob._id, checkoutId: imageEditJob.checkoutId, state: 'AWAITING_PAYMENT' }, { $set: { checkoutId } });
     if (!locked) return sendPawaPayError(res, 409, 'IMAGE_EDIT_PAYMENT_PENDING', 'Un paiement est déjà en cours pour cette retouche.');
   }
   let checkout;
   try {
-    checkout = await PawaPayCheckout.create({
+    const checkoutData = {
     checkoutId,
+    requestFingerprint: requestIdentity?.requestFingerprint || '',
     imageEditJob: imageEditJob?._id || null,
     user: req.user._id,
     amount,
@@ -406,14 +536,90 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
     listingFeeSnapshot,
     actionContext,
     autoValidationState: product || actionContext ? 'PENDING' : 'NOT_APPLICABLE'
-  });
+    };
+    if (['ORDER_CHECKOUT', 'ORDER_PAYMENT'].includes(actionContext?.kind) &&
+      (actionContext.kind === 'ORDER_PAYMENT' || (Array.isArray(actionContext.items) && actionContext.items.length))) {
+      const reserved = await reserveOrderPayment(checkoutData, quotePawaPayOrder);
+      checkout = reserved.checkout;
+      if (reserved.reused) return res.status(202).json({ checkoutId: checkout.checkoutId, status: checkout.status,
+        pending: true, verificationUrl: checkoutVerificationUrl(checkout) });
+    } else if (actionContext?.kind?.startsWith('SPONSORSHIP_')) {
+      const reserved = await reserveSponsoredCheckout(checkoutData);
+      checkout = reserved.checkout;
+      if (reserved.reused) {
+        const canResume = checkout.status === 'WAITING_PAYMENT' && checkout.redirectUrl && (!checkout.expiresAt || checkout.expiresAt > new Date());
+        return res.status(canResume ? 200 : 202).json({ checkoutId: checkout.checkoutId, status: checkout.status,
+          ...(canResume ? { redirectUrl: checkout.redirectUrl } : { pending: true, verificationUrl: checkoutVerificationUrl(checkout) }) });
+      }
+    } else if (actionContext?.kind?.startsWith('BUY_FOR_ME_')) {
+      const reserved = await reserveShoppingCheckout(checkoutData, { featureContext: {
+        sessionId: req.headers?.['x-session-id'], deviceId: req.headers?.['x-device-id'],
+        platform: req.headers?.['x-app-platform'] || req.headers?.['x-platform'], appVersion: req.headers?.['x-app-version']
+      } });
+      checkout = reserved.checkout;
+      if (reserved.reused) {
+        const canResume = checkout.status === 'WAITING_PAYMENT' && checkout.redirectUrl && (!checkout.expiresAt || checkout.expiresAt > new Date());
+        return res.status(canResume ? 200 : 202).json({ checkoutId: checkout.checkoutId, status: checkout.status,
+          ...(canResume ? { redirectUrl: checkout.redirectUrl } : { pending: true, verificationUrl: checkoutVerificationUrl(checkout) }) });
+      }
+    } else if (actionContext?.kind?.startsWith('INSTALLMENT_')) {
+      const reserved = await reserveInstallmentCheckout(checkoutData, {
+        sessionId: req.headers?.['x-session-id'], deviceId: req.headers?.['x-device-id'],
+        platform: req.headers?.['x-app-platform'] || req.headers?.['x-platform'], appVersion: req.headers?.['x-app-version']
+      });
+      checkout = reserved.checkout;
+      if (reserved.reused) {
+        const canResume = checkout.status === 'WAITING_PAYMENT' && checkout.redirectUrl && (!checkout.expiresAt || checkout.expiresAt > new Date());
+        return res.status(canResume ? 200 : 202).json({ checkoutId: checkout.checkoutId, status: checkout.status,
+          ...(canResume ? { redirectUrl: checkout.redirectUrl } : { pending: true, verificationUrl: checkoutVerificationUrl(checkout) }) });
+      }
+    } else {
+      checkout = await PawaPayCheckout.create(checkoutData);
+    }
   } catch (error) {
     if (imageEditJob) await ImageEditJob.updateOne({ _id: imageEditJob._id, checkoutId }, { $set: { checkoutId: imageEditJob.checkoutId } });
+    const duplicate = requestIdentity && error?.code === 11000
+      ? await PawaPayCheckout.findOne({ checkoutId, user: req.user._id }).select('+requestFingerprint')
+      : null;
+    if (listingAdjustment && (!duplicate || duplicate.requestFingerprint !== requestIdentity?.requestFingerprint)) {
+      await ListingFeePayment.updateOne({ _id: listingAdjustment._id, pawaPayCheckoutId: checkoutId }, { $set: { pawaPayCheckoutId: listingAdjustment.pawaPayCheckoutId || '' } });
+      await Product.updateOne({ _id: product._id, pendingPrice: listingAdjustment.newPrice, listingFeeStatus: 'UNDER_REVIEW' }, { $set: { listingFeeStatus: 'PAYMENT_REQUIRED' } });
+    }
+    if (duplicate) return replay(duplicate);
+    if (['ORDER_CHECKOUT', 'ORDER_PAYMENT'].includes(actionContext?.kind) && error.status) {
+      return sendPawaPayError(res, error.status, 'ORDER_PAYMENT_INVALID', error.message);
+    }
+    if (actionContext?.kind?.startsWith('BUY_FOR_ME_') && error.statusCode) {
+      return sendPawaPayError(res, error.statusCode, 'SHOPPING_PAYMENT_INVALID', error.message);
+    }
+    if (actionContext?.kind?.startsWith('SPONSORSHIP_') && error.status) {
+      return sendPawaPayError(res, error.status, 'SPONSORSHIP_PAYMENT_INVALID', error.message);
+    }
+    if (actionContext?.kind?.startsWith('INSTALLMENT_') && error.status) {
+      return sendPawaPayError(res, error.status, 'INSTALLMENT_PAYMENT_INVALID', error.message);
+    }
     throw error;
   }
 
+  // A callback can win the race with the initiation response. Only CREATED
+  // checkouts may advance here; reconciliation owns all later transitions.
+  const recordInitiation = async (fields) => {
+    const updated = await PawaPayCheckout.findOneAndUpdate({
+      _id: checkout._id, status: 'CREATED', paymentState: { $ne: 'CONFIRMED' }
+    }, { $set: fields }, { new: true });
+    if (updated) return updated;
+    // Preserve the provider's return reference even when a callback won.
+    const metadata = Object.fromEntries(['redirectUrl', 'checkoutCode', 'expiresAt']
+      .filter(key => fields[key] !== undefined).map(key => [key, fields[key]]));
+    return Object.keys(metadata).length
+      ? PawaPayCheckout.findOneAndUpdate({ _id: checkout._id }, { $set: metadata }, { new: true })
+      : PawaPayCheckout.findById(checkout._id);
+  };
+  const pendingResponse = (current) => res.status(202).json({ checkoutId,
+    status: current.status, pending: true, verificationUrl: checkoutVerificationUrl(current) });
+  let result;
   try {
-    const result = await initiatePawaPayCheckout({
+    result = await initiatePawaPayCheckout({
       checkoutId,
       returnUrl: checkoutReturnUrl(),
       returnMethod: 'INSTANT',
@@ -435,47 +641,43 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
       ]
     });
 
-    const status = String(result?.status || '').toUpperCase();
-    if (!['ACCEPTED', 'DUPLICATE_IGNORED'].includes(status) || !result?.redirectUrl) {
-      checkout.status = 'FAILED';
-      checkout.failureReason = result?.failureReason || { failureCode: 'CHECKOUT_REJECTED' };
-      await checkout.save();
-      const failure = getPawaPayFailurePresentation(checkout.failureReason);
-      return sendPawaPayError(res, 400, `PAWAPAY_${failure.providerCode}`, failure.message, failure);
-    }
-
-    checkout.status = 'WAITING_PAYMENT';
-    checkout.redirectUrl = String(result.redirectUrl);
-    checkout.checkoutCode = String(result.checkoutCode || '').trim();
-    checkout.expiresAt = result.expiresAt ? new Date(result.expiresAt) : null;
-    await checkout.save();
-
-    return res.status(201).json({
-      checkoutId,
-      checkoutCode: checkout.checkoutCode,
-      status: checkout.status,
-      redirectUrl: checkout.redirectUrl,
-      expiresAt: checkout.expiresAt
-    });
   } catch (error) {
-    const uncertain = error?.details?.action === 'CHECK_STATUS';
-    checkout.status = uncertain ? 'PROCESSING' : 'FAILED';
-    checkout.failureReason = {
-      failureCode: error?.details?.providerCode || error.code || 'PAWAPAY_REQUEST_FAILED'
-    };
-    await checkout.save();
-    if (uncertain) {
-      return res.status(202).json({
-        checkoutId,
-        status: checkout.status,
-        pending: true,
-        verificationUrl: checkoutVerificationUrl(checkout),
-        message: error.message,
-        details: error.details
-      });
-    }
+    // An unclassified transport error does not prove that no payment opened.
+    const uncertain = !error?.details?.action || error.details.action === 'CHECK_STATUS';
+    checkout = await recordInitiation({ status: uncertain ? 'PROCESSING' : 'FAILED',
+      failureReason: { failureCode: error?.details?.providerCode || error.code || 'PAWAPAY_REQUEST_FAILED' } });
+    if (uncertain || !FINAL_FAILURE.has(checkout.status)) return pendingResponse(checkout);
+    await releaseFailedListingAdjustment(checkout);
+    await releaseShoppingCheckout(checkout);
+    await releaseOrderPromos(checkout);
     throw error;
   }
+
+  const status = String(result?.status || '').toUpperCase();
+  if (!['ACCEPTED', 'DUPLICATE_IGNORED'].includes(status) || !result?.redirectUrl) {
+    const rejected = FINAL_FAILURE.has(status);
+    checkout = await recordInitiation({ status: rejected ? 'FAILED' : 'PROCESSING',
+      failureReason: result?.failureReason || { failureCode: rejected ? 'CHECKOUT_REJECTED' : 'UNKNOWN_ERROR' } });
+    if (!rejected || !FINAL_FAILURE.has(checkout.status)) return pendingResponse(checkout);
+    await releaseFailedListingAdjustment(checkout);
+    await releaseShoppingCheckout(checkout);
+    await releaseOrderPromos(checkout);
+    const failure = getPawaPayFailurePresentation(checkout.failureReason);
+    return sendPawaPayError(res, 400, `PAWAPAY_${failure.providerCode}`, failure.message, failure);
+  }
+
+  checkout = await recordInitiation({ status: 'WAITING_PAYMENT',
+    redirectUrl: String(result.redirectUrl), checkoutCode: String(result.checkoutCode || '').trim(),
+    expiresAt: result.expiresAt ? new Date(result.expiresAt) : null });
+  if (checkout.status !== 'WAITING_PAYMENT') return pendingResponse(checkout);
+
+  return res.status(201).json({
+    checkoutId,
+    checkoutCode: checkout.checkoutCode,
+    status: checkout.status,
+    redirectUrl: checkout.redirectUrl,
+    expiresAt: checkout.expiresAt
+  });
 });
 
 const respondWithMyPawaPayCheckout = async (checkout, res) => {
@@ -707,71 +909,52 @@ const normalizedAmount = (payload) => {
   return Number.isFinite(amount) ? amount : null;
 };
 
+const releaseFailedListingAdjustment = async (checkout) => {
+  if (checkout.listingFeeSnapshot?.kind !== 'reconciliation' || !FINAL_FAILURE.has(checkout.status) || checkout.paymentState === 'CONFIRMED') return;
+  if (['AMOUNT_MISMATCH', 'CURRENCY_MISMATCH'].includes(checkout.failureReason?.failureCode)) return;
+  const payment = await ListingFeePayment.findOne({ _id: checkout.listingFeeSnapshot.reconciliationId, pawaPayCheckoutId: checkout.checkoutId, status: 'PENDING' });
+  if (!payment) return;
+  await Product.updateOne({ _id: checkout.product, pendingPrice: payment.newPrice, listingFeeStatus: 'UNDER_REVIEW' }, { $set: { listingFeeStatus: 'PAYMENT_REQUIRED' } });
+};
+
 const reconcilePawaPayCheckout = async ({ resourceType, resourceId, status, amount, currency, payload }) => {
   if (resourceType !== 'checkout') return null;
   const checkout = await PawaPayCheckout.findOne({ checkoutId: resourceId });
   if (!checkout) return null;
+  if (checkout.status === 'COMPLETED' && checkout.paymentState === 'CONFIRMED') return checkout;
 
   const effectiveCurrency = currency || String(payload.deposit?.currency || payload.amounts?.[0]?.currency || '').toUpperCase();
   const expectedAmount = Number(checkout.amount);
-  if (amount != null && Math.abs(expectedAmount - amount) > 0.01) {
-    checkout.status = 'FAILED';
-    checkout.failureReason = { failureCode: 'AMOUNT_MISMATCH', expectedAmount, receivedAmount: amount };
-    checkout.callbackPayload = sanitizePayload(payload);
-    await checkout.save();
-    return checkout;
-  }
-  if (effectiveCurrency && effectiveCurrency !== checkout.currency) {
-    checkout.status = 'FAILED';
-    checkout.failureReason = { failureCode: 'CURRENCY_MISMATCH', expectedCurrency: checkout.currency, receivedCurrency: effectiveCurrency };
-    checkout.callbackPayload = sanitizePayload(payload);
-    await checkout.save();
-    return checkout;
-  }
-
-  checkout.status = normalizePawaPayCheckoutStatus(status, checkout.status);
-  checkout.providerTransactionId = String(payload.providerTransactionId || payload.deposit?.providerTransactionId || '');
-  const providerCheckoutCode = String(payload.checkoutCode || '').trim();
-  if (providerCheckoutCode) checkout.checkoutCode = providerCheckoutCode;
+  const mismatch = amount != null && (!Number.isFinite(amount) || Math.abs(expectedAmount - amount) > 0.01)
+    ? { failureCode: 'AMOUNT_MISMATCH', expectedAmount, receivedAmount: amount }
+    : effectiveCurrency && effectiveCurrency !== checkout.currency
+      ? { failureCode: 'CURRENCY_MISMATCH', expectedCurrency: checkout.currency, receivedCurrency: effectiveCurrency }
+      : null;
+  const succeeded = FINAL_SUCCESS.has(status) && !mismatch;
   const completedDeposit = Array.isArray(payload.depositsHistory)
     ? payload.depositsHistory.find((entry) => FINAL_SUCCESS.has(String(entry?.status || '').toUpperCase()))
     : null;
   const deposit = payload.deposit || completedDeposit;
-  if (deposit?.depositId) checkout.depositId = String(deposit.depositId);
-  if (deposit?.status) checkout.depositStatus = String(deposit.status).toUpperCase();
-  checkout.failureReason = sanitizePayload(payload.failureReason || payload.deposit?.failureReason || null);
-  checkout.callbackPayload = sanitizePayload(payload);
-  await checkout.save();
-
-  if (!FINAL_SUCCESS.has(status)) return checkout;
-
-  const claimed = await PawaPayCheckout.findOneAndUpdate(
-    {
-      _id: checkout._id,
-      $or: [
-        { paymentState: 'PENDING' },
-        {
-          paymentState: 'PROCESSING',
-          updatedAt: { $lt: new Date(Date.now() - 2 * 60 * 1000) }
-        }
-      ]
-    },
-    { $set: { paymentState: 'PROCESSING' } },
-    { new: true }
-  );
-  if (!claimed) return checkout;
-
-  try {
-    claimed.paymentState = 'CONFIRMED';
-    claimed.confirmedAt = new Date();
-    await claimed.save();
-  } catch (error) {
-    claimed.paymentState = 'PENDING';
-    await claimed.save();
-    throw error;
-  }
-
-  return claimed;
+  const updated = await PawaPayCheckout.findOneAndUpdate({
+    _id: checkout._id,
+    ...(succeeded
+      ? { $or: [{ status: { $ne: 'COMPLETED' } }, { paymentState: { $ne: 'CONFIRMED' } }] }
+      : { status: { $nin: ['COMPLETED', 'FAILED', 'CANCELLED', 'EXPIRED'] }, paymentState: { $ne: 'CONFIRMED' } })
+  }, { $set: {
+    status: mismatch ? 'FAILED' : normalizePawaPayCheckoutStatus(status, checkout.status),
+    ...(succeeded ? { paymentState: 'CONFIRMED', confirmedAt: checkout.confirmedAt || new Date() } : {}),
+    ...(payload.checkoutCode ? { checkoutCode: String(payload.checkoutCode) } : {}),
+    ...(deposit?.depositId ? { depositId: String(deposit.depositId) } : {}),
+    ...(deposit?.status ? { depositStatus: String(deposit.status).toUpperCase() } : {}),
+    providerTransactionId: String(payload.providerTransactionId || deposit?.providerTransactionId || checkout.providerTransactionId || ''),
+    failureReason: mismatch || sanitizePayload(payload.failureReason || deposit?.failureReason || null),
+    callbackPayload: sanitizePayload(payload)
+  } }, { new: true });
+  const current = updated || await PawaPayCheckout.findById(checkout._id);
+  if (updated) await releaseFailedListingAdjustment(updated);
+  if (current) await releaseShoppingCheckout(current);
+  if (current) await releaseOrderPromos(current);
+  return current;
 };
 
 const reconcileCheckoutStatusFromProvider = async (checkout, { force = false } = {}) => {
@@ -863,9 +1046,12 @@ const reconcileCheckoutStatusFromProvider = async (checkout, { force = false } =
 // PROCESSING and reconciles them against PawaPay directly, same as the
 // refund/settlement reconciliation passes already scheduled in server.js.
 export const reconcilePendingPawaPayCheckouts = async ({ limit = 50 } = {}) => {
+  const failedPromos = await PawaPayCheckout.find({ orderPromosReserved: true, status: { $in: ['FAILED', 'EXPIRED', 'CANCELLED'] }, paymentState: { $ne: 'CONFIRMED' } }).limit(limit);
+  for (const checkout of failedPromos) await releaseOrderPromos(checkout).catch(() => {});
   const staleBefore = new Date(Date.now() - 60_000);
   const checkouts = await PawaPayCheckout.find({
-    status: { $in: ['CREATED', 'WAITING_PAYMENT', 'PROCESSING'] },
+    $and: [{ $or: [{ status: { $in: ['CREATED', 'WAITING_PAYMENT', 'PROCESSING'] } },
+      { paymentState: 'CONFIRMED', autoValidationState: { $in: ['PENDING', 'FAILED', 'PROCESSING'] }, 'actionContext.kind': { $in: ['ORDER_CHECKOUT', 'ORDER_PAYMENT', 'SPONSORSHIP_ACCEPT', 'SPONSORSHIP_PAY_SELF', 'BUY_FOR_ME_ORDER', 'BUY_FOR_ME_ADDITIONAL_PAYMENT', 'INSTALLMENT_CHECKOUT', 'INSTALLMENT_PAYMENT'] } }] }],
     $or: [
       { lastProviderStatusCheckAt: null },
       { lastProviderStatusCheckAt: { $exists: false } },
@@ -1040,53 +1226,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
       entityId = firstOrderId || claimed.checkoutId;
       successPath = firstOrderId ? `/order/detail/${encodeURIComponent(String(firstOrderId))}` : '/orders';
     } else if (action.kind === 'ORDER_PAYMENT') {
-      const order = await Order.findOne({ _id: action.orderId, customer: claimed.user });
-      if (!order) throw new Error('Commande introuvable pour ce paiement.');
-      const orderTotal = Number(order.totalAmount || 0);
-      if (!(orderTotal > 0) || Math.abs(orderTotal - Number(claimed.amount || 0)) > 0.01) {
-        throw new Error('Le montant PawaPay ne correspond pas au total de la commande.');
-      }
-      if (String(order.paymentStatus || '').toUpperCase() !== 'PAID_FULL') {
-        const previousEscrowStatus = order.escrowStatus || 'WAITING_PAYMENT';
-        order.paymentSource = 'pawapay';
-        order.paymentCheckoutId = claimed.checkoutId;
-        order.paymentDepositId = claimed.depositId || '';
-        order.paidAmount = orderTotal;
-        order.remainingAmount = 0;
-        order.paymentStatus = 'PAID_FULL';
-        order.paymentCompletedAt = new Date();
-        order.status = 'paid';
-        order.escrowStatus = 'IN_ESCROW';
-        order.escrowAmount = orderTotal;
-        await order.save();
-        await recordEscrowAudit({
-          order,
-          actor: claimed.user,
-          actorRole: 'buyer',
-          action: 'ESCROW_FUNDED',
-          fromStatus: previousEscrowStatus,
-          toStatus: 'IN_ESCROW',
-          amount: orderTotal,
-          metadata: { checkoutId: claimed.checkoutId, quotationRequest: String(order.quotationRequest || '') }
-        }).catch(() => null);
-        const sellerId = String(order.items?.[0]?.snapshot?.shopId || '');
-        if (sellerId && sellerId !== String(claimed.user)) {
-          await createNotification({
-            userId: sellerId,
-            actorId: claimed.user,
-            type: 'payment_validated',
-            priority: 'HIGH',
-            deepLink: `/seller/orders/detail/${order._id}`,
-            actionLink: `/seller/orders/detail/${order._id}`,
-            entityType: 'order',
-            entityId: String(order._id),
-            title: 'Prix à débattre payé avec PawaPay',
-            message: 'La commande négociée est payée et les fonds sont en séquestre.',
-            actionLabel: 'Voir la commande',
-            metadata: { orderId: order._id, quotationRequest: order.quotationRequest, paymentSource: 'pawapay' }
-          }).catch(() => null);
-        }
-      }
+      const order = await completeNegotiatedPayment(claimed);
       result = { orderId: order._id };
       title = 'Commande PawaPay payée';
       message = `La commande a été réglée avec PawaPay pour ${Number(claimed.amount || 0).toLocaleString('fr-FR')} FCFA.`;
@@ -1305,7 +1445,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
       message,
       deepLink,
       entityId
-    });
+    }).catch((error) => console.error('[pawapay] completion notification failed:', error?.message));
     return result;
   } catch (error) {
     claimed.autoValidationState = 'FAILED';
@@ -1405,10 +1545,44 @@ const autoValidateListingCheckout = async (checkout) => {
 
   try {
     const product = await Product.findById(claimed.product)
-      .select('+listingFeePaid +listingFeeRequired');
+      .select('+listingFeePaid +listingFeeRequired +pendingPrice +pendingPriceBeforeDiscount +pendingDiscount +listingFeeRemaining');
     if (!product) throw new Error('Annonce introuvable pendant la validation automatique PawaPay.');
     if (String(product.user) !== String(claimed.user)) {
       throw new Error('Le bénéficiaire de l’annonce ne correspond pas au paiement PawaPay.');
+    }
+
+    if (claimed.listingFeeSnapshot?.kind === 'reconciliation') {
+      const quote = claimed.listingFeeSnapshot;
+      const adjustment = await ListingFeePayment.findOne({ _id: quote.reconciliationId, productId: product._id, sellerId: claimed.user, pawaPayCheckoutId: claimed.checkoutId });
+      if (!adjustment || !['PENDING', 'APPROVED'].includes(adjustment.status) ||
+          Number(adjustment.newPrice) !== Number(quote.newPrice) ||
+          Number(adjustment.requiredFee) !== Number(quote.requiredFee) ||
+          Number(adjustment.remainingFee) !== Number(quote.dueAmount) ||
+          Number(claimed.amount) !== getPawaPayListingAmount(quote.dueAmount)) {
+        throw new Error('Le complément confirmé ne correspond plus à la demande de prix.');
+      }
+      if (adjustment.status !== 'APPROVED') {
+        adjustment.amountPaid = Number(claimed.amount);
+        adjustment.paymentMethod = 'pawapay';
+        adjustment.transactionReference = claimed.checkoutId;
+        adjustment.payerName = 'PawaPay';
+        adjustment.currency = claimed.currency;
+        adjustment.countryId = claimed.countryId;
+        adjustment.submittedAt ||= new Date();
+        await adjustment.save();
+        await approveListingFeeReconciliation({ payment: adjustment, reviewerId: claimed.user, productSnapshot: product });
+      }
+      claimed.autoValidationState = 'COMPLETED';
+      claimed.autoValidatedListingFeePayment = adjustment._id;
+      claimed.autoValidatedAt = new Date();
+      claimed.autoValidationError = '';
+      claimed.completionResult = {
+        actionKind: 'LISTING_FEE_FUNDING', entityId: String(product._id), orderIds: [],
+        successPath: claimed.returnPath || `/my/annonce/${product.slug || product._id}`,
+        message: 'Complément confirmé, nouveau prix publié.'
+      };
+      await claimed.save();
+      return adjustment;
     }
 
     const existingPayment = await Payment.findOne({
@@ -1654,10 +1828,15 @@ export const receivePawaPayCallback = (resourceType) =>
     const refund = resourceType === 'refund'
       ? await reconcileRefund(resourceId, payload)
       : null;
+    const shopConversionRefund = resourceType === 'refund' && !refund
+      ? await reconcileShopConversionRefund(resourceId, payload)
+      : null;
     const sellerPayout = resourceType === 'payout'
       ? await reconcileSellerPayout(resourceId, payload)
       : null;
-    const reconciliation = refund || sellerPayout
+    const shoppingTransfer = ['refund', 'payout'].includes(resourceType) && !refund && !sellerPayout
+      ? await reconcileShoppingTransfer(resourceId, payload, resourceType === 'refund' ? 'REFUND' : 'PAYOUT') : null;
+    const reconciliation = refund || shopConversionRefund || sellerPayout || shoppingTransfer
       ? { payment: null, reconciliationStatus: 'MATCHED' }
       : await reconcilePayment({ resourceType, resourceId, status, amount, currency, payload });
     if (pawaPayCheckout && FINAL_SUCCESS.has(status)) {

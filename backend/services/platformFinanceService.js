@@ -9,11 +9,12 @@ import Order from '../models/orderModel.js';
 import PlatformExpense from '../models/platformExpenseModel.js';
 import AiUsage from '../models/aiUsageModel.js';
 import ImageEditJob from '../models/imageEditJobModel.js';
+import { listingPaymentMatch } from './listingPaymentReportService.js';
 
 // Each revenue channel has ONE authoritative collection. PawaPay funding rows
 // for listing/boost/conversion are deliberately not added a second time.
 export const financeSources = [
-  { model: Payment, channel: 'listing', match: { paymentType: 'LISTING_FEE', status: { $in: ['VERIFIED', 'verified', 'REFUNDED'] }, waivedByPromo: { $ne: true } }, amount: { $ifNull: ['$amountPaid', { $ifNull: ['$amount', 0] }] }, refund: { $eq: ['$status', 'REFUNDED'] } },
+  { model: Payment, channel: 'listing', match: { ...listingPaymentMatch, status: { $in: ['VERIFIED', 'verified', 'REFUNDED'] }, waivedByPromo: { $ne: true } }, lookup: 'product', amount: { $ifNull: ['$amountPaid', { $ifNull: ['$amount', 0] }] }, refund: { $eq: ['$status', 'REFUNDED'] } },
   { model: ListingFeePayment, channel: 'listing_adjustment', match: { status: 'APPROVED' }, amount: '$amountPaid', lookup: true },
   { model: BoostRequest, channel: 'boost', match: { paymentStatus: { $in: ['paid', 'refunded'] } }, amount: '$totalPrice', refund: { $eq: ['$paymentStatus', 'refunded'] } },
   { model: ShopConversionRequest, channel: 'shop', match: { paymentStatus: { $in: ['paid', 'refunded'] } }, amount: '$paymentAmount', checkoutCurrency: true, refund: { $eq: ['$paymentStatus', 'refunded'] } },
@@ -39,10 +40,10 @@ export async function getPlatformFinance() {
   const since = new Date(Date.now() - 30 * 86400000);
   const sourceRows = await Promise.all(financeSources.map(async source => {
     const pipeline = [{ $match: { ...source.match, createdAt: { $gte: since } } }];
-    if (source.lookup) pipeline.push({ $lookup: { from: 'products', localField: 'productId', foreignField: '_id', as: 'product' } });
+    if (source.lookup) pipeline.push({ $lookup: { from: 'products', localField: typeof source.lookup === 'string' ? source.lookup : 'productId', foreignField: '_id', as: 'listingProduct' } });
     if (source.checkoutCurrency) pipeline.push({ $lookup: { from: 'pawapaycheckouts', localField: 'pawaPayCheckoutId', foreignField: 'checkoutId', as: 'checkout' } });
     pipeline.push({ $group: {
-      _id: { $ifNull: [source.lookup ? { $arrayElemAt: ['$product.currency', 0] } : source.checkoutCurrency ? { $arrayElemAt: ['$checkout.currency', 0] } : '$currency', 'UNKNOWN'] },
+      _id: { $ifNull: ['$currency', { $ifNull: [source.lookup ? { $arrayElemAt: ['$listingProduct.currency', 0] } : source.checkoutCurrency ? { $arrayElemAt: ['$checkout.currency', 0] } : null, source.lookup ? 'XAF' : 'UNKNOWN'] }] },
       receipts: { $sum: source.amount }, refunds: { $sum: { $cond: [source.refund || false, source.amount, 0] } }
     } });
     return (await source.model.aggregate(pipeline)).map(x => ({ currency: x._id, channel: source.channel, receipts: x.receipts, refunds: x.refunds }));

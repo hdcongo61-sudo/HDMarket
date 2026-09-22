@@ -14,8 +14,8 @@ const formatExpiry = (value) => {
   return date.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 };
 
-function StatusPill({ status }) {
-  const meta = getSponsorshipStatusMeta(status);
+function StatusPill({ status, remainingAmount = 0 }) {
+  const meta = getSponsorshipStatusMeta(status, remainingAmount);
   return (
     <span className={`inline-flex items-center rounded px-2.5 py-1 text-[11px] font-black ${meta.pillClassName}`}>
       {meta.label}
@@ -23,19 +23,17 @@ function StatusPill({ status }) {
   );
 }
 
-// Payment form shared by the designated-payer "approve & pay" flow and the
-// requester "pay myself" flow. The payer picks a method (Mobile Money /
-// portefeuille, when enabled) and, in Mobile Money, how much to régler:
-// the 25% acompte or the full amount.
+// The server quotes the 25% deposit and the full amount for both payment paths.
 function GroupPaymentForm({
   totalAmount,
   depositAmount,
   busy,
   onCancel,
+  onResult,
   actionContext
 }) {
   // Deposit only makes sense when it is a real partial amount.
-  const hasDepositOption = Number(depositAmount) > 0 && Number(depositAmount) < Number(totalAmount);
+  const hasDepositOption = Number(depositAmount) >= 10 && Number(depositAmount) < Number(totalAmount);
   const [paymentOption, setPaymentOption] = useState(hasDepositOption ? 'deposit' : 'full');
   const amountToPay = paymentOption === 'full' ? Number(totalAmount) : Number(depositAmount);
 
@@ -73,9 +71,10 @@ function GroupPaymentForm({
             }}
             returnPath="/sponsorships"
             label="Continuer avec PawaPay"
+            onResult={onResult}
           />
           <p className="mt-2 text-[11px] font-semibold text-emerald-800">
-            La demande est réglée automatiquement dès confirmation PawaPay.
+            {paymentOption === 'deposit' ? 'L’acompte confirme la commande. Le solde reste à régler à la livraison ou au retrait.' : 'La demande est réglée automatiquement dès confirmation PawaPay.'}
           </p>
         </div>
       )}
@@ -132,6 +131,15 @@ export default function Sponsorships() {
   const openForm = (gid, kind) => {
     setRetryPhone('');
     setActiveForm({ gid, kind });
+  };
+  const handlePaymentResult = async (result) => {
+    if (result.status === 'completed') {
+      setActiveForm(null);
+      showToast('Paiement confirmé.', { variant: 'success' });
+    } else if (result.status === 'failed') {
+      showToast(result.message || 'Le paiement n’a pas pu être finalisé.', { variant: 'error' });
+    }
+    await load();
   };
 
   const runAction = async (groupId, whichList, request, fallbackError) => {
@@ -220,7 +228,7 @@ export default function Sponsorships() {
               <p className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs italic text-gray-600">« {req.message} »</p>
             ) : null}
           </div>
-          <StatusPill status={req.status} />
+          <StatusPill status={req.status} remainingAmount={req.remainingAmount} />
         </div>
 
         {isPending && !formOpen && (
@@ -251,6 +259,7 @@ export default function Sponsorships() {
             busy={busy}
             actionContext={{ kind: 'SPONSORSHIP_ACCEPT', groupId: gid }}
             onCancel={() => setActiveForm(null)}
+            onResult={handlePaymentResult}
           />
         )}
       </div>
@@ -289,7 +298,7 @@ export default function Sponsorships() {
               </p>
             ) : null}
           </div>
-          <StatusPill status={req.status} />
+          <StatusPill status={req.status} remainingAmount={req.remainingAmount} />
         </div>
 
         {req.status === 'pending' && (
@@ -372,6 +381,7 @@ export default function Sponsorships() {
             busy={busy}
             actionContext={{ kind: 'SPONSORSHIP_PAY_SELF', groupId: gid }}
             onCancel={() => setActiveForm(null)}
+            onResult={handlePaymentResult}
           />
         )}
       </div>

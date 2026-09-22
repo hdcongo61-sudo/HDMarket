@@ -209,7 +209,7 @@ export default function Plans() {
             ]}
             action={conversionAction}
           />
-          <PlanCard
+          {isFeatureEnabled('enable_installments', { defaultValue: true }) && <PlanCard
             icon={ReceiptPercentIcon}
             eyebrow="Paiement flexible"
             title="Vente par tranches"
@@ -222,7 +222,7 @@ export default function Plans() {
               'Disponible uniquement sur les produits éligibles'
             ]}
             action={{ to: '/products', label: 'Voir les produits' }}
-          />
+          />}
         </div>
 
         <section className="mt-14">

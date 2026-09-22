@@ -788,8 +788,10 @@ api.interceptors.request.use(async (config) => {
     storage.get('hd_selected_country_id'),
     storage.get('hd_selected_country_code')
   ]);
-  if (storedCountryId) config.headers['x-country-id'] = String(storedCountryId);
-  if (storedCountryCode) config.headers['x-country-code'] = String(storedCountryCode);
+  if (!config.headers['x-country-id'] && !config.headers['x-country-code']) {
+    if (storedCountryId) config.headers['x-country-id'] = String(storedCountryId);
+    if (storedCountryCode) config.headers['x-country-code'] = String(storedCountryCode);
+  }
   if (requiresFeatureRolloutContext(config)) {
     const [featureDeviceId, preferredCity] = await Promise.all([
       getFeatureDeviceId(),

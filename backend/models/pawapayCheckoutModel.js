@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const pawapayCheckoutSchema = new mongoose.Schema(
   {
     checkoutId: { type: String, required: true, unique: true, trim: true },
+    requestFingerprint: { type: String, default: '', select: false },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     amount: { type: Number, required: true, min: 1 },
     currency: { type: String, default: 'XAF', uppercase: true, trim: true },
@@ -34,6 +35,13 @@ const pawapayCheckoutSchema = new mongoose.Schema(
     promoCode: { type: String, trim: true, uppercase: true, default: '' },
     listingFeeSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
     actionContext: { type: mongoose.Schema.Types.Mixed, default: null },
+    sponsorshipSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+    installmentSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+    orderSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+    orderReservationKey: { type: String, default: '', index: true },
+    orderPromosReserved: { type: Boolean, default: false, index: true },
+    installmentReservationKey: { type: String, default: '', index: true },
+    buyForMeSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
     returnPath: { type: String, default: '/orders', trim: true },
     status: {
       type: String,
@@ -61,6 +69,7 @@ const pawapayCheckoutSchema = new mongoose.Schema(
       default: 'NOT_APPLICABLE',
       index: true
     },
+    autoValidatedListingFeePayment: { type: mongoose.Schema.Types.ObjectId, ref: 'ListingFeePayment', default: null },
     autoValidatedPayment: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Payment',

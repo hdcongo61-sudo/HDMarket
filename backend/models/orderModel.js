@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { syncInstallmentAmounts } from '../services/installmentPolicyService.js';
 import Product from './productModel.js';
 import Tag from './tagModel.js';
 
@@ -92,6 +93,9 @@ const installmentScheduleSchema = new mongoose.Schema(
     validatedAt: { type: Date, default: null },
     paidAt: { type: Date, default: null },
     penaltyAmount: { type: Number, default: 0, min: 0 },
+    penaltyComponent: { type: Number, default: 0, min: 0 },
+    paymentCheckoutId: { type: String, default: '' },
+    overdueAt: { type: Date, default: null },
     reminderSentAt: { type: Date, default: null },
     overdueNotifiedAt: { type: Date, default: null }
   },
@@ -100,6 +104,9 @@ const installmentScheduleSchema = new mongoose.Schema(
 
 const installmentPlanSchema = new mongoose.Schema(
   {
+    principalAmount: { type: Number, default: null, min: 0 },
+    principalPaid: { type: Number, default: 0, min: 0 },
+    penaltiesPaid: { type: Number, default: 0, min: 0 },
     totalAmount: { type: Number, default: 0, min: 0 },
     amountPaid: { type: Number, default: 0, min: 0 },
     remainingAmount: { type: Number, default: 0, min: 0 },
@@ -298,6 +305,11 @@ const orderSchema = new mongoose.Schema(
       capturedAt: { type: Date, default: null }
     },
     paidAmount: { type: Number, default: 0 },
+    cashCollectedAmount: { type: Number, default: 0, min: 0 },
+    cashCollections: { type: [{ amount: { type: Number, required: true, min: 1 },
+      actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+      collectedAt: { type: Date, required: true }, method: { type: String, enum: ['CASH'], default: 'CASH' } }], default: [] },
+    cancellationRefundRequired: { type: Boolean, default: false, index: true },
     remainingAmount: { type: Number, default: 0 },
     appliedPromoCode: {
       code: { type: String, trim: true, default: '' },
@@ -423,6 +435,15 @@ const orderSchema = new mongoose.Schema(
       acceptedAt: { type: Date, default: null }
     },
     installmentPlan: { type: installmentPlanSchema, default: null },
+    installmentPayments: { type: [{
+      checkoutId: { type: String, required: true },
+      depositId: { type: String, default: '' },
+      amount: { type: Number, required: true, min: 0 },
+      allocatedAmount: { type: Number, default: 0, min: 0 },
+      scheduleIndex: { type: Number, default: -1 },
+      receivedAt: { type: Date, default: Date.now }
+    }], default: [] },
+    installmentRefundRequired: { type: Boolean, default: false },
     draftPayments: {
       type: [{
         sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -492,6 +513,7 @@ const orderSchema = new mongoose.Schema(
     sponsoredPayment: {
       isSponsored: { type: Boolean, default: false },
       requestGroupId: { type: String, trim: true, default: '', index: true },
+      checkoutId: { type: String, trim: true, default: '' },
       requester: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
       payer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
       payerPhone: { type: String, trim: true, default: '' },
@@ -581,8 +603,8 @@ orderSchema.pre('validate', async function ensureCountryAndPricingSnapshot() {
   const currencies = new Set();
   for (const item of this.items || []) {
     const product = productMap.get(String(item?.product || ''));
-    const countryId = product?.countryId || item?.snapshot?.countryId || this.countryId || defaultCountry._id;
-    const currency = String(product?.currency || item?.snapshot?.currency || this.currency || defaultCountry.currency.code).toUpperCase();
+    const countryId = item?.snapshot?.countryId || this.countryId || product?.countryId || defaultCountry._id;
+    const currency = String(item?.snapshot?.currency || product?.currency || this.currency || defaultCountry.currency.code).toUpperCase();
     countryIds.add(String(countryId));
     currencies.add(currency);
     if (item?.snapshot) {
@@ -621,6 +643,8 @@ orderSchema.pre('validate', async function ensureCountryAndPricingSnapshot() {
 });
 
 orderSchema.pre('save', function orderStatusTracking(next) {
+  if (this.paymentType === 'installment' && this.installmentPlan &&
+    ['paidAmount', 'totalAmount', 'installmentPayments'].every(path => this.isSelected(path))) syncInstallmentAmounts(this);
   this.$locals.wasNewOrder = this.isNew;
   if (this.isModified('status')) {
     this.statusStuckSince = new Date();
@@ -651,14 +675,31 @@ orderSchema.pre('save', function orderStatusTracking(next) {
   }
   // Fulfilment must never invent a payment. Partial online payments (50/70%)
   // remain partial; only the amount already captured can enter escrow.
-  if (this.isModified('paidAmount') || this.isModified('totalAmount')) {
-    const paid = Math.max(0, Number(this.paidAmount || 0));
+  if (this.paymentType !== 'installment' && (this.isModified('paidAmount') || this.isModified('totalAmount') || this.isModified('cashCollectedAmount'))) {
+    const paid = Math.max(0, Number(this.paidAmount || 0)) + Number(this.cashCollectedAmount || 0);
     const total = Math.max(0, Number(this.totalAmount || 0));
     this.remainingAmount = Math.max(0, total - paid);
     this.paymentStatus = paid <= 0 ? 'PENDING' : paid >= total ? 'PAID_FULL' : 'PARTIAL';
     if (paid >= total && total > 0 && !this.paymentCompletedAt) this.paymentCompletedAt = new Date();
   }
   next();
+});
+
+// Compare the version read by document writers with atomic financial updates.
+// This also protects proof/status saves from overwriting a concurrent refund.
+orderSchema.post('init', doc => { doc.$locals.readUpdatedAt = doc.updatedAt; });
+orderSchema.pre('save', function guardConcurrentOrderWrite() {
+  if (!this.isNew && this.$locals.readUpdatedAt) {
+    this.$where = { ...this.$where, updatedAt: this.$locals.readUpdatedAt };
+  }
+});
+orderSchema.post('save', doc => { doc.$locals.readUpdatedAt = doc.updatedAt; });
+orderSchema.post('save', function concurrentOrderError(error, _doc, next) {
+  if (error?.name === 'DocumentNotFoundError' || error?.name === 'VersionError') {
+    error.status = error.statusCode = 409;
+    error.message = 'La commande a changé. Actualisez avant de réessayer.';
+  }
+  next(error);
 });
 
 // A completed checkout is a tag conversion. Keep this close to the Order model
@@ -678,7 +719,8 @@ orderSchema.post('save', async function recordTagConversions(doc, next) {
     if (tagIds.length) {
       await Tag.updateMany(
         { _id: { $in: tagIds }, deletedAt: null },
-        { $inc: { conversionCount: 1, popularityScore: 8 } }
+        { $inc: { conversionCount: 1, popularityScore: 8 } },
+        { session: doc.$session() }
       );
     }
     return next();

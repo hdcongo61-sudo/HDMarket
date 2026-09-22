@@ -24,12 +24,16 @@ export const resolveCanonicalLocation = async ({
   communeName = '',
   countryId = null,
   allowLegacyCountryFallback = false,
-  requireCommuneWhenConfigured = true
+  requireCommuneWhenConfigured = true,
+  allowEmptyCity = false
 } = {}) => {
   const normalizedCityId = clean(cityId);
   const normalizedCommuneId = clean(communeId);
   const normalizedCityName = clean(cityName);
   const normalizedCommuneName = clean(communeName);
+  if (allowEmptyCity && !normalizedCityId && !normalizedCityName) {
+    return { cityId: null, cityName: '', communeId: null, communeName: '' };
+  }
 
   const countryFilter = countryId
     ? allowLegacyCountryFallback

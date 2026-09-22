@@ -29,7 +29,7 @@ vi.mock('../utils/cache.js', () => ({
   invalidateUserCache: mocks.invalidate
 }));
 
-import { getEscrowSettings, releaseEscrowForOrder } from './escrowService.js';
+import { getEscrowSettings, releaseEscrowForOrder, markEscrowRefunded } from './escrowService.js';
 
 describe('escrow settings', () => {
   beforeEach(() => {
@@ -84,5 +84,15 @@ describe('escrow settings', () => {
     });
     await releaseEscrowForOrder({ order: 'order-2', reason: 'DISPUTE_RESOLVED_SELLER' });
     expect(mocks.findOneAndUpdate.mock.calls[0][0].escrowStatus.$in).toContain('ON_HOLD');
+  });
+  it.each([releaseEscrowForOrder, markEscrowRefunded])('leaves a later refund’s escrow untouched by a stale completion', async updateEscrow => {
+    mocks.findOneAndUpdate.mockResolvedValue(null);
+    const current = { _id: 'order-1', refundId: 'new-attempt', refundStatus: 'pending', escrowStatus: 'ON_HOLD' };
+    mocks.findById.mockResolvedValue(current);
+    expect(await updateEscrow({ order: 'order-1', expectedRefundId: 'old-attempt' })).toBe(current);
+    expect(mocks.findOneAndUpdate.mock.calls[0][0]).toMatchObject({ refundId: 'old-attempt', refundStatus: 'processed' });
+    expect(mocks.settlement).not.toHaveBeenCalled();
+    expect(mocks.auditCreate).not.toHaveBeenCalled();
+    expect(mocks.notification).not.toHaveBeenCalled();
   });
 });

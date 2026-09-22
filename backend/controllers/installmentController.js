@@ -1,118 +1,34 @@
 import asyncHandler from 'express-async-handler';
+import { completeInstallmentCheckout, completeInstallmentPayment, quoteExistingInstallment, settleInstallmentEntry,
+  installmentError, installmentOrderKey, cancelInstallmentOrder, assertNoInstallmentPaymentPending } from '../services/installmentPaymentService.js';
+import { withCommerceOperation } from '../services/commerceOperationService.js';
+import { recoverInstallmentRefundsForOrder } from '../services/installmentRefundService.js';
+import { installmentIsClosed, isPastDueDate, isScheduleEntrySettled } from '../services/installmentPolicyService.js';
+import { invalidateUserCache, invalidateSellerCache, invalidateAdminCache } from '../utils/cache.js';
 import mongoose from 'mongoose';
 import Order from '../models/orderModel.js';
 import Product from '../models/productModel.js';
-import User from '../models/userModel.js';
-import Cart from '../models/cartModel.js';
-import City from '../models/cityModel.js';
-import Commune from '../models/communeModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
-import { getWholesalePricing } from '../utils/wholesaleUtils.js';
 import {
-  generateInstallmentSchedule,
   getInstallmentProgress,
-  getRiskLevelByScore,
-  isProductInstallmentActive
+  getRiskLevelByScore
 } from '../utils/installmentUtils.js';
 import { calculateProductSalesCount } from '../utils/salesCalculator.js';
-import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
 import {
   isTransactionCodeAlreadyUsed,
   normalizeTransactionCode,
   TRANSACTION_CODE_REUSED_MESSAGE
 } from '../utils/transactionCodeService.js';
 import { notifyBuyerOrderCancelled } from '../utils/orderCancellationNotification.js';
-import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
-import {
-  calculateInstallmentPenalty,
-  deriveInstallmentOrderStatus,
-  forwardPenaltyToNextInstallment
-} from '../services/installmentPolicyService.js';
 import { scheduleOrderReviewReminder } from '../services/orderReviewReminderService.js';
 import { getOrderAllowedActions } from '../services/orderStatusFlowService.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
-import { validateSelectedAttributesForProduct } from '../utils/productAttributes.js';
 import { notifyBuyerDeliveryDistanceWarning } from '../utils/deliveryDistanceWarning.js';
 import { getPawaPayConfig } from '../services/pawapayService.js';
+import { calculateInstallmentEligibilityScore } from '../services/installmentEligibilityService.js';
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
-const normalizeDeliveryMode = (value) =>
-  String(value || '').trim().toUpperCase() === 'DELIVERY' ? 'DELIVERY' : 'PICKUP';
-
-const resolveCheckoutAddress = async ({ deliveryMode, shippingAddress = {}, customer }) => {
-  const phone =
-    String(shippingAddress?.phone || customer?.phone || '')
-      .trim()
-      .slice(0, 30) || '';
-
-  if (deliveryMode === 'PICKUP') {
-    return {
-      deliveryAddress: 'Retrait en boutique',
-      deliveryCity: customer?.city || '',
-      snapshot: {
-        cityId: null,
-        cityName: customer?.city || '',
-        communeId: null,
-        communeName: customer?.commune || '',
-        addressLine: 'Retrait en boutique',
-        phone
-      }
-    };
-  }
-
-  const cityId = String(shippingAddress?.cityId || '').trim();
-  const communeId = String(shippingAddress?.communeId || '').trim();
-  const addressLine = String(shippingAddress?.addressLine || '').trim();
-  if (!ensureObjectId(cityId)) {
-    const error = new Error('Ville de livraison invalide.');
-    error.statusCode = 400;
-    throw error;
-  }
-  if (!ensureObjectId(communeId)) {
-    const error = new Error('Commune de livraison invalide.');
-    error.statusCode = 400;
-    throw error;
-  }
-  if (!addressLine) {
-    const error = new Error('Adresse de livraison requise.');
-    error.statusCode = 400;
-    throw error;
-  }
-  if (!phone) {
-    const error = new Error('Numéro de téléphone requis pour la livraison.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const [cityDoc, communeDoc] = await Promise.all([
-    City.findOne({ _id: cityId, isActive: true }).lean(),
-    Commune.findOne({ _id: communeId, isActive: true }).lean()
-  ]);
-  if (!cityDoc) {
-    const error = new Error('Ville de livraison introuvable.');
-    error.statusCode = 400;
-    throw error;
-  }
-  if (!communeDoc || String(communeDoc.cityId) !== String(cityDoc._id)) {
-    const error = new Error('Commune de livraison introuvable pour cette ville.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  return {
-    deliveryAddress: addressLine,
-    deliveryCity: cityDoc.name || customer?.city || '',
-    snapshot: {
-      cityId: cityDoc._id,
-      cityName: cityDoc.name || '',
-      communeId: communeDoc._id,
-      communeName: communeDoc.name || '',
-      addressLine,
-      phone
-    }
-  };
-};
 
 const resolveItemShopId = (item) =>
   item?.snapshot?.shopId ||
@@ -219,101 +135,6 @@ const buildOrderResponse = (order) => {
   };
 };
 
-const generateDeliveryCode = async () => {
-  let attempts = 0;
-  while (attempts < 10) {
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    // eslint-disable-next-line no-await-in-loop
-    const existing = await Order.findOne({ deliveryCode: code }).select('_id').lean();
-    if (!existing) return code;
-    attempts += 1;
-  }
-  return String(Date.now()).slice(-6);
-};
-
-const calculateInstallmentEligibilityScore = async (customerId) => {
-  const [totals, overdueCount] = await Promise.all([
-    Order.aggregate([
-      { $match: { customer: new mongoose.Types.ObjectId(customerId), isDraft: { $ne: true } } },
-      {
-        $group: {
-          _id: null,
-          totalOrders: { $sum: 1 },
-          deliveredOrders: {
-            $sum: {
-              $cond: [{ $in: ['$status', ['delivered', 'completed']] }, 1, 0]
-            }
-          },
-          cancelledOrders: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0]
-            }
-          },
-          completedInstallments: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ['$paymentType', 'installment'] },
-                    { $in: ['$status', ['installment_paid', 'completed']] }
-                  ]
-                },
-                1,
-                0
-              ]
-            }
-          }
-        }
-      }
-    ]),
-    Order.countDocuments({
-      customer: customerId,
-      paymentType: 'installment',
-      status: 'overdue_installment',
-      isDraft: { $ne: true }
-    })
-  ]);
-
-  const summary = totals[0] || {
-    totalOrders: 0,
-    deliveredOrders: 0,
-    cancelledOrders: 0,
-    completedInstallments: 0
-  };
-
-  const completionRate =
-    summary.totalOrders > 0 ? summary.deliveredOrders / summary.totalOrders : 0;
-  const cancellationRate =
-    summary.totalOrders > 0 ? summary.cancelledOrders / summary.totalOrders : 0;
-
-  let score = 55;
-  score += Math.round(completionRate * 30);
-  score += Math.min(10, Number(summary.completedInstallments || 0) * 2);
-  score -= Math.round(cancellationRate * 25);
-  score -= Math.min(20, Number(overdueCount || 0) * 4);
-
-  score = Math.max(0, Math.min(100, score));
-  return score;
-};
-
-const getNextDueDate = (schedule = []) => {
-  const next = schedule.find((entry) =>
-    ['pending', 'proof_uploaded', 'overdue'].includes(entry.status)
-  );
-  return next?.dueDate || null;
-};
-
-const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
-
-const isScheduleEntrySettled = (entry) => ['paid', 'waived'].includes(String(entry?.status || ''));
-
-const getRemainingScheduleAmount = (schedule = []) =>
-  roundMoney(
-    schedule.reduce((sum, entry) => {
-      if (isScheduleEntrySettled(entry)) return sum;
-      return sum + Number(entry?.amount || 0);
-    }, 0)
-  );
 
 const parseGuarantorPayload = (body = {}) => {
   if (body?.guarantor && typeof body.guarantor === 'object') {
@@ -352,799 +173,124 @@ const emitInstallmentOrderUpdate = ({ order, updatedBy, updatedAt = new Date() }
   });
 };
 
-const settlePawaPayInstallmentEntry = async ({ order, index, actorId, now = new Date() }) => {
-  const schedule = Array.isArray(order.installmentPlan?.schedule)
-    ? order.installmentPlan.schedule
-    : [];
-  const current = schedule[index];
-  if (!current) throw Object.assign(new Error('Tranche introuvable.'), { status: 404 });
-
-  const baseAmount = Number(current.amount || 0);
-  const penalty = calculateInstallmentPenalty({ order, scheduleEntry: current, now });
-  let penaltyForwardedToIndex = -1;
-
-  current.status = 'paid';
-  current.validatedBy = actorId;
-  current.validatedAt = now;
-  current.paidAt = now;
-  current.penaltyAmount = penalty;
-  if (penalty > 0) {
-    penaltyForwardedToIndex = forwardPenaltyToNextInstallment({
-      schedule,
-      fromIndex: index,
-      penalty,
-      now
-    });
+const notifyInstallmentChange = async (order, actorId, type, recipient) => {
+  emitInstallmentOrderUpdate({ order, updatedBy: actorId });
+  await createNotification({ userId: recipient || order.customer, actorId, type,
+    productId: order.items?.[0]?.product, entityType: 'order', entityId: String(order._id),
+    deepLink: recipient ? `/seller/orders/detail/${order._id}` : `/orders/detail/${order._id}`,
+    metadata: { orderId: order._id, status: order.status }, allowSelf: true }).catch(() => {});
+  await Promise.allSettled([
+    invalidateUserCache(order.customer, ['orders', 'notifications']),
+    invalidateSellerCache(order.items?.[0]?.snapshot?.shopId, ['orders', 'analytics', 'dashboard']),
+    invalidateAdminCache(['orders', 'admin'])
+  ]);
+  if (order.status === 'installment_paid') {
+    await Promise.allSettled(order.items.map(async item => Product.updateOne({ _id: item.product }, { $set: { salesCount: await calculateProductSalesCount(item.product) } })));
+    await scheduleOrderReviewReminder(order._id).catch(() => {});
   }
-
-  order.installmentPlan.amountPaid = roundMoney(
-    Math.min(
-      Number(order.installmentPlan.totalAmount || 0),
-      Number(order.installmentPlan.amountPaid || 0) + roundMoney(baseAmount)
-    )
-  );
-  order.installmentPlan.totalPenaltyAccrued = roundMoney(
-    Number(order.installmentPlan.totalPenaltyAccrued || 0) + penalty
-  );
-  order.installmentPlan.remainingAmount = getRemainingScheduleAmount(schedule);
-  order.installmentPlan.nextDueDate = getNextDueDate(schedule);
-  order.installmentPlan.overdueCount = schedule.filter((entry) => entry?.status === 'overdue').length;
-  order.paidAmount = Number(order.installmentPlan.amountPaid || 0);
-  order.remainingAmount = Number(order.installmentPlan.remainingAmount || 0);
-  order.paymentMode = 'INSTALLMENT';
-  order.paymentStatus = order.remainingAmount <= 0 ? 'PAID_FULL' : 'PARTIAL';
-  order.markModified('installmentPlan');
-
-  const lifecycleStatus = deriveInstallmentOrderStatus(schedule);
-  if (lifecycleStatus === 'installment_paid') {
-    order.status = 'installment_paid';
-    order.paymentCompletedAt = order.paymentCompletedAt || now;
-    order.installmentSaleStatus = order.installmentSaleStatus || 'confirmed';
-  } else if (lifecycleStatus === 'overdue_installment') {
-    order.status = 'overdue_installment';
-    order.confirmedAt = order.confirmedAt || now;
-  } else {
-    order.status = 'installment_active';
-    order.confirmedAt = order.confirmedAt || now;
-  }
-
-  await order.save();
-  if (lifecycleStatus === 'installment_paid') {
-    await Promise.allSettled(
-      (order.items || []).map(async (item) => {
-        if (!item?.product) return;
-        const salesCount = await calculateProductSalesCount(item.product);
-        await Product.updateOne({ _id: item.product }, { $set: { salesCount } });
-      })
-    );
-    await scheduleOrderReviewReminder(order._id).catch(() => null);
-  }
-
-  return { baseAmount, penalty, penaltyForwardedToIndex, lifecycleStatus };
+};
+const respondWithOrder = async (res, id, status = 200) => {
+  const populated = await baseOrderQuery().findById(id);
+  await ensureOrderProductSlugs([populated]);
+  return res.status(status).json(buildOrderResponse(populated));
+};
+const manualProof = async (req) => {
+  if (getPawaPayConfig().exclusiveMode) throw installmentError('Utilisez PawaPay pour régler cette tranche.', 403);
+  const senderName = String(req.body.payerName || '').trim();
+  const transactionCode = normalizeTransactionCode(req.body.transactionCode);
+  if (!senderName || !/^\d{10}$/.test(transactionCode)) throw installmentError('Nom et ID transaction valides requis.', 400);
+  if (await isTransactionCodeAlreadyUsed(transactionCode)) throw installmentError(TRANSACTION_CODE_REUSED_MESSAGE);
+  return { senderName, transactionCode, paymentMethod: 'mobile_money' };
 };
 
 export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const {
-    productId,
-    quantity = 1,
-    firstPaymentAmount,
-    payerName,
-    transactionCode,
-    paymentMethod: rawPaymentMethod,
-    selectedAttributes,
-    deliveryMode: rawDeliveryMode,
-    shippingAddress
-  } = req.body;
-  const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
-  const guarantor = parseGuarantorPayload(req.body);
-  const paymentMethod =
-    String(rawPaymentMethod || '').trim().toLowerCase() === 'pawapay' && req.pawaPayCheckout
-      ? 'pawapay'
-      : 'mobile_money';
-  if (
-    getPawaPayConfig().exclusiveMode &&
-    paymentMethod !== 'pawapay'
-  ) {
-    return res.status(403).json({
-      code: 'PAWAPAY_ONLY',
-      message: 'Les identifiants de transaction manuels sont désactivés. Utilisez PawaPay.'
-    });
-  }
-  const cleanPayerName = String(payerName || '').trim();
-  const cleanTransactionCode = normalizeTransactionCode(transactionCode);
-
-  if (!ensureObjectId(productId)) {
-    return res.status(400).json({ message: 'Produit invalide.' });
-  }
-  if (paymentMethod === 'mobile_money' && (!cleanPayerName || cleanTransactionCode.length !== 10)) {
-    return res.status(400).json({ message: 'Le nom du payeur et un ID transaction valide sont requis.' });
-  }
-  if (paymentMethod === 'mobile_money') {
-    const transactionCodeAlreadyUsed = await isTransactionCodeAlreadyUsed(cleanTransactionCode);
-    if (transactionCodeAlreadyUsed) {
-      return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
-    }
-  }
-
-  const [customer, product, verifiedProductIds] = await Promise.all([
-    User.findById(userId).select('name email phone address city commune restrictions'),
-    Product.findById(productId).populate('user', 'shopName name slug accountType shopAddress phone city commune'),
-    getVerifiedProductIds()
-  ]);
-  const verifiedProductSet = new Set(verifiedProductIds.map((id) => String(id)));
-
-  if (!customer) {
-    return res.status(404).json({ message: 'Client introuvable.' });
-  }
-  if (isRestricted(customer, 'canOrder')) {
-    return res.status(403).json({
-      message: getRestrictionMessage('canOrder'),
-      restrictionType: 'canOrder'
-    });
-  }
-  if (
-    !product ||
-    product.status !== 'approved' ||
-    !verifiedProductSet.has(String(product._id || ''))
-  ) {
-    return res.status(404).json({ message: 'Produit introuvable ou non disponible.' });
-  }
-  if (!isProductInstallmentActive(product)) {
-    return res.status(400).json({ message: 'Le paiement par tranche n’est pas disponible pour ce produit.' });
-  }
-  const selectedAttributesValidation = validateSelectedAttributesForProduct({
-    productAttributes: product.attributes,
-    selectedAttributes
+  const proof = req.pawaPayCheckout ? null : await manualProof(req);
+  const { order, created } = await completeInstallmentCheckout({
+    checkout: req.pawaPayCheckout, userId, action: { ...req.body, guarantor: parseGuarantorPayload(req.body) }, manualProof: proof
   });
-  if (!selectedAttributesValidation.valid) {
-    return res.status(400).json({ message: selectedAttributesValidation.message });
+  if (created) {
+    await notifyInstallmentChange(order, userId, 'installment_sale_confirmation_required', order.items[0].snapshot.shopId);
+    await notifyBuyerDeliveryDistanceWarning({ order, buyerId: userId, actorId: userId, productId: order.items[0].product }).catch(() => {});
   }
-  const qty = Math.max(1, Number(quantity) || 1);
-  const pricing = getWholesalePricing(product, qty);
-  const unitPrice = Number(pricing.unitPrice || 0);
-  const totalAmount = Number(pricing.lineTotal || 0);
-  const firstPayment = Number(firstPaymentAmount || 0);
-  if (!Number.isFinite(firstPayment) || firstPayment < Number(product.installmentMinAmount || 0)) {
-    return res.status(400).json({
-      message: `Le premier paiement minimum est de ${Number(product.installmentMinAmount || 0).toLocaleString(
-        'fr-FR'
-      )} FCFA.`
-    });
-  }
-  if (firstPayment > totalAmount) {
-    return res.status(400).json({ message: 'Le premier paiement ne peut pas dépasser le total de la commande.' });
-  }
-
-  if (
-    paymentMethod === 'pawapay' &&
-    Math.abs(Number(req.pawaPayCheckout?.amount || 0) - firstPayment) > 0.01
-  ) {
-    return res.status(400).json({ message: 'Le montant confirmé par PawaPay est invalide.' });
-  }
-
-  if (product.installmentRequireGuarantor) {
-    const missingGuarantor =
-      !guarantor?.fullName || !guarantor?.phone || !guarantor?.relation || !guarantor?.address;
-    if (missingGuarantor) {
-      return res.status(400).json({
-        message:
-          'Les informations du garant sont requises (nom, téléphone, relation et adresse).'
-      });
-    }
-  }
-
-  let createdOrder = null;
-  try {
-    const shipping = await resolveCheckoutAddress({
-      deliveryMode,
-      shippingAddress,
-      customer
-    });
-    const eligibilityScore = await calculateInstallmentEligibilityScore(customer._id);
-    const riskLevel = getRiskLevelByScore(eligibilityScore);
-    const now = new Date();
-    const remainingAfterFirstPayment = Number((totalAmount - firstPayment).toFixed(2));
-    const futureSchedule = generateInstallmentSchedule({
-      remainingAmount: remainingAfterFirstPayment,
-      durationDays: Number(product.installmentDuration || 30),
-      firstPaymentDate: now
-    });
-    const schedule = [
-      {
-        dueDate: now,
-        amount: Number(firstPayment.toFixed(2)),
-        status: paymentMethod === 'pawapay' ? 'paid' : 'proof_uploaded',
-        transactionProof: {
-          senderName: paymentMethod === 'pawapay' ? 'PawaPay' : cleanPayerName,
-          transactionCode: paymentMethod === 'pawapay' ? req.pawaPayCheckout.checkoutId : cleanTransactionCode,
-          paymentMethod,
-          amount: Number(firstPayment.toFixed(2)),
-          submittedAt: now,
-          submittedBy: customer._id
-        },
-        validatedBy: paymentMethod === 'pawapay' ? customer._id : null,
-        validatedAt: paymentMethod === 'pawapay' ? now : null,
-        paidAt: paymentMethod === 'pawapay' ? now : null,
-        penaltyAmount: 0
-      },
-      ...futureSchedule
-    ];
-
-    const orderItem = {
-      product: product._id,
-      quantity: qty,
-      unitPrice,
-      lineTotal: totalAmount,
-      selectedAttributes: selectedAttributesValidation.selectedAttributes,
-      snapshot: {
-        title: product.title,
-        price: unitPrice,
-        basePrice: Number(product.price || 0),
-        image: Array.isArray(product.images) ? product.images[0] : null,
-        shopName: product.user?.shopName || product.user?.name || '',
-        shopId: product.user?._id || null,
-        shopAddress: product.user?.shopAddress || '',
-        shopPhone: product.user?.phone || '',
-        shopCity: product.user?.city || '',
-        shopCommune: product.user?.commune || '',
-        wholesaleEnabled: Boolean(product.wholesaleEnabled),
-        wholesaleApplied: Boolean(pricing.tierApplied),
-        wholesaleTierMinQty: Number(pricing.tierApplied?.minQty || 0),
-        wholesaleTierLabel: String(pricing.tierApplied?.label || ''),
-        warrantyEnabled: Boolean(product.warrantyEnabled),
-        warrantyPeriodValue: product.warrantyPeriodValue || null,
-        warrantyPeriodUnit: product.warrantyPeriodUnit || 'months',
-        deliveryAvailable: product.deliveryAvailable !== false,
-        pickupAvailable: product.pickupAvailable !== false,
-        deliveryFeeEnabled: product.deliveryFeeEnabled !== false,
-        deliveryFee: Number(product.deliveryFee || 0),
-        confirmationNumber: product.confirmationNumber || '',
-        slug: product.slug || null
-      }
-    };
-
-    createdOrder = await Order.create({
-      items: [orderItem],
-      customer: customer._id,
-      createdBy: customer._id,
-      status: 'pending_installment',
-      paymentType: 'installment',
-      paymentMode: 'INSTALLMENT',
-      paymentSource: paymentMethod,
-      paymentStatus: 'PENDING',
-      deliveryMode,
-      deliveryAddress: shipping.deliveryAddress,
-      deliveryCity: shipping.deliveryCity,
-      shippingAddressSnapshot: shipping.snapshot,
-      totalAmount,
-      paidAmount: paymentMethod === 'pawapay' ? firstPayment : 0,
-      remainingAmount: paymentMethod === 'pawapay' ? remainingAfterFirstPayment : totalAmount,
-      paymentName: paymentMethod === 'pawapay' ? 'PawaPay' : cleanPayerName,
-      paymentTransactionCode: paymentMethod === 'pawapay' ? req.pawaPayCheckout.checkoutId : cleanTransactionCode,
-      deliveryCode: await generateDeliveryCode(),
-      installmentPlan: {
-        totalAmount,
-        amountPaid: paymentMethod === 'pawapay' ? firstPayment : 0,
-        remainingAmount: paymentMethod === 'pawapay' ? remainingAfterFirstPayment : totalAmount,
-        nextDueDate: paymentMethod === 'pawapay' ? getNextDueDate(schedule) : null,
-        firstPaymentMinAmount: Number(product.installmentMinAmount || 0),
-        schedule,
-        eligibilityScore,
-        riskLevel,
-        latePenaltyRate: Number(product.installmentLatePenaltyRate || 0),
-        totalPenaltyAccrued: 0,
-        overdueCount: 0,
-        guarantor: {
-          required: Boolean(product.installmentRequireGuarantor),
-          fullName: guarantor?.fullName?.trim() || '',
-          phone: guarantor?.phone?.trim() || '',
-          relation: guarantor?.relation?.trim() || '',
-          nationalId: guarantor?.nationalId?.trim() || '',
-          address: guarantor?.address?.trim() || ''
-        }
-      }
-    });
-
-    if (paymentMethod === 'pawapay') {
-      createdOrder.paymentStatus = 'PARTIAL';
-      await createdOrder.save();
-    }
-
-    await Cart.updateOne(
-      { user: customer._id },
-      {
-        $pull: {
-          items: {
-            product: product._id,
-            selectionKey: selectedAttributesValidation.selectionKey
-          }
-        }
-      }
-    );
-
-    await createNotification({
-      userId: product.user?._id,
-      actorId: customer._id,
-      productId: product._id,
-      type: 'installment_sale_confirmation_required',
-      priority: 'HIGH',
-      pushEnabled: true,
-      channels: ['IN_APP', 'PUSH'],
-      deepLink: `/seller/orders/detail/${createdOrder._id}`,
-      entityType: 'order',
-      entityId: String(createdOrder._id),
-      metadata: {
-        orderId: createdOrder._id,
-        payerName: paymentMethod === 'pawapay' ? 'PawaPay' : cleanPayerName || customer.name || '',
-        transactionCode:
-          paymentMethod === 'pawapay'
-            ? createdOrder.paymentTransactionCode
-            : cleanTransactionCode,
-        paymentMethod,
-        firstPaymentAmount: firstPayment,
-        totalAmount
-      }
-    });
-
-    await createNotification({
-      userId: customer._id,
-      actorId: customer._id,
-      productId: product._id,
-      type: 'order_created',
-      metadata: {
-        orderId: createdOrder._id,
-        status: 'pending_installment',
-        paymentType: 'installment'
-      },
-      allowSelf: true
-    });
-    await notifyBuyerDeliveryDistanceWarning({
-      order: createdOrder,
-      buyerId: customer._id,
-      actorId: customer._id,
-      productId: product._id
-    }).catch(() => {});
-  } catch (error) {
-    throw error;
-  }
-
-  const populated = await baseOrderQuery().findById(createdOrder._id);
-  await ensureOrderProductSlugs([populated]);
-  res.status(201).json(buildOrderResponse(populated));
+  return respondWithOrder(res, order._id, created ? 201 : 200);
 });
 
 export const uploadInstallmentPaymentProof = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const { id, scheduleIndex } = req.params;
-  const { payerName, transactionCode, amount, paymentMethod: rawPaymentMethod } = req.body;
-  const paymentMethod =
-    String(rawPaymentMethod || '').trim().toLowerCase() === 'pawapay' && req.pawaPayCheckout
-      ? 'pawapay'
-      : 'mobile_money';
-  if (
-    getPawaPayConfig().exclusiveMode &&
-    paymentMethod !== 'pawapay'
-  ) {
-    return res.status(403).json({
-      code: 'PAWAPAY_ONLY',
-      message: 'Les preuves et identifiants de transaction sont désactivés. Utilisez PawaPay.'
-    });
+  const action = { kind: 'INSTALLMENT_PAYMENT', orderId: req.params.id, scheduleIndex: Number(req.params.scheduleIndex), amount: Number(req.body.amount) };
+  if (req.pawaPayCheckout) {
+    const { order, changed, refundRequired } = await completeInstallmentPayment({ checkout: req.pawaPayCheckout, userId, action });
+    if (order.installmentRefundRequired) await recoverInstallmentRefundsForOrder(order._id).catch(() => {});
+    if (changed && !refundRequired) await notifyInstallmentChange(order, userId, 'installment_payment_validated', order.items[0].snapshot.shopId);
+    return respondWithOrder(res, order._id);
   }
-  const cleanPayerName = String(payerName || '').trim();
-  const cleanTransactionCode = normalizeTransactionCode(transactionCode);
-  const submittedAmount = Number(amount || 0);
-
-  if (!ensureObjectId(id)) {
-    return res.status(400).json({ message: 'Commande invalide.' });
-  }
-  const index = Number(scheduleIndex);
-  if (!Number.isInteger(index) || index < 0) {
-    return res.status(400).json({ message: 'Index de tranche invalide.' });
-  }
-  if (
-    !Number.isFinite(submittedAmount) ||
-    submittedAmount <= 0 ||
-    (paymentMethod === 'mobile_money' && (!cleanPayerName || cleanTransactionCode.length !== 10))
-  ) {
-    return res.status(400).json({ message: 'Nom, ID transaction (10 chiffres) et montant valides sont requis.' });
-  }
-  if (paymentMethod === 'mobile_money') {
-    const transactionCodeAlreadyUsed = await isTransactionCodeAlreadyUsed(cleanTransactionCode);
-    if (transactionCodeAlreadyUsed) {
-      return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
-    }
-  }
-
-  const order = await Order.findOne({
-    _id: id,
-    customer: userId,
-    paymentType: 'installment',
-    isDraft: { $ne: true }
+  const proof = await manualProof(req);
+  const order = await withCommerceOperation(installmentOrderKey(action.orderId), async session => {
+    const quote = await quoteExistingInstallment({ userId, action, amount: action.amount, session });
+    await assertNoInstallmentPaymentPending(quote.order, session);
+    const entry = quote.order.installmentPlan.schedule[action.scheduleIndex];
+    entry.transactionProof = { ...proof, amount: quote.amount, submittedAt: new Date(), submittedBy: userId };
+    entry.status = 'proof_uploaded';
+    await quote.order.save({ session });
+    return quote.order;
   });
-  if (!order) {
-    return res.status(404).json({ message: 'Commande introuvable.' });
-  }
-  const schedule = Array.isArray(order.installmentPlan?.schedule)
-    ? order.installmentPlan.schedule
-    : [];
-  if (!schedule[index]) {
-    return res.status(404).json({ message: 'Tranche introuvable.' });
-  }
-  if (['paid', 'waived'].includes(schedule[index].status)) {
-    return res.status(400).json({ message: 'Cette tranche est déjà finalisée.' });
-  }
-  if (schedule[index].status === 'proof_uploaded') {
-    return res.status(400).json({
-      message: 'Cette tranche est déjà soumise. Attendez la validation du vendeur.'
-    });
-  }
-  const hasBlockingPreviousInstallment = schedule.some(
-    (entry, entryIndex) => entryIndex < index && !['paid', 'waived'].includes(entry?.status)
-  );
-  if (hasBlockingPreviousInstallment) {
-    return res.status(400).json({
-      message:
-        'La tranche précédente doit être validée avant de soumettre la suivante.'
-    });
-  }
-  if (!order.installmentPlan?.saleConfirmationConfirmedAt) {
-    return res.status(400).json({
-      message: 'La tranche ne peut pas être soumise avant la confirmation de vente par le vendeur.'
-    });
-  }
-
-  const expectedAmount = Number(Number(schedule[index].amount || 0).toFixed(2));
-  const normalizedAmount = Number(submittedAmount.toFixed(2));
-  if (normalizedAmount !== expectedAmount) {
-    return res.status(400).json({
-      message: `Le montant de la preuve doit être ${expectedAmount.toLocaleString('fr-FR')} FCFA.`
-    });
-  }
-
-  if (paymentMethod === 'pawapay') {
-    if (Math.abs(Number(req.pawaPayCheckout?.amount || 0) - normalizedAmount) > 0.01) {
-      return res.status(400).json({ message: 'Le montant confirmé par PawaPay est invalide.' });
-    }
-    const sellerId = resolveItemShopId(order.items?.[0]);
-    schedule[index].transactionProof = {
-      senderName: 'PawaPay',
-      transactionCode: req.pawaPayCheckout.checkoutId,
-      paymentMethod: 'pawapay',
-      amount: normalizedAmount,
-      submittedAt: new Date(),
-      submittedBy: userId
-    };
-    const settlement = await settlePawaPayInstallmentEntry({
-      order,
-      index,
-      actorId: userId
-    });
-    emitInstallmentOrderUpdate({ order, updatedBy: userId, updatedAt: order.updatedAt || new Date() });
-    if (sellerId) {
-      await createNotification({
-        userId: sellerId,
-        actorId: userId,
-        productId: order.items?.[0]?.product || null,
-        type: 'installment_payment_validated',
-        metadata: {
-          orderId: order._id,
-          scheduleIndex: index,
-          amount: normalizedAmount,
-          paymentMethod: 'pawapay',
-          penalty: settlement.penalty
-        }
-      }).catch(() => {});
-    }
-    const populated = await baseOrderQuery().findById(order._id);
-    await ensureOrderProductSlugs([populated]);
-    return res.json(buildOrderResponse(populated));
-  }
-
-  schedule[index].transactionProof = {
-    senderName: cleanPayerName,
-    transactionCode: cleanTransactionCode,
-    paymentMethod: 'mobile_money',
-    amount: normalizedAmount,
-    submittedAt: new Date(),
-    submittedBy: userId
-  };
-  if (schedule[index].status !== 'paid') {
-    schedule[index].status = 'proof_uploaded';
-  }
-  order.markModified('installmentPlan');
-  await order.save();
-  emitInstallmentOrderUpdate({
-    order,
-    updatedBy: userId,
-    updatedAt: order.updatedAt || new Date()
-  });
-
-  const sellerId = resolveItemShopId(order.items?.[0]);
-  if (sellerId) {
-    await createNotification({
-      userId: sellerId,
-      actorId: userId,
-      productId: order.items?.[0]?.product || null,
-      type: 'installment_payment_submitted',
-      metadata: {
-        orderId: order._id,
-        scheduleIndex: index,
-        amount: schedule[index].amount,
-        dueDate: schedule[index].dueDate,
-        payerName: cleanPayerName,
-        transactionCode: cleanTransactionCode
-      }
-    });
-  }
-
-  const populated = await baseOrderQuery().findById(order._id);
-  await ensureOrderProductSlugs([populated]);
-  res.json(buildOrderResponse(populated));
+  await notifyInstallmentChange(order, userId, 'installment_payment_submitted', order.items[0].snapshot.shopId);
+  return respondWithOrder(res, order._id);
 });
 
 export const sellerConfirmInstallmentSale = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const { id } = req.params;
-  const { approve } = req.body;
-
-  if (!ensureObjectId(id)) {
-    return res.status(400).json({ message: 'Commande invalide.' });
+  if (!ensureObjectId(req.params.id)) return res.status(400).json({ message: 'Commande invalide.' });
+  if (!req.body.approve) {
+    const order = await cancelInstallmentOrder({ orderId: req.params.id, actorId: userId, sellerId: userId, reason: 'Vente refusée par le vendeur.' });
+    await recoverInstallmentRefundsForOrder(order._id).catch(() => {});
+    await notifyBuyerOrderCancelled({ order, actorId: userId, cancelledBy: 'seller', reason: order.cancellationReason }).catch(() => {});
+    await notifyInstallmentChange(order, userId, 'order_cancelled');
+    return respondWithOrder(res, order._id);
   }
-  const order = await Order.findOne({
-    _id: id,
-    paymentType: 'installment',
-    isDraft: { $ne: true },
-    'items.snapshot.shopId': userId
+  const order = await withCommerceOperation(installmentOrderKey(req.params.id), async session => {
+    const current = await Order.findOne({ _id: req.params.id, paymentType: 'installment', isDraft: { $ne: true }, 'items.snapshot.shopId': userId }).session(session);
+    if (!current) throw installmentError('Commande introuvable.', 404);
+    if (installmentIsClosed(current)) throw installmentError('Cette commande est clôturée.');
+    current.installmentPlan.saleConfirmationConfirmedAt ||= new Date();
+    current.installmentPlan.saleConfirmationConfirmedBy ||= userId;
+    current.confirmedAt ||= new Date();
+    await current.save({ session });
+    return current;
   });
-  if (!order) {
-    return res.status(404).json({ message: 'Commande introuvable.' });
-  }
-
-  if (!approve) {
-    order.status = 'cancelled';
-    order.cancelledAt = new Date();
-    order.cancelledBy = userId;
-    order.cancellationReason = 'Preuve de vente rejetée par le vendeur.';
-    await order.save();
-    emitInstallmentOrderUpdate({
-      order,
-      updatedBy: userId,
-      updatedAt: order.cancelledAt || order.updatedAt || new Date()
-    });
-    await notifyBuyerOrderCancelled({
-      order,
-      actorId: userId,
-      cancelledBy: 'seller',
-      reason: order.cancellationReason,
-      productId: order.items?.[0]?.product || null
-    }).catch(() => {});
-    return res.json({ message: 'Commande annulée.' });
-  }
-
-  order.installmentPlan.saleConfirmationConfirmedAt = new Date();
-  order.installmentPlan.saleConfirmationConfirmedBy = userId;
-  order.installmentPlan.nextDueDate = getNextDueDate(order.installmentPlan.schedule || []);
-  order.paymentMode = 'INSTALLMENT';
-  order.paymentStatus = Number(order.installmentPlan.amountPaid || 0) > 0 ? 'PARTIAL' : 'PENDING';
-  if (order.status === 'pending_installment') {
-    order.status = 'installment_active';
-    if (!order.confirmedAt) {
-      order.confirmedAt = new Date();
-    }
-  }
-  order.markModified('installmentPlan');
-  await order.save();
-  emitInstallmentOrderUpdate({
-    order,
-    updatedBy: userId,
-    updatedAt: order.updatedAt || new Date()
-  });
-
-  await createNotification({
-    userId: order.customer,
-    actorId: userId,
-    productId: order.items?.[0]?.product || null,
-    type: 'installment_sale_confirmed',
-    metadata: {
-      orderId: order._id,
-      nextDueDate: order.installmentPlan.nextDueDate
-    },
-    allowSelf: true
-  });
-
-  const populated = await baseOrderQuery().findById(order._id);
-  await ensureOrderProductSlugs([populated]);
-  res.json(buildOrderResponse(populated));
+  await notifyInstallmentChange(order, userId, 'installment_sale_confirmed');
+  return respondWithOrder(res, order._id);
 });
 
 export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const { id, scheduleIndex } = req.params;
-  const { approve } = req.body;
-
-  if (!ensureObjectId(id)) {
-    return res.status(400).json({ message: 'Commande invalide.' });
-  }
-  const index = Number(scheduleIndex);
-  if (!Number.isInteger(index) || index < 0) {
-    return res.status(400).json({ message: 'Index de tranche invalide.' });
-  }
-
-  const order = await Order.findOne({
-    _id: id,
-    paymentType: 'installment',
-    isDraft: { $ne: true },
-    'items.snapshot.shopId': userId
-  });
-  if (!order) {
-    return res.status(404).json({ message: 'Commande introuvable.' });
-  }
-  if (!order.installmentPlan?.saleConfirmationConfirmedAt) {
-    return res.status(400).json({
-      message: 'La vente doit être confirmée avant la validation des paiements.'
-    });
-  }
-
-  const schedule = Array.isArray(order.installmentPlan?.schedule)
-    ? order.installmentPlan.schedule
-    : [];
-  const current = schedule[index];
-  if (!current) {
-    return res.status(404).json({ message: 'Tranche introuvable.' });
-  }
-  if (isScheduleEntrySettled(current)) {
-    return res.status(400).json({ message: 'Cette tranche est déjà finalisée.' });
-  }
-
-  if (!approve) {
-    current.status = 'pending';
-    current.transactionProof = {};
-    current.validatedBy = null;
-    current.validatedAt = null;
-    current.paidAt = null;
-    current.penaltyAmount = 0;
-    order.installmentPlan.nextDueDate = getNextDueDate(schedule);
-    order.markModified('installmentPlan');
-    await order.save();
-    emitInstallmentOrderUpdate({
-      order,
-      updatedBy: userId,
-      updatedAt: order.updatedAt || new Date()
-    });
-    const populated = await baseOrderQuery().findById(order._id);
-    await ensureOrderProductSlugs([populated]);
-    return res.json(buildOrderResponse(populated));
-  }
-  if (!current?.transactionProof?.senderName || !current?.transactionProof?.transactionCode) {
-    return res.status(400).json({ message: 'Aucune preuve transactionnelle valide pour cette tranche.' });
-  }
-  if (current.status !== 'proof_uploaded') {
-    return res.status(400).json({
-      message: 'Cette tranche doit être soumise avec preuve avant validation.'
-    });
-  }
-
-  const now = new Date();
-  const baseAmount = Number(current.amount || 0);
-  const penalty = calculateInstallmentPenalty({
-    order,
-    scheduleEntry: current,
-    now
-  });
-  let penaltyForwardedToIndex = -1;
-
-  current.status = 'paid';
-  current.validatedBy = userId;
-  current.validatedAt = now;
-  current.paidAt = now;
-  current.penaltyAmount = penalty;
-
-  // Business rule: penalties are not counted as principal paid; they are forwarded
-  // to the next installment due. If no next installment exists, create one.
-  if (penalty > 0) {
-    penaltyForwardedToIndex = forwardPenaltyToNextInstallment({
-      schedule,
-      fromIndex: index,
-      penalty,
-      now
-    });
-  }
-
-  const paidIncrement = roundMoney(baseAmount);
-  order.installmentPlan.amountPaid = roundMoney(
-    Math.min(
-      Number(order.installmentPlan.totalAmount || 0),
-      Number(order.installmentPlan.amountPaid || 0) + paidIncrement
-    )
-  );
-  order.installmentPlan.totalPenaltyAccrued = roundMoney(
-    Number(order.installmentPlan.totalPenaltyAccrued || 0) + penalty
-  );
-  order.installmentPlan.remainingAmount = getRemainingScheduleAmount(schedule);
-  order.installmentPlan.nextDueDate = getNextDueDate(schedule);
-  order.installmentPlan.overdueCount = schedule.filter((entry) => entry?.status === 'overdue').length;
-  order.markModified('installmentPlan');
-
-  order.paidAmount = Number(order.installmentPlan.amountPaid || 0);
-  order.remainingAmount = Number(order.installmentPlan.remainingAmount || 0);
-  order.paymentMode = 'INSTALLMENT';
-  order.paymentStatus = order.remainingAmount <= 0 ? 'PAID_FULL' : order.paidAmount > 0 ? 'PARTIAL' : 'PENDING';
-  if (order.paymentStatus === 'PAID_FULL' && !order.paymentCompletedAt) {
-    order.paymentCompletedAt = now;
-  }
-
-  const lifecycleStatus = deriveInstallmentOrderStatus(schedule);
-
-  if (lifecycleStatus === 'installment_paid') {
-    order.status = 'installment_paid';
-    if (!order.installmentSaleStatus) {
-      order.installmentSaleStatus = 'confirmed';
+  const index = Number(req.params.scheduleIndex);
+  if (!ensureObjectId(req.params.id) || !Number.isInteger(index) || index < 0) return res.status(400).json({ message: 'Tranche invalide.' });
+  const order = await withCommerceOperation(installmentOrderKey(req.params.id), async session => {
+    const current = await Order.findOne({ _id: req.params.id, paymentType: 'installment', isDraft: { $ne: true }, 'items.snapshot.shopId': userId }).session(session);
+    if (!current) throw installmentError('Commande introuvable.', 404);
+    if (installmentIsClosed(current)) throw installmentError('Cette commande est clôturée.');
+    if (!current.installmentPlan?.saleConfirmationConfirmedAt) throw installmentError('Confirmez la vente avant de valider une tranche.');
+    await assertNoInstallmentPaymentPending(current, session);
+    const schedule = current.installmentPlan.schedule;
+    const entry = schedule[index];
+    if (!entry || isScheduleEntrySettled(entry)) throw installmentError('Cette tranche est déjà finalisée.');
+    if (schedule.some((previous, i) => i < index && !isScheduleEntrySettled(previous))) throw installmentError('Validez la tranche précédente.');
+    // Accept historical overdue proofs: the old reminder job changed their status.
+    if (!['proof_uploaded', 'overdue'].includes(entry.status) || !entry.transactionProof?.senderName || !entry.transactionProof?.transactionCode ||
+      entry.transactionProof.paymentMethod === 'pawapay' || Number(entry.transactionProof.amount) !== Number(entry.amount)) throw installmentError('Preuve transactionnelle valide requise.', 400);
+    if (req.body.approve) settleInstallmentEntry(current, index, userId);
+    else {
+      entry.status = isPastDueDate(entry.dueDate) ? 'overdue' : 'pending';
+      entry.transactionProof = {};
+      entry.overdueNotifiedAt = null;
     }
-    if (!Array.isArray(order.items) || !order.items.length) {
-      await order.save();
-    } else {
-      await order.save();
-      await Promise.all(
-        order.items.map(async (item) => {
-          if (!item?.product) return;
-          const salesCount = await calculateProductSalesCount(item.product);
-          await Product.updateOne({ _id: item.product }, { $set: { salesCount } });
-        })
-      );
-    }
-    await scheduleOrderReviewReminder(order._id).catch(() => null);
-  } else if (lifecycleStatus === 'overdue_installment') {
-    order.status = 'overdue_installment';
-    if (!order.confirmedAt) {
-      order.confirmedAt = now;
-    }
-    await order.save();
-  } else {
-    order.status = 'installment_active';
-    if (!order.confirmedAt) {
-      order.confirmedAt = now;
-    }
-    await order.save();
-  }
-  emitInstallmentOrderUpdate({
-    order,
-    updatedBy: userId,
-    updatedAt: order.updatedAt || now
+    await current.save({ session });
+    return current;
   });
-
-  await createNotification({
-    userId: order.customer,
-    actorId: userId,
-    productId: order.items?.[0]?.product || null,
-    type: 'installment_payment_validated',
-    metadata: {
-      orderId: order._id,
-      scheduleIndex: index,
-      amount: baseAmount,
-      penalty,
-      penaltyForwardedToIndex: penaltyForwardedToIndex >= 0 ? penaltyForwardedToIndex : undefined
-    },
-    allowSelf: true
-  });
-
-  if (order.status === 'installment_paid') {
-    await createNotification({
-      userId: order.customer,
-      actorId: userId,
-      productId: order.items?.[0]?.product || null,
-      type: 'installment_completed',
-      metadata: {
-        orderId: order._id,
-        invoiceEligible: true
-      },
-      allowSelf: true
-    });
-  }
-
-  const populated = await baseOrderQuery().findById(order._id);
-  await ensureOrderProductSlugs([populated]);
-  res.json(buildOrderResponse(populated));
+  await notifyInstallmentChange(order, userId, req.body.approve ? 'installment_payment_validated' : 'installment_payment_submitted');
+  return respondWithOrder(res, order._id);
 });
 
 export const sellerInstallmentAnalytics = asyncHandler(async (req, res) => {

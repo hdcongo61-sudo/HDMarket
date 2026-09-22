@@ -1,4 +1,3 @@
-import { getSellerDeliveryPreview } from '../utils/checkoutDeliveryPreview';
 import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -16,6 +15,12 @@ import AddressHistoryChips from '../components/AddressHistoryChips';
 import { readAddressHistory, saveAddressToHistory } from '../utils/addressHistory';
 import { getCheckoutAcquisitionPayload } from '../utils/socialAttribution';
 import QuotationRequestModal from '../components/quotations/QuotationRequestModal';
+import { useCountry } from '../context/CountryContext';
+import { readCheckoutDraft, saveCheckoutDraft, clearCheckoutDraft } from '../utils/checkoutDraft';
+import { createPawaPayRouteState } from '../utils/pawapayCheckoutWindow';
+import { allocatePayment } from '../utils/paymentAllocation';
+import useDeliveryEstimate from '../hooks/useDeliveryEstimate';
+import { readDeliveryPreference, saveDeliveryPreference } from '../utils/deliveryPreference';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
@@ -75,10 +80,23 @@ const extractFirstOrderId = (payload) => {
 };
 
 export default function OrderCheckout() {
-  const { cart, clearCart } = useContext(CartContext);
+  const { country, loading, error } = useCountry();
   const { user } = useContext(AuthContext);
+  if (loading || !country) return <div role="status" className="px-6 py-12 text-center">{error || 'Chargement de votre pays…'}</div>;
+  return <OrderCheckoutContent key={`${user?._id || user?.id}:${country.id || country._id}`} />;
+}
+
+function OrderCheckoutContent() {
+  const { cart, clearCart, loading: cartLoading, error: cartError, refresh: refreshCart } = useContext(CartContext);
+  const { user } = useContext(AuthContext);
+  const { country } = useCountry();
+  const draftUserId = String(user?._id || user?.id || '');
+  const draftCountryId = String(country?.id || country?._id || '');
+  const [savedDraft] = useState(() => readCheckoutDraft(draftUserId, draftCountryId));
+  const [deliveryPreference] = useState(() => readDeliveryPreference(draftCountryId));
   const { showToast } = useToast();
-  const { cities = [], communes = [], getRuntimeValue, t } = useAppSettings();
+  const { cities = [], communes = [], getRuntimeValue, isFeatureEnabled, t } = useAppSettings();
+  const installmentsEnabled = isFeatureEnabled('enable_installments', { defaultValue: true });
   const minimumEscrowDepositPercent = Math.max(
     50,
     Math.min(100, Number(getRuntimeValue('escrow_minimum_deposit_percent', 50)) || 50)
@@ -88,10 +106,10 @@ export default function OrderCheckout() {
   );
   const navigate = useNavigate();
   const location = useLocation();
-  const groupBuyId = location.state?.groupBuyId || '';
+  const groupBuyId = location.state?.groupBuyId || savedDraft.groupBuyId || '';
   const [payments, setPayments] = useState({});
   const [pointsToRedeem, setPointsToRedeem] = useState(0);
-  const [paymentPercent, setPaymentPercent] = useState(100);
+  const [paymentPercent, setPaymentPercent] = useState(savedDraft.paymentPercent || 100);
   const [promoStates, setPromoStates] = useState({});
   const [promoLoadingBySeller, setPromoLoadingBySeller] = useState({});
   const [loading, setLoading] = useState(false);
@@ -107,8 +125,8 @@ export default function OrderCheckout() {
   }, [groupBuyId]);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState('');
-  const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES.PAWAPAY);
-  const [installmentPaymentMethod, setInstallmentPaymentMethod] = useState('pawapay');
+  const [paymentMode, setPaymentMode] = useState(savedDraft.paymentMode || PAYMENT_MODES.PAWAPAY);
+  const [installmentPaymentMethod, setInstallmentPaymentMethod] = useState(savedDraft.installmentPaymentMethod || 'pawapay');
   const [sponsorPhone, setSponsorPhone] = useState('');
   const [sponsorMessage, setSponsorMessage] = useState('');
   const [sponsorResolved, setSponsorResolved] = useState(null); // { found, name }
@@ -124,15 +142,33 @@ export default function OrderCheckout() {
     score: null,
     riskLevel: ''
   });
-  const [deliveryMode, setDeliveryMode] = useState('PICKUP');
+  const [deliveryMode, setDeliveryMode] = useState(deliveryPreference.deliveryMode || savedDraft.deliveryMode || 'PICKUP');
   const [shippingAddress, setShippingAddress] = useState({
     cityId: '',
     communeId: '',
     addressLine: user?.address || '',
-    phone: user?.phone || ''
+    phone: user?.phone || '',
+    ...savedDraft.shippingAddress,
+    ...(deliveryPreference.cityId ? { cityId: deliveryPreference.cityId, communeId: deliveryPreference.communeId || '' } : {})
   });
   const [addressHistory, setAddressHistory] = useState(readAddressHistory);
   const [quotationProducts, setQuotationProducts] = useState([]);
+
+  useEffect(() => {
+    saveDeliveryPreference(draftCountryId, { deliveryMode, cityId: shippingAddress.cityId, communeId: shippingAddress.communeId });
+    if (orderConfirmed) clearCheckoutDraft(draftUserId, draftCountryId);
+    else saveCheckoutDraft(draftUserId, draftCountryId, {
+      deliveryMode, shippingAddress, paymentMode, paymentPercent, installmentPaymentMethod, groupBuyId
+    });
+  }, [draftUserId, draftCountryId, orderConfirmed, deliveryMode, shippingAddress, paymentMode, paymentPercent, installmentPaymentMethod, groupBuyId]);
+
+  const handlePawaPayResult = (result) => {
+    if (result.status === 'completed') {
+      clearCheckoutDraft(draftUserId, draftCountryId);
+      void refreshCart();
+    }
+    navigate(result.path, { state: createPawaPayRouteState(result) });
+  };
 
   // Fill the delivery address from a saved history entry (click only).
   const applyShippingFromHistory = (item) => {
@@ -182,6 +218,7 @@ export default function OrderCheckout() {
     fullPaymentPromotionEnabled &&
     fullPaymentFreeDeliveryEnabled;
   const isPawaPayPayment = paymentMode === PAYMENT_MODES.PAWAPAY;
+  const hasFreeDelivery = isFullPaymentSelected || (isPawaPayPayment && paymentPercent >= 100 && fullPaymentPromotionEnabled && fullPaymentFreeDeliveryEnabled);
   const paysWithPawaPay = isPawaPayPayment || (isInstallmentPayment && installmentPaymentMethod === 'pawapay');
   const isSponsorPayment = paymentMode === PAYMENT_MODES.SPONSOR;
   const payForOtherEnabled = normalizeBoolean(getRuntimeValue('enable_pay_for_other', false), false);
@@ -222,6 +259,7 @@ export default function OrderCheckout() {
     [items]
   );
   const isInstallmentProductEligible = useMemo(() => {
+    if (!installmentsEnabled) return false;
     if (items.length !== 1) return false;
     const product = items[0]?.product;
     if (!product?.installmentEnabled) return false;
@@ -230,22 +268,19 @@ export default function OrderCheckout() {
     if (!start || Number.isNaN(start.getTime()) || !end || Number.isNaN(end.getTime())) return false;
     const now = new Date();
     return now >= start && now <= end;
-  }, [items]);
+  }, [items, installmentsEnabled]);
   const installmentProduct = isInstallmentProductEligible ? items[0]?.product : null;
-  const installmentMinAmount = Number(installmentProduct?.installmentMinAmount || 0);
+  const installmentMinAmount = Math.min(Math.round(Number(totals.subtotal || 0)), Math.max(10, Math.round(Number(installmentProduct?.installmentMinAmount || 0))));
   const installmentDuration = Number(installmentProduct?.installmentDuration || 0);
   const installmentRequiresGuarantor = Boolean(installmentProduct?.installmentRequireGuarantor);
-  const installmentFirstPaymentAmount = useMemo(() => {
+  const installmentBaseFirstPaymentAmount = useMemo(() => {
     if (!isInstallmentProductEligible) return 0;
     const subtotal = Number(totals.subtotal || 0);
-    const minAmount = Math.max(0, Number(installmentMinAmount || 0));
+    const minAmount = Math.max(10, Math.round(Number(installmentMinAmount || 0)));
     if (!Number.isFinite(subtotal) || subtotal <= 0) return 0;
-    return Math.min(subtotal, minAmount);
+    const first = Math.min(Math.round(subtotal), minAmount);
+    return subtotal - first > 0 && subtotal - first < 10 ? Math.round(subtotal) : first;
   }, [isInstallmentProductEligible, totals.subtotal, installmentMinAmount]);
-  const installmentRemainingAmount = Math.max(
-    0,
-    Number(totals.subtotal || 0) - installmentFirstPaymentAmount
-  );
   const sellerGroups = useMemo(() => {
     const groups = new Map();
     items.forEach((item) => {
@@ -286,13 +321,11 @@ export default function OrderCheckout() {
       }),
     [communes, shippingAddress.cityId]
   );
-  const selectedCommune = useMemo(
-    () =>
-      availableCommunes.find((entry) => String(entry?._id) === String(shippingAddress.communeId)) ||
-      null,
-    [availableCommunes, shippingAddress.communeId]
-  );
-
+  const deliveryEstimate = useDeliveryEstimate({
+    items, cityId: shippingAddress.cityId, communeId: shippingAddress.communeId,
+    enabled: deliveryMode === 'DELIVERY' && !hasPickupOnlyProducts,
+    countryId: draftCountryId
+  });
   const deliveryPreviewBySeller = useMemo(() => {
     const result = {};
     sellerGroups.forEach((group) => {
@@ -304,10 +337,10 @@ export default function OrderCheckout() {
         result[group.sellerId] = { fee: 0, source: 'PICKUP' };
         return;
       }
-      result[group.sellerId] = getSellerDeliveryPreview(group, selectedCommune);
+      result[group.sellerId] = deliveryEstimate.data?.bySeller?.[group.sellerId] || { fee: null, pending: true };
     });
     return result;
-  }, [deliveryMode, hasPickupOnlyProducts, selectedCommune, sellerGroups]);
+  }, [deliveryMode, hasPickupOnlyProducts, deliveryEstimate.data, sellerGroups]);
 
   const deliveryFeePreviewTotal = useMemo(
     () =>
@@ -382,12 +415,12 @@ export default function OrderCheckout() {
 
   const effectiveDeliveryFeePreviewTotal = useMemo(() => {
     if (deliveryMode !== 'DELIVERY') return 0;
-    if (isFullPaymentSelected || (isPawaPayPayment && paymentPercent >= 100)) return 0;
+    if (hasFreeDelivery) return 0;
     return Number(deliveryFeePreviewTotal || 0);
-  }, [deliveryMode, isFullPaymentSelected, isPawaPayPayment, paymentPercent, deliveryFeePreviewTotal]);
+  }, [deliveryMode, hasFreeDelivery, deliveryFeePreviewTotal]);
 
-  const deliveryEstimatePending = !isInstallmentPayment && deliveryMode === 'DELIVERY' &&
-    !isFullPaymentSelected && !(isPawaPayPayment && paymentPercent >= 100) &&
+  const deliveryEstimatePending = deliveryMode === 'DELIVERY' &&
+    !hasFreeDelivery &&
     Object.values(deliveryPreviewBySeller).some((entry) => entry.pending);
 
   const checkoutTotalWithDelivery = useMemo(
@@ -395,7 +428,7 @@ export default function OrderCheckout() {
       Number(
         (
           Number(checkoutSubtotal || 0) +
-          (!isInstallmentPayment && deliveryMode === 'DELIVERY'
+          (deliveryMode === 'DELIVERY'
             ? Number(effectiveDeliveryFeePreviewTotal || 0)
             : 0)
         ).toFixed(2)
@@ -403,17 +436,26 @@ export default function OrderCheckout() {
     [checkoutSubtotal, isInstallmentPayment, deliveryMode, effectiveDeliveryFeePreviewTotal]
   );
   const depositAmount = useMemo(() => Math.round(checkoutSubtotal * 0.25), [checkoutSubtotal]);
+  const installmentBalanceAfterMinimum = checkoutTotalWithDelivery - installmentBaseFirstPaymentAmount;
+  const installmentFirstPaymentAmount = installmentBalanceAfterMinimum > 0 && installmentBalanceAfterMinimum < 10
+    ? checkoutTotalWithDelivery : installmentBaseFirstPaymentAmount;
+  const installmentRemainingAmount = Math.max(0, checkoutTotalWithDelivery - installmentFirstPaymentAmount);
   const remainingAmount = Math.max(0, Number(checkoutTotalWithDelivery || 0) - depositAmount);
-  // PawaPay lets the buyer pay 50/75/100% now; the rest is collected at
-  // delivery or in-store pickup. Only 100% keeps the free-delivery perk —
-  // effectiveDeliveryFeePreviewTotal already reflects that split above, so
-  // checkoutTotalWithDelivery already includes the real fee once <100%.
+  // PawaPay lets the buyer pay 50/70/100% now; the rest is collected at
+  // delivery or in-store pickup. An enabled free-delivery offer requires 100%.
+  // The total includes delivery whenever the offer does not apply.
   const pawaPayPaidAmount = isPawaPayPayment
     ? Math.round((Number(checkoutTotalWithDelivery || 0) * paymentPercent) / 100)
     : Number(checkoutTotalWithDelivery || 0);
   const pawaPayRemainingAmount = isPawaPayPayment
     ? Math.max(0, Number(checkoutTotalWithDelivery || 0) - pawaPayPaidAmount)
     : 0;
+  const pawaPaySellerPayments = isPawaPayPayment && !deliveryEstimatePending ? allocatePayment(pawaPayPaidAmount, sellerGroups.map(group => ({
+    key: group.sellerId,
+    amount: getSellerEffectiveSubtotal(group) +
+      (!isInstallmentPayment && deliveryMode === 'DELIVERY' && !hasFreeDelivery
+        ? Number(deliveryPreviewBySeller[group.sellerId]?.fee || 0) : 0)
+  }))) : new Map();
   const summaryPaidAmount = isInstallmentPayment
     ? installmentFirstPaymentAmount
     : isFullPaymentSelected
@@ -423,15 +465,13 @@ export default function OrderCheckout() {
         : depositAmount;
   const summaryRemainingAmount =
     isInstallmentPayment
-      ? Math.max(0, Number(totals.subtotal || 0) - installmentFirstPaymentAmount)
+      ? installmentRemainingAmount
       : isFullPaymentSelected
         ? 0
         : isPawaPayPayment
           ? pawaPayRemainingAmount
           : remainingAmount;
-  const summaryOrderTotal = isInstallmentPayment
-    ? Number(totals.subtotal || 0)
-    : Number(checkoutTotalWithDelivery || 0);
+  const summaryOrderTotal = Number(checkoutTotalWithDelivery || 0);
   const pawaPayRequiredAmount = isInstallmentPayment
     ? Number(installmentFirstPaymentAmount || 0)
     : pawaPayPaidAmount;
@@ -470,6 +510,14 @@ export default function OrderCheckout() {
   const pawaPayEligible = true;
 
   const paymentModeCards = useMemo(() => {
+    const sponsorCard = {
+      id: PAYMENT_MODES.SPONSOR,
+      title: t('checkout.sponsor', 'Un proche paie'),
+      subtitle: t('checkout.sponsorSubtitle', 'Demandez à un proche de régler votre commande.'),
+      eyebrow: 'Proche', icon: UsersIcon, amount: 0,
+      amountDisplay: t('checkout.none', 'Aucun'),
+      bullets: ['Il reçoit une notification', 'Il paie avec PawaPay', 'Livraison à votre adresse']
+    };
     if (pawaPayOnlyMode) {
       const cards = [{
         id: PAYMENT_MODES.PAWAPAY,
@@ -493,6 +541,7 @@ export default function OrderCheckout() {
           bullets: ['PawaPay sécurisé', 'Aucun ID manuel', 'Suivi des tranches']
         });
       }
+      if (payForOtherEnabled) cards.push(sponsorCard);
       return cards;
     }
     const baseCards = [
@@ -613,14 +662,14 @@ export default function OrderCheckout() {
   useEffect(() => {
     if (
       pawaPayOnlyMode &&
-      ![PAYMENT_MODES.PAWAPAY, PAYMENT_MODES.INSTALLMENT].includes(paymentMode)
+      ![PAYMENT_MODES.PAWAPAY, PAYMENT_MODES.INSTALLMENT, ...(payForOtherEnabled ? [PAYMENT_MODES.SPONSOR] : [])].includes(paymentMode)
     ) {
       setPaymentMode(PAYMENT_MODES.PAWAPAY);
     }
     if (pawaPayOnlyMode && installmentPaymentMethod !== 'pawapay') {
       setInstallmentPaymentMethod('pawapay');
     }
-  }, [installmentPaymentMethod, pawaPayOnlyMode, paymentMode]);
+  }, [installmentPaymentMethod, pawaPayOnlyMode, paymentMode, payForOtherEnabled]);
 
   useEffect(() => {
     if (
@@ -816,7 +865,9 @@ export default function OrderCheckout() {
 
   const validatePawaPayCheckout = () => {
     let message = '';
-    if (!items.length) {
+    if (cartLoading) {
+      message = 'Votre panier est en cours de vérification.';
+    } else if (!items.length) {
       message = 'Votre panier est vide.';
     } else if (deliveryMode === 'DELIVERY' && hasPickupOnlyProducts) {
       message = 'Le mode livraison est indisponible car votre panier contient un produit retrait boutique uniquement.';
@@ -829,6 +880,8 @@ export default function OrderCheckout() {
       message = 'Renseignez une adresse de livraison.';
     } else if (deliveryMode === 'DELIVERY' && !shippingAddress.phone?.trim()) {
       message = 'Renseignez le numéro de téléphone pour la livraison.';
+    } else if (deliveryEstimatePending) {
+      message = deliveryEstimate.error || 'Attendez le calcul des frais de livraison avant de payer.';
     } else if (
       sellerGroups.some((group) => !group.sellerId || group.sellerId === 'unknown')
     ) {
@@ -847,7 +900,7 @@ export default function OrderCheckout() {
         message = 'Le paiement par tranche n’est pas disponible pour cette commande.';
       } else if (!Number.isFinite(firstAmount) || firstAmount < installmentMinAmount) {
         message = `Le premier paiement minimum est de ${formatCurrency(installmentMinAmount)}.`;
-      } else if (firstAmount > Number(totals.subtotal || 0)) {
+      } else if (firstAmount > checkoutTotalWithDelivery) {
         message = 'Le premier paiement ne peut pas dépasser le total de la commande.';
       } else if (
         installmentRequiresGuarantor &&
@@ -984,7 +1037,7 @@ export default function OrderCheckout() {
         setError(`Le premier paiement minimum est de ${formatCurrency(installmentMinAmount)}.`);
         return;
       }
-      if (firstAmount > Number(totals.subtotal || 0)) {
+      if (firstAmount > checkoutTotalWithDelivery) {
         setError('Le premier paiement ne peut pas dépasser le total de la commande.');
         return;
       }
@@ -1447,6 +1500,12 @@ export default function OrderCheckout() {
     };
   }, [user, items.length, sellerGroups, payments, loading, orderConfirmed, isInstallmentPayment]);
 
+  if (cartLoading) {
+    return <div role="status" className="px-6 py-12 text-center">Vérification de votre panier…</div>;
+  }
+  if (cartError && !items.length) {
+    return <div role="alert" className="px-6 py-12 text-center"><p>{cartError}</p><button type="button" onClick={refreshCart} className="hd-primary-button mt-4 rounded-xl px-5 py-3">Réessayer</button></div>;
+  }
   if (!items.length) {
     return (
       <div className="hd-order-flow hd-commerce-shell min-h-screen dark:bg-black flex items-center justify-center px-4 py-10">
@@ -1580,30 +1639,43 @@ export default function OrderCheckout() {
                       key={percent}
                       type="button"
                       onClick={() => setPaymentPercent(percent)}
-                      className={`min-h-11 rounded-xl border text-sm font-black transition ${
+                      aria-pressed={paymentPercent === percent}
+                      className={`min-h-[58px] rounded-xl border px-1.5 text-sm font-black transition ${
                         paymentPercent === percent
                           ? 'border-white bg-white text-[#231f1b]'
                           : 'border-white/25 text-white/80 hover:border-white/60'
                       }`}
                     >
-                      {percent}%
+                      <span className="block">{percent}%</span>
+                      <span className={`mt-0.5 block text-[10px] font-bold ${paymentPercent === percent ? 'text-[#6b6459]' : 'text-white/60'}`}>
+                        {deliveryEstimatePending
+                          ? 'À confirmer'
+                          : formatCurrency(Math.round((Number(checkoutTotalWithDelivery || 0) * percent) / 100))}
+                      </span>
                     </button>
                   ))}
                 </div>
+                <p className="mt-2 text-[11px] font-semibold text-white/60">
+                  {deliveryEstimatePending
+                    ? 'Choisissez votre adresse pour afficher le montant exact.'
+                    : 'Le montant affiché est celui débité maintenant. Le solde reste visible ci-dessous.'}
+                </p>
                 <p className="mt-2 text-xs font-semibold text-white/70">
                   {paymentPercent >= 100
-                    ? t('checkout.paymentPercentFullHint', 'Paiement intégral — livraison offerte.')
+                    ? hasFreeDelivery && deliveryMode === 'DELIVERY'
+                      ? t('checkout.paymentPercentFullHint', 'Paiement intégral — livraison offerte.')
+                      : t('checkout.fullPayment', 'Paiement intégral')
                     : `${t('checkout.remaining', 'Reste à payer')} : ${formatCurrency(pawaPayRemainingAmount)} ${
                         deliveryMode === 'PICKUP' ? 'au retrait en boutique' : 'à la livraison'
                       } (${deliveryEstimatePending ? 'hors frais de livraison à confirmer' : 'frais de livraison inclus'}).`}
                 </p>
               </div>
             )}
-            {!isInstallmentPayment && deliveryMode === 'DELIVERY' && (
+            {deliveryMode === 'DELIVERY' && (
               <div className="flex items-center justify-between px-1 py-1">
                 <span className="text-base font-bold text-[#6b6459]">{t('checkout.delivery', 'Livraison')}</span>
                 <span className="text-lg font-black text-[#231f1b]">
-                  {(isFullPaymentSelected || (isPawaPayPayment && paymentPercent >= 100))
+                  {(hasFreeDelivery)
                     ? t('checkout.offered', 'Offerte')
                     : deliveryEstimatePending ? 'À confirmer' : formatCurrency(effectiveDeliveryFeePreviewTotal)}
                 </span>
@@ -1611,7 +1683,8 @@ export default function OrderCheckout() {
             )}
             {deliveryEstimatePending && (
               <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                Certains frais de livraison restent à confirmer. Les montants affichés sont estimatifs et excluent ces frais inconnus.
+                {deliveryEstimate.error || (deliveryEstimate.loading ? 'Calcul des frais de livraison…' : 'Choisissez une ville et une commune pour calculer le total livré.')}
+                {deliveryEstimate.error && <button type="button" onClick={deliveryEstimate.retry} className="ml-2 font-bold underline">Réessayer</button>}
               </p>
             )}
             {!isInstallmentPayment && checkoutSavings > 0 && (
@@ -1908,8 +1981,8 @@ export default function OrderCheckout() {
               const promoState = getSellerPromoState(group.sellerId);
               const groupEffectiveSubtotal = getSellerEffectiveSubtotal(group);
               const groupDeliveryFee =
-                !isInstallmentPayment && deliveryMode === 'DELIVERY'
-                  ? isFullPaymentSelected || (isPawaPayPayment && paymentPercent >= 100)
+                deliveryMode === 'DELIVERY'
+                  ? hasFreeDelivery
                     ? 0
                     : Number(deliveryPreviewBySeller[group.sellerId]?.fee || 0)
                   : 0;
@@ -1919,7 +1992,7 @@ export default function OrderCheckout() {
                 : isFullPaymentSelected
                   ? Number(groupTotalWithDelivery || 0)
                   : isPawaPayPayment
-                    ? Math.round((Number(groupTotalWithDelivery || 0) * paymentPercent) / 100)
+                    ? pawaPaySellerPayments.get(String(group.sellerId)) || 0
                     : Math.round(Number(groupEffectiveSubtotal || 0) * 0.25);
               const groupRemaining = Math.max(0, Number(groupTotalWithDelivery || 0) - groupDeposit);
               const installmentUsesPawaPay =
@@ -2152,7 +2225,7 @@ export default function OrderCheckout() {
                           <input
                             type="number"
                             min={installmentMinAmount || 1}
-                            max={Number(group.subtotal || 0)}
+                            max={checkoutTotalWithDelivery}
                             value={installmentFirstPaymentAmount}
                             readOnly
                             disabled
@@ -2246,6 +2319,20 @@ export default function OrderCheckout() {
               <CheckCircleIcon className="mt-0.5 flex-shrink-0 text-[#6b6459] h-[18px] w-[18px]" />
               {paymentCommitmentMessage}
             </div>
+            <div className="grid grid-cols-3 gap-2" aria-label="Garanties de commande">
+              <div className="rounded-xl border border-slate-200 bg-white px-2.5 py-2.5 text-center">
+                <LockClosedIcon className="mx-auto h-4 w-4 text-[#e85d00]" />
+                <p className="mt-1 text-[10px] font-black leading-4 text-slate-700">Paiement sécurisé</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-2.5 py-2.5 text-center">
+                <CheckCircleIcon className="mx-auto h-4 w-4 text-[#e85d00]" />
+                <p className="mt-1 text-[10px] font-black leading-4 text-slate-700">Montant confirmé</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-2.5 py-2.5 text-center">
+                <TruckIcon className="mx-auto h-4 w-4 text-[#e85d00]" />
+                <p className="mt-1 text-[10px] font-black leading-4 text-slate-700">Commande suivie</p>
+              </div>
+            </div>
             {error && (
               <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
                 <ExclamationCircleIcon className="text-red-600 flex-shrink-0 mt-0.5 h-[18px] w-[18px]" />
@@ -2258,6 +2345,9 @@ export default function OrderCheckout() {
                 <p className="text-sm font-bold text-emerald-800">{checkoutStatus}</p>
               </div>
             )}
+            <p className="text-sm leading-6 text-neutral-700">
+              Avant de confirmer, consultez les <Link to="/conditions-vente" target="_blank" rel="noopener" className="font-bold text-[#9a3412] underline">conditions de vente</Link> et les <Link to="/retours-remboursements" target="_blank" rel="noopener" className="font-bold text-[#9a3412] underline">conditions de retour et remboursement</Link> (nouvel onglet). Vos droits légaux restent applicables.
+            </p>
             <div className="hidden lg:block">
               {paysWithPawaPay ? (
                 <PawaPayButton
@@ -2265,7 +2355,9 @@ export default function OrderCheckout() {
                   purpose={isInstallmentPayment ? 'INSTALLMENT_FUNDING' : 'CHECKOUT_FUNDING'}
                   actionContext={pawaPayActionContext}
                   returnPath="/orders/checkout"
-                  label="Confirmer et payer avec PawaPay"
+                  onResult={handlePawaPayResult}
+                  disabled={deliveryEstimatePending}
+                  label={deliveryEstimatePending ? 'Total à confirmer' : 'Confirmer et payer avec PawaPay'}
                   onBeforeStart={validatePawaPayCheckout}
                   className="rounded-2xl px-8 py-5 text-lg sm:text-xl"
                 />
@@ -2303,7 +2395,7 @@ export default function OrderCheckout() {
                 {t('checkout.paymentPercent', 'Combien payer maintenant ?')}
               </p>
               <p className="mt-0.5 truncate text-[28px] font-black leading-none tracking-tight text-[#231f1b]">
-                {formatCurrency(pawaPayRequiredAmount)}
+                {deliveryEstimatePending ? 'À confirmer' : formatCurrency(pawaPayRequiredAmount)}
               </p>
               {summaryRemainingAmount > 0 && (
                 <p className="mt-1 truncate text-[11px] font-semibold text-[#8a8378]">
@@ -2318,7 +2410,9 @@ export default function OrderCheckout() {
                   purpose={isInstallmentPayment ? 'INSTALLMENT_FUNDING' : 'CHECKOUT_FUNDING'}
                   actionContext={pawaPayActionContext}
                   returnPath="/orders/checkout"
-                  label="Payer avec PawaPay"
+                  onResult={handlePawaPayResult}
+                  disabled={deliveryEstimatePending}
+                  label={deliveryEstimatePending ? 'Total à confirmer' : 'Payer avec PawaPay'}
                   onBeforeStart={validatePawaPayCheckout}
                   className="min-h-[56px] rounded-2xl px-5 text-sm"
                 />

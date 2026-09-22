@@ -1,8 +1,9 @@
-export const getMissingProductFormFields = (form = {}) => [
+export const getMissingProductFormFields = (form = {}, { requireImage = false, hasImages = false } = {}) => [
   { name: 'title', label: "Titre de l'annonce", missing: !String(form.title || '').trim() },
   { name: 'description', label: 'Description détaillée', missing: !String(form.description || '').trim() },
   { name: 'category', label: 'Catégorie', missing: !String(form.category || '').trim() },
-  { name: 'price', label: 'Prix', missing: !(Number(form.price || 0) > 0) }
+  { name: 'price', label: 'Prix', missing: !(Number(form.price || 0) > 0) },
+  { name: 'images', label: 'Au moins une photo', missing: requireImage && !hasImages }
 ].filter((field) => field.missing);
 
 // Computes the installment end date (YYYY-MM-DD) from a start date and a

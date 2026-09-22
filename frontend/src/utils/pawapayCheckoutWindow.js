@@ -39,12 +39,14 @@ export const createPawaPayResultMessage = ({
   status,
   checkoutId,
   path,
+  retryAllowed = false,
   message = ''
 } = {}) => ({
   type: PAWAPAY_RESULT_MESSAGE_TYPE,
   messageId: createMessageId(),
   status: String(status || '').toLowerCase(),
   checkoutId: String(checkoutId || '').trim(),
+  retryAllowed: retryAllowed === true,
   path: safeInternalPath(path),
   message: String(message || '').trim(),
   sentAt: Date.now()

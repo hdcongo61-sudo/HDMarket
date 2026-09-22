@@ -347,7 +347,7 @@ export const buildCountryFinancialSnapshot = (country, values = {}) => ({
 });
 
 export const buildCountryDataFilter = (countryContext, field = 'countryId') => {
-  const countryId = countryContext?.countryId || countryContext?.country?._id || null;
+  const countryId = countryContext?.countryId || countryContext?.country?._id || countryContext?._id || null;
   if (!countryId) return { [field]: null };
   if (String(countryContext?.code || countryContext?.country?.code || '').toUpperCase() === 'CG') {
     return {

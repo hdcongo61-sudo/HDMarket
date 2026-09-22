@@ -205,7 +205,7 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
       requestedCountry: req.headers?.['x-country-id'] || req.headers?.['x-country-code'],
       user: req.user
     });
-    const countryFilter = buildCountryDataFilter(countryContext.country);
+    const countryFilter = buildCountryDataFilter(countryContext);
     const [payload, runtimePayload, countryCities, countryCommunes] = await Promise.all([
       resolvePublicSettings(),
       getPublicRuntimeConfig({
@@ -239,7 +239,12 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
     };
     res.json({
       ...payload,
-      app: { ...payload.app, commissionRate: runtimePayload?.values?.commission_rate ?? payload.app?.commissionRate },
+      app: {
+        ...payload.app,
+        commissionRate: runtimePayload?.values?.commission_rate ?? payload.app?.commissionRate,
+        shopConversionAmount:
+          runtimePayload?.values?.shopConversionAmount ?? payload.app?.shopConversionAmount
+      },
       country: serializePublicCountry(countryContext.country),
       defaultLanguage: countryContext.country.defaultLanguage,
       languages: countryContext.country.supportedLanguages,
@@ -359,7 +364,7 @@ export const getPublicCities = asyncHandler(async (req, res) => {
       requestedCountry: req.headers?.['x-country-id'] || req.headers?.['x-country-code'],
       user: req.user
     });
-    const cities = await City.find({ ...buildCountryDataFilter(countryContext.country), isActive: true })
+    const cities = await City.find({ ...buildCountryDataFilter(countryContext), isActive: true })
       .sort({ order: 1, name: 1 })
       .lean();
     res.json(cities);
@@ -385,7 +390,7 @@ export const getPublicCommunes = asyncHandler(async (req, res) => {
       user: req.user
     });
     const communes = await Commune.find({
-      ...buildCountryDataFilter(countryContext.country),
+      ...buildCountryDataFilter(countryContext),
       isActive: true,
       ...(cityId ? { cityId } : {})
     }).sort({ order: 1, name: 1 }).lean();

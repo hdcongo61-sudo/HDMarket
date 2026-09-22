@@ -5,6 +5,8 @@ import { validate, schemas } from '../middlewares/validate.js';
 import { disputeUpload } from '../utils/disputeUpload.js';
 import {
   createDispute,
+  listEligibleDisputeOrders,
+  retryAdminDisputeRefund,
   getDisputeDetails,
   listAdminDisputes,
   listClientDisputes,
@@ -19,6 +21,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/me', listClientDisputes);
+router.get('/eligible-orders', listEligibleDisputeOrders);
 router.post(
   '/',
   disputeUpload.array('proofImages', 5),
@@ -44,6 +47,7 @@ router.patch(
   resolveAdminDispute
 );
 router.post('/admin/deadline-check', requireComplaintAccess, runDisputeDeadlineChecks);
+router.post('/admin/:id/retry-refund', requireComplaintAccess, validate(schemas.idParam, 'params'), retryAdminDisputeRefund);
 
 router.get('/:id', validate(schemas.idParam, 'params'), getDisputeDetails);
 

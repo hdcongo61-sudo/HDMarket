@@ -60,6 +60,16 @@ describe('countryService — buildCountryDataFilter', () => {
     });
   });
 
+  it('accepts a country document shape as well as a resolved context', () => {
+    expect(buildCountryDataFilter({ _id: 'cg1', code: 'CG' })).toEqual({
+      $and: [
+        {
+          $or: [{ countryId: 'cg1' }, { countryId: null }, { countryId: { $exists: false } }]
+        }
+      ]
+    });
+  });
+
   it('is strict for non-Congo markets', () => {
     expect(buildCountryDataFilter({ countryId: 'dr1', code: 'DRC' })).toEqual({ countryId: 'dr1' });
   });

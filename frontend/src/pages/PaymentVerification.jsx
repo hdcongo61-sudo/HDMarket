@@ -1,9 +1,10 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowPathIcon, ArrowTopRightOnSquareIcon, CheckCircleIcon, ClockIcon, CreditCardIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, ShieldCheckIcon, UserMinusIcon, UserPlusIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
-import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import { formatRecordedMoney as formatCurrency, formatMoneyTotals, sumRecordedPayments } from '../utils/moneyTotals';
+import { useCountry } from '../context/CountryContext';
 import { appAlert, appConfirm } from '../utils/appDialog';
 import { hasAnyPermission } from '../utils/permissions';
 import {
@@ -86,8 +87,6 @@ const operatorLabels = {
   Other: 'Autre'
 };
 
-const formatCurrency = (value) => formatPriceWithStoredSettings(value);
-
 const formatDateTime = (value) => {
   if (!value) return '-';
   const date = new Date(value);
@@ -154,6 +153,8 @@ function UserIdentity({ user }) {
 }
 
 export default function PaymentVerification({ initialPanel = 'payments' }) {
+  const { country } = useCountry();
+  const countryId = String(country?.id || country?._id || '');
   const { user } = useContext(AuthContext);
   const [searchParams, setSearchParams] = useSearchParams();
   const canOpenPawaPayCenter = user?.role === 'admin' || user?.role === 'founder';
@@ -218,7 +219,9 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
     return () => window.clearTimeout(timer);
   }, [searchQuery]);
 
+  const paymentRequest = useRef(0);
   const loadPayments = useCallback(async ({ silent = false } = {}) => {
+    const request = ++paymentRequest.current;
     if (!silent) setLoadingPayments(true);
     setPaymentsError('');
     try {
@@ -231,16 +234,20 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
       if (startDate) params.set('startDate', startDate);
       params.set('sort', sortOrder === 'oldest' ? 'oldest' : 'newest');
 
-      const { data } = await api.get(`/payments/admin?${params.toString()}`);
-      setPayments(sortPaymentsByRecency(data, sortOrder));
+      const { data } = await api.get(`/payments/admin?${params.toString()}`, {
+        skipCache: true,
+        headers: countryId ? { 'x-country-id': countryId } : {}
+      });
+      if (request === paymentRequest.current) setPayments(sortPaymentsByRecency(data, sortOrder));
     } catch (error) {
+      if (request !== paymentRequest.current) return;
       console.error('Load payments error:', error);
       setPaymentsError(error?.response?.data?.message || 'Impossible de charger les paiements.');
       setPayments([]);
     } finally {
-      if (!silent) setLoadingPayments(false);
+      if (request === paymentRequest.current) setLoadingPayments(false);
     }
-  }, [debouncedSearchQuery, methodFilter, operatorFilter, paymentStatus, periodFilter, sortOrder]);
+  }, [countryId, debouncedSearchQuery, methodFilter, operatorFilter, paymentStatus, periodFilter, sortOrder]);
 
   const changeFilter = (key, value, setter, defaultValue = 'all') => {
     setter(value);
@@ -302,10 +309,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
   );
 
   const displayedPaymentAmount = useMemo(
-    () => payments.reduce(
-      (sum, payment) => sum + Number(payment?.amountPaid ?? payment?.amount ?? 0),
-      0
-    ),
+    () => sumRecordedPayments(payments),
     [payments]
   );
 
@@ -318,7 +322,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
     },
     {
       label: 'Montant affiché',
-      value: loadingPayments ? '...' : formatCurrency(displayedPaymentAmount),
+      value: loadingPayments ? '...' : formatMoneyTotals(displayedPaymentAmount),
       help: 'Selon les filtres actifs',
       icon: CreditCardIcon
     },
@@ -663,20 +667,20 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                         <div className="mt-4 grid gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-sm dark:border-neutral-800 dark:bg-neutral-900/70 sm:grid-cols-3">
                           <p>
                             <span className="block text-[11px] font-bold uppercase text-neutral-400">Payé</span>
-                            <span className="font-bold text-neutral-950 dark:text-white">{formatCurrency(payment.amountPaid ?? payment.amount ?? 0)}</span>
+                            <span className="font-bold text-neutral-950 dark:text-white">{formatCurrency(payment.amountPaid ?? payment.amount ?? 0, payment.currency)}</span>
                           </p>
                           <p>
                             <span className="block text-[11px] font-bold uppercase text-neutral-400">Commission</span>
                             <span className="font-bold text-neutral-950 dark:text-white">
-                              {formatCurrency(payment.commissionDueAmount ?? payment.amount)}
+                              {formatCurrency(payment.commissionDueAmount ?? payment.amount, payment.currency)}
                             </span>
                           </p>
                           <p>
                             <span className="block text-[11px] font-bold uppercase text-neutral-400">Prix produit</span>
                             <span className="font-bold text-neutral-950 dark:text-white">
                               {payment.paymentKind === 'LISTING_FEE_RECONCILIATION'
-                                ? `${formatCurrency(payment.oldPrice)} → ${formatCurrency(payment.newPrice)}`
-                                : formatCurrency(payment.product?.price)}
+                                ? `${formatCurrency(payment.oldPrice, payment.currency)} → ${formatCurrency(payment.newPrice, payment.currency)}`
+                                : formatCurrency(payment.product?.price, payment.product?.currency || payment.currency)}
                             </span>
                           </p>
                         </div>

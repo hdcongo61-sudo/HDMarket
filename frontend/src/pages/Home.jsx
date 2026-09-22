@@ -20,6 +20,7 @@ import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import { buildProductPath, buildShopPath } from "../utils/links";
 import AuthContext from "../context/AuthContext";
 import { useAppSettings } from "../context/AppSettingsContext";
+import useServiceAvailability from '../hooks/useServiceAvailability';
 import BaseModal, { ModalBody, ModalHeader } from "../components/modals/BaseModal";
 import useNetworkProfile from "../hooks/useNetworkProfile";
 import { loadOfflineSnapshot, saveOfflineSnapshot } from "../utils/offlineSnapshots";
@@ -305,6 +306,7 @@ const ProductVideosHomeSection = ({ enabled }) => {
 
 export default function Home() {
   const { user } = useContext(AuthContext);
+  const { buyForMeEnabled, parcelDeliveryEnabled, payForOtherEnabled, fullPaymentFreeDeliveryEnabled } = useServiceAvailability();
   const { categoryGroups, allCategoryOptions } = useCategories();
   const {
     city: preferredCity,
@@ -316,6 +318,7 @@ export default function Home() {
     isFeatureEnabled
   } = useAppSettings();
   const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
+  const installmentsEnabled = isFeatureEnabled('enable_installments', { defaultValue: true });
   // === ÉTATS PRINCIPAUX ===
   const [items, setItems] = useState([]);
   // Keep the discovery sample stable through unrelated renders.
@@ -371,8 +374,6 @@ export default function Home() {
   const [activeFlashSalesLoading, setActiveFlashSalesLoading] = useState(false);
   const [flashNow, setFlashNow] = useState(() => Date.now());
   const [heroBanner, setHeroBanner] = useState('');
-  const [buyForMeEnabled, setBuyForMeEnabled] = useState(false);
-  const [parcelDeliveryEnabled, setParcelDeliveryEnabled] = useState(false);
   const [promoBanner, setPromoBanner] = useState('');
   const [promoBannerMobile, setPromoBannerMobile] = useState('');
   const [promoBannerLink, setPromoBannerLink] = useState('');
@@ -449,7 +450,7 @@ const hasUserCity = useMemo(
 const formatCurrency = (value) => formatPrice(value);
 const formatCount = (value) =>
   Number(value || 0).toLocaleString(String(language || 'fr').startsWith('en') ? 'en-US' : 'fr-FR');
-const showFullPaymentHomeBanner = normalizeSettingBoolean(
+const showFullPaymentHomeBanner = fullPaymentFreeDeliveryEnabled && normalizeSettingBoolean(
   getRuntimeValue('show_full_payment_home_banner', true),
   true
 );
@@ -465,7 +466,6 @@ const fullPaymentBannerText =
       'Payez le montant total au checkout et profitez de la livraison offerte.'
     ) || ''
   ).trim() || 'Payez le montant total au checkout et profitez de la livraison offerte.';
-const payForOtherEnabled = normalizeSettingBoolean(getRuntimeValue('enable_pay_for_other', false), false);
 const showPayForOtherBanner =
   payForOtherEnabled &&
   normalizeSettingBoolean(getRuntimeValue('show_pay_for_other_home_banner', true), true);
@@ -481,20 +481,33 @@ const reduceMotionHome = useReducedMotion();
 const primaryPageLimit = compactProductsPageSize || (isMobileView ? 12 : 15);
 const secondarySectionLimit = compactSecondaryLimit || 6;
 
+  const promoCards = useMemo(() => [
+    showFullPaymentHomeBanner ? { badge: 'LIVRAISON OFFERTE', text: fullPaymentBannerText, cta: 'Voir', color: '#00A860', bg: '#E7F8EF', icon: TruckIcon, to: '/products', backgroundImage: homePromoBackgrounds.freeDelivery } : null,
+    showPayForOtherBanner ? { badge: 'PAIEMENT PAR UN PROCHE', text: payForOtherBannerText, cta: 'Voir', color: '#F26522', bg: '#FDF3E7', icon: UsersIcon, to: '/cart', backgroundImage: homePromoBackgrounds.payForOther } : null,
+    buyForMeEnabled ? { badge: 'NOUVEAU', text: 'Acheter Pour Moi — un livreur fait vos courses.', cta: 'Essayer', color: '#7C3AED', bg: '#F1EDFB', icon: ShoppingBagIcon, to: '/buy-for-me', backgroundImage: homePromoBackgrounds.buyForMe } : null,
+    parcelDeliveryEnabled ? { badge: 'ENVOI DE COLIS', text: 'Un livreur récupère et livre où vous voulez.', cta: 'Envoyer', color: '#0B87D4', bg: '#EBF4FD', icon: CubeIcon, to: '/parcels/new', backgroundImage: homePromoBackgrounds.parcel } : null
+  ].filter(Boolean), [showFullPaymentHomeBanner, fullPaymentBannerText, showPayForOtherBanner, payForOtherBannerText, buyForMeEnabled, parcelDeliveryEnabled, homePromoBackgrounds]);
+  const promoCardKeys = promoCards.map((card) => card.to).join('|');
+
   useEffect(() => {
-    if (promoInteracted || reduceMotionHome) return undefined;
+    setActivePromo(0);
+    promoCarouselRef.current?.scrollTo({ left: 0, behavior: 'instant' });
+  }, [isMobileView, promoCardKeys]);
+
+  useEffect(() => {
+    if (!isMobileView || promoInteracted || reduceMotionHome || promoCards.length < 2) return undefined;
     const timer = window.setInterval(() => {
       const carousel = promoCarouselRef.current;
       if (!carousel) return;
       setActivePromo((current) => {
-        const next = (current + 1) % 4;
+        const next = (current + 1) % promoCards.length;
         const nextCard = carousel.children[next];
-        if (nextCard) carousel.scrollTo({ left: Math.max(0, nextCard.offsetLeft - 20), behavior: 'smooth' });
+        if (nextCard) carousel.scrollTo({ left: nextCard.offsetLeft - carousel.children[0].offsetLeft, behavior: 'smooth' });
         return next;
       });
     }, 4000);
     return () => window.clearInterval(timer);
-  }, [promoInteracted, reduceMotionHome]);
+  }, [isMobileView, promoInteracted, reduceMotionHome, promoCards.length]);
 const homeSnapshotKey = useMemo(
   () =>
     [
@@ -724,34 +737,6 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     return () => {
       active = false;
       unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    api.get('/buy-for-me/capabilities')
-      .then(({ data }) => {
-        if (active) setBuyForMeEnabled(Boolean(data?.enabled));
-      })
-      .catch(() => {
-        if (active) setBuyForMeEnabled(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    api.get('/parcels/capabilities')
-      .then(({ data }) => {
-        if (active) setParcelDeliveryEnabled(Boolean(data?.enabled));
-      })
-      .catch(() => {
-        if (active) setParcelDeliveryEnabled(false);
-      });
-    return () => {
-      active = false;
     };
   }, []);
 
@@ -1260,8 +1245,8 @@ const loadDiscountProducts = async () => {
     [highlights.installmentProducts, installmentProducts]
   );
   const activeInstallmentProducts = useMemo(
-    () => filterActiveInstallmentProducts(installmentSectionProducts, installmentNow),
-    [installmentNow, installmentSectionProducts]
+    () => installmentsEnabled ? filterActiveInstallmentProducts(installmentSectionProducts, installmentNow) : [],
+    [installmentsEnabled, installmentNow, installmentSectionProducts]
   );
   useEffect(() => {
     const nextExpiry = installmentSectionProducts.reduce((nearest, product) => {
@@ -1399,13 +1384,6 @@ const loadDiscountProducts = async () => {
       { label: 'Livraison', icon: TruckIcon, to: '/shops/free-delivery' },
       { label: 'Découvrir', icon: SparklesIcon, to: '/discover' }
     ];
-    const promoCards = [
-      { badge: 'LIVRAISON OFFERTE', text: fullPaymentBannerText, cta: 'Voir', color: '#00A860', bg: '#E7F8EF', icon: TruckIcon, to: '/products', backgroundImage: homePromoBackgrounds.freeDelivery },
-      { badge: 'PAIEMENT PAR UN PROCHE', text: payForOtherBannerText, cta: 'Voir', color: '#F26522', bg: '#FDF3E7', icon: UsersIcon, to: '/cart', backgroundImage: homePromoBackgrounds.payForOther },
-      ...(buyForMeEnabled ? [{ badge: 'NOUVEAU', text: 'Acheter Pour Moi — un livreur fait vos courses.', cta: 'Essayer', color: '#7C3AED', bg: '#F1EDFB', icon: ShoppingBagIcon, to: '/buy-for-me', backgroundImage: homePromoBackgrounds.buyForMe }] : []),
-      { badge: 'ENVOI DE COLIS', text: 'Un livreur récupère et livre où vous voulez.', cta: 'Envoyer', color: '#0B87D4', bg: '#EBF4FD', icon: CubeIcon, to: '/parcels/new', backgroundImage: homePromoBackgrounds.parcel }
-    ];
-
     const scrollStyle = { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' };
     const handlePromoScroll = (event) => {
       const carousel = event.currentTarget;
@@ -1418,8 +1396,8 @@ const loadDiscountProducts = async () => {
 
     return (
       <div className="mx-auto flex max-w-7xl flex-col gap-5 bg-[#f5f5f5] px-5 pb-24 pt-0 text-[#1b1d22] max-[375px]:gap-4 max-[375px]:px-4">
-        {/* Pour Vous — AI Recommendations (placed prominently at top) */}
-        <div className="hidden">
+        {/* Pour Vous — AI Recommendations (shown after the hero so returning buyers can resume quickly) */}
+        <div className="order-[-27] pt-1">
           <PourVousSection
             user={user}
             t={t}
@@ -1700,7 +1678,7 @@ const loadDiscountProducts = async () => {
           )}
         </section>
 
-        <section className="order-[-20] -mx-5 pt-[14px] max-[375px]:-mx-4" aria-label="Promotions HDMarket">
+        {promoCards.length > 0 && <section className="order-[-20] -mx-5 pt-[14px] max-[375px]:-mx-4" aria-label="Promotions HDMarket">
           <div
             ref={promoCarouselRef}
             onScroll={handlePromoScroll}
@@ -1738,10 +1716,10 @@ const loadDiscountProducts = async () => {
               </Link>
             ))}
           </div>
-          <div className="flex justify-center gap-1.5 pt-2.5" aria-label={`Promotion ${activePromo + 1} sur ${promoCards.length}`}>
+          {promoCards.length > 1 && <div className="flex justify-center gap-1.5 pt-2.5" aria-label={`Promotion ${activePromo + 1} sur ${promoCards.length}`}>
             {promoCards.map((promo, index) => <span key={promo.badge} className={`h-1.5 rounded-full transition-all duration-250 ${index === activePromo ? 'w-5 bg-[#f26522]' : 'w-1.5 bg-[#dddfe5]'}`} />)}
-          </div>
-        </section>
+          </div>}
+        </section>}
 
         <section className="rounded-[22px] border border-[#eeeff3] bg-white p-[14px_12px] shadow-none">
           <div className="grid grid-cols-5 gap-2">
@@ -1908,7 +1886,7 @@ const loadDiscountProducts = async () => {
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <label className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700">
+              {installmentsEnabled && <label className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700">
                 <input
                   type="checkbox"
                   checked={installmentOnlyFilter}
@@ -1919,7 +1897,7 @@ const loadDiscountProducts = async () => {
                   className="h-4 w-4 rounded border-neutral-300 text-neutral-800 focus:ring-neutral-500"
                 />
                 Afficher uniquement les produits en tranche
-              </label>
+              </label>}
               {hasUserCity && (
                 <label className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700">
                   <input
@@ -2067,7 +2045,7 @@ const loadDiscountProducts = async () => {
                         -{product.discount}%
                       </span>
                     )}
-                    {isInstallmentOfferActive(product) && (
+                    {installmentsEnabled && isInstallmentOfferActive(product) && (
                       <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow-sm">
                         <ClockIcon className="h-2.5 w-2.5" />
                         Tranche
@@ -2259,7 +2237,7 @@ const loadDiscountProducts = async () => {
                       showHint={false}
                     />
                     <span className="absolute left-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-[#1b1d22] text-[11px] font-black text-white">{idx + 1}</span>
-                    {isInstallmentOfferActive(product) && (
+                    {installmentsEnabled && isInstallmentOfferActive(product) && (
                       <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow-sm">
                         <ClockIcon className="h-2.5 w-2.5" />
                         Tranche
@@ -2440,7 +2418,7 @@ const loadDiscountProducts = async () => {
                         <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-white/90 text-gray-600">
                           {product.condition === 'new' ? 'Neuf' : 'Occasion'}
                         </span>
-                        {isInstallmentOfferActive(product) && (
+                        {installmentsEnabled && isInstallmentOfferActive(product) && (
                           <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-sky-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
                             <ClockIcon className="h-2.5 w-2.5" />
                             Tranche
@@ -2559,7 +2537,7 @@ const loadDiscountProducts = async () => {
                         <CubeIcon className="h-[13px] w-[13px] shrink-0" />
                         {t('home.wholesaleFrom', 'Dès {count} pièces').replace('{count}', String(minQty))}
                       </p>
-                      {isInstallmentOfferActive(product) ? (
+                      {installmentsEnabled && isInstallmentOfferActive(product) ? (
                         <p className="text-[11px] font-semibold text-[#0b6ea8] dark:text-sky-300">{t('home.installmentAvailable', 'Paiement en tranches')}</p>
                       ) : null}
                     </div>
@@ -2576,7 +2554,7 @@ const loadDiscountProducts = async () => {
         </motion.section>
 
         {/* Installment section — always reserve space to prevent scroll jump */}
-        <motion.section {...scrollReveal(reduceMotionHome)} ref={installmentSectionRef} className="order-[2] isolate" style={{ minHeight: shouldLoadSecondarySections ? undefined : 246 }}>
+        {installmentsEnabled && <motion.section {...scrollReveal(reduceMotionHome)} ref={installmentSectionRef} className="order-[2] isolate" style={{ minHeight: shouldLoadSecondarySections ? undefined : 246 }}>
           <div>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -2652,7 +2630,7 @@ const loadDiscountProducts = async () => {
             <p className="mt-3.5 text-[12.5px] font-medium text-[#8a8378] dark:text-neutral-400">{t('home.noInstallmentProducts', 'Aucun produit en tranche disponible actuellement.')}</p>
           )}
           </div>
-        </motion.section>
+        </motion.section>}
 
         <Link
           to="/products?quotationOnly=true"
@@ -2899,7 +2877,7 @@ const loadDiscountProducts = async () => {
                       {product.discount > 0 && (
                         <span className="absolute top-1.5 left-1.5 bg-neutral-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow">-{product.discount}%</span>
                       )}
-                      {isInstallmentOfferActive(product) && (
+                      {installmentsEnabled && isInstallmentOfferActive(product) && (
                         <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-0.5 rounded-md bg-sky-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow">
                           <ClockIcon className="h-2.5 w-2.5" />
                           Tranche
@@ -3064,7 +3042,7 @@ const loadDiscountProducts = async () => {
                       <span className="absolute top-2 right-2 rounded-md bg-neutral-900/90 px-2 py-0.5 text-[10px] font-semibold text-white">
                         {Number(product.totalSoldToday || 0)} vendu(s)
                       </span>
-                      {isInstallmentOfferActive(product) && (
+                      {installmentsEnabled && isInstallmentOfferActive(product) && (
                         <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-md bg-sky-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
                           <ClockIcon className="h-2.5 w-2.5" />
                           Tranche
@@ -3197,7 +3175,7 @@ const loadDiscountProducts = async () => {
                       }`}>
                         {index + 1}
                       </span>
-                      {isInstallmentOfferActive(product) && (
+                      {installmentsEnabled && isInstallmentOfferActive(product) && (
                         <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md bg-sky-600 px-2 py-0.5 text-[10px] font-bold text-white shadow">
                           <ClockIcon className="h-2.5 w-2.5" />
                           Tranche
@@ -3339,7 +3317,7 @@ const loadDiscountProducts = async () => {
                           <TagIcon className="h-3 w-3" />
                           GROS
                         </span>
-                        {isInstallmentOfferActive(product) && (
+                        {installmentsEnabled && isInstallmentOfferActive(product) && (
                           <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-lg bg-sky-600 px-2.5 py-1 text-[10px] font-black text-white shadow-sm">
                             <ClockIcon className="h-3 w-3" />
                             Tranche

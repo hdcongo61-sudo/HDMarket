@@ -24,12 +24,12 @@ import {
   isProductAttributeSelectionRequired,
   normalizeProductAttributes,
   normalizeSelectedAttributes,
-  resolveProductImagePrice,
   resolveSelectedAttributesImage,
-  resolveSelectedAttributesPrice,
   resolveSelectedCombinationsTotal,
+  selectAttributesForImage,
   validateSelectedAttributes
 } from "../utils/productAttributes";
+import { getSelectedProductPricing } from '../utils/productPricing';
 import { resolveUserProfileImage } from "../utils/userAvatar";
 import { isColorAttribute, resolveSwatchColor } from "../utils/colorSwatch";
 import VerifiedBadge from "../components/VerifiedBadge";
@@ -68,7 +68,8 @@ export default function ProductDetails() {
   const { toggleFavorite, isFavorite } = useContext(FavoriteContext);
   const { showToast } = useToast();
   const authLoading = Boolean(authContextValue?.loading);
-  const { getRuntimeValue } = useAppSettings();
+  const { getRuntimeValue, isFeatureEnabled } = useAppSettings();
+  const installmentsEnabled = isFeatureEnabled('enable_installments', { defaultValue: true });
   const groupBuyingEnabled = ['true', '1', 'yes', 'on'].includes(
     String(getRuntimeValue('enable_group_buying', false)).trim().toLowerCase()
   );
@@ -854,10 +855,6 @@ export default function ProductDetails() {
       setHighlightedCommentId(commentId);
     }
 
-    const imageParam = parseInt(params.get('image'), 10);
-    if (Number.isFinite(imageParam) && imageParam >= 0) {
-      setSelectedImage(imageParam);
-    }
   }, [location.hash, location.search]);
 
   useEffect(() => {
@@ -1500,23 +1497,6 @@ export default function ProductDetails() {
     const selectedCombinations = requireSelectedProductOptionCombinations();
     if (!selectedCombinations) return;
 
-    if (!user) {
-      setPendingAction({
-        type: 'addToCart',
-        payload: {
-          productId: product._id,
-          quantity: safeQty,
-          items: selectedCombinations.map((selectedAttributes) => ({
-            productId: product._id,
-            quantity: safeQty,
-            selectedAttributes
-          }))
-        }
-      });
-      navigate('/login', { state: { from: `/product/${slug}` } });
-      return;
-    }
-
     if (inCart) return;
 
     setAddingToCart(true);
@@ -1558,23 +1538,6 @@ export default function ProductDetails() {
     const liveStock = Number(product?.stock ?? product?.quantity ?? product?.availableStock ?? Number.NaN);
     if (Number.isFinite(liveStock) && liveStock <= 0) {
       setCartFeedback('❌ Produit en rupture de stock');
-      return;
-    }
-
-    if (!user) {
-      setPendingAction({
-        type: 'buyNow',
-        payload: {
-          productId: product._id,
-          quantity: safeQty,
-          items: selectedCombinations.map((selectedAttributes) => ({
-            productId: product._id,
-            quantity: safeQty,
-            selectedAttributes
-          }))
-        }
-      });
-      navigate('/login', { state: { from: `/product/${slug}` } });
       return;
     }
 
@@ -1701,26 +1664,22 @@ export default function ProductDetails() {
   }, []);
 
   // 🎨 CALCULS ET FORMATAGES
-  const hasDiscount = product?.discount > 0;
-  const originalPrice = hasDiscount ? product?.priceBeforeDiscount : product?.price;
-  // A selected variant (e.g. size) with its own price replaces the base price.
-  const variantPricing = resolveSelectedAttributesPrice({
+  const hasDiscount = Number(product?.discount || 0) > 0;
+  const selectedImageIndex = (Array.isArray(product?.images) ? product.images : [])
+    .map((src, imageIndex) => ({ src: String(src || '').trim(), imageIndex }))
+    .filter((item) => item.src)
+    .slice(0, 10)[selectedImage]?.imageIndex ?? -1;
+  const pricingSummary = getSelectedProductPricing({
+    product,
     productAttributes: productOptionDefinitions,
     selectedAttributes: normalizedSelectedAttributes,
-    basePrice: product?.price || 0
+    imageIndex: selectedImageIndex
   });
-  const displayedPhotoPricing = resolveProductImagePrice({
-    productAttributes: productOptionDefinitions,
-    imageIndex: (Array.isArray(product?.images) ? product.images : [])
-      .map((src, imageIndex) => ({ src: String(src || '').trim(), imageIndex }))
-      .filter((item) => item.src)
-      .slice(0, 10)[selectedImage]?.imageIndex ?? -1
-  });
-  const finalPrice = displayedPhotoPricing.applied
-    ? Number(displayedPhotoPricing.unitPrice || 0)
-    : variantPricing.applied
-      ? Number(variantPricing.unitPrice || 0)
-      : Number(product?.price || 0);
+  // A selected variant (e.g. size or photo) replaces the base price and does
+  // not inherit the base product's original price or discount calculation.
+  const variantPricing = pricingSummary.variantPricing;
+  const originalPrice = pricingSummary.originalPrice;
+  const finalPrice = pricingSummary.currentPrice;
   const normalizedQuantity = Math.min(9999, Math.max(1, Math.trunc(Number(selectedQuantity || 1))));
   const discountPercentage = product?.discount || 0;
   // Taobao-style variant strip + "Tout" sheet: driven by the first select
@@ -1783,12 +1742,15 @@ export default function ProductDetails() {
   );
   const hasMultiSelectionTotal =
     selectedAttributeCombinations.length > 1 && selectedCombinationsPricing.applied;
-  // The gallery describes the visible item, even when several options are
-  // selected or a wholesale tier applies to the order.
-  const showSelectionTotal = hasMultiSelectionTotal && !displayedPhotoPricing.applied;
-  const displayUnitPrice = displayedPhotoPricing.applied
-    ? displayedPhotoPricing.unitPrice
-    : hasMultiSelectionTotal ? selectedCombinationsPricing.total : appliedUnitPrice;
+  // Display the same selection and quantity pricing used by the cart.
+  const showSelectionTotal = hasMultiSelectionTotal;
+  const displayUnitPrice = hasMultiSelectionTotal ? selectedCombinationsPricing.total : appliedUnitPrice;
+  const hasDisplayedDiscount = Boolean(
+    pricingSummary.hasDiscount &&
+    !hasMultiSelectionTotal &&
+    !activeWholesaleTier &&
+    Number(originalPrice || 0) > Number(displayUnitPrice || 0)
+  );
   const computedLineTotal = Number((appliedUnitPrice * normalizedQuantity).toFixed(2));
   const wholesaleSavingsAmount = Math.max(
     0,
@@ -1797,7 +1759,7 @@ export default function ProductDetails() {
   const wholesaleSavingsPercent =
     finalPrice > 0 ? Number(((wholesaleSavingsAmount / (finalPrice * normalizedQuantity)) * 100).toFixed(2)) : 0;
   const installmentOffer = useMemo(() => {
-    if (!product?.installmentEnabled) {
+    if (!installmentsEnabled || !product?.installmentEnabled) {
       return { available: false, minAmount: 0, duration: 0, endDate: null };
     }
     const startDate = product.installmentStartDate ? new Date(product.installmentStartDate) : null;
@@ -1814,6 +1776,7 @@ export default function ProductDetails() {
       endDate
     };
   }, [
+    installmentsEnabled,
     product?.installmentEnabled,
     product?.installmentStartDate,
     product?.installmentEndDate,
@@ -2181,10 +2144,32 @@ export default function ProductDetails() {
     ? "relative lg:aspect-square aspect-square overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 shadow-sm"
     : "relative min-h-[430px] sm:min-h-[520px] lg:min-h-[640px] overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 shadow-sm";
 
-  const openImageModal = useCallback((index = selectedImage) => {
+  const selectGalleryImage = useCallback((index) => {
+    if (index === selectedImage) return;
     setSelectedImage(index);
+    const imageIndex = (product?.images || []).map((src, originalIndex) => ({ src: String(src || '').trim(), originalIndex }))
+      .filter((item) => item.src).slice(0, 10)[index]?.originalIndex ?? -1;
+    const selection = selectAttributesForImage({ productAttributes: productOptionDefinitions, selectedAttributes, imageIndex });
+    if (!selection.mapped.length) return;
+    setSelectedAttributes(selection.selectedAttributes);
+    setSelectedOptionsByAttribute((previous) => ({ ...previous, ...Object.fromEntries(selection.mapped.map((entry) => [entry.name.toLowerCase(), [entry.value]])) }));
+    setSelectionError('');
+  }, [selectedImage, product?.images, productOptionDefinitions, selectedAttributes]);
+
+  const appliedGalleryLink = useRef('');
+  useEffect(() => {
+    if (!product?._id || !galleryImages.length) return;
+    const key = `${product._id}:${location.search}`;
+    if (appliedGalleryLink.current === key) return;
+    appliedGalleryLink.current = key;
+    const index = parseInt(new URLSearchParams(location.search).get('image'), 10);
+    if (Number.isInteger(index) && index >= 0 && index < galleryImages.length) selectGalleryImage(index);
+  }, [product?._id, location.search, galleryImages.length, selectGalleryImage]);
+
+  const openImageModal = useCallback((index = selectedImage) => {
+    selectGalleryImage(index);
     setIsImageModalOpen(true);
-  }, [selectedImage]);
+  }, [selectedImage, selectGalleryImage]);
 
   const closeImageModal = useCallback(() => {
     setIsImageModalOpen(false);
@@ -2200,18 +2185,18 @@ export default function ProductDetails() {
   }, [openImageModal, selectedImage]);
 
   const handleThumbnailClick = useCallback((index) => {
-    setSelectedImage(index);
-  }, []);
+    selectGalleryImage(index);
+  }, [selectGalleryImage]);
 
   const goToPrevImage = useCallback(() => {
     if (!galleryImages.length) return;
-    setSelectedImage((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
-  }, [galleryImages.length]);
+    selectGalleryImage((selectedImage - 1 + galleryImages.length) % galleryImages.length);
+  }, [galleryImages.length, selectedImage, selectGalleryImage]);
 
   const goToNextImage = useCallback(() => {
     if (!galleryImages.length) return;
-    setSelectedImage((prev) => (prev + 1) % galleryImages.length);
-  }, [galleryImages.length]);
+    selectGalleryImage((selectedImage + 1) % galleryImages.length);
+  }, [galleryImages.length, selectedImage, selectGalleryImage]);
 
   const handleModalPrev = useCallback(() => {
     goToPrevImage();
@@ -2513,7 +2498,7 @@ export default function ProductDetails() {
               onSwiper={(swiper) => { mobileGallerySwiperRef.current = swiper; }}
               spaceBetween={0}
               slidesPerView={1}
-              onSlideChange={(swiper) => setSelectedImage(swiper.activeIndex)}
+              onSlideChange={(swiper) => selectGalleryImage(swiper.activeIndex)}
               className="w-full aspect-square"
             >
               {galleryImages.map((item, index) => (
@@ -2591,7 +2576,9 @@ export default function ProductDetails() {
           <div className="flex gap-1.5 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-t border-gray-50">
             {galleryImages.map((item, index) => (
               <button key={`thumb-${item.src || index}`} type="button"
-                onClick={() => setSelectedImage(index)}
+                aria-label={`Afficher ${item.type === 'video' ? 'la vidéo' : 'la photo'} ${index + 1} de ${product.title}`}
+                aria-pressed={selectedImage === index}
+                onClick={() => selectGalleryImage(index)}
                 className={`relative h-14 w-14 flex-shrink-0 overflow-hidden rounded border-2 transition-all ${selectedImage === index ? 'border-[#FF5000]' : 'border-transparent opacity-55 hover:opacity-80'}`}>
                 {item.type === 'video' ? (
                   <>
@@ -2620,10 +2607,15 @@ export default function ProductDetails() {
           </p>
         )}
         <div className="flex items-baseline gap-2 flex-wrap">
+          {(normalizedSelectedAttributes.length > 0 || showSelectionTotal) && (
+            <p className="basis-full text-[11px] font-black uppercase tracking-[0.12em] text-[#8a8378]">
+              Prix de l’option sélectionnée
+            </p>
+          )}
           <span className="home-anim-pop inline-block text-[28px] font-black text-[#FF3D00] leading-tight">
             {formatPriceWithStoredSettings(displayUnitPrice)}
           </span>
-          {hasDiscount && Number(originalPrice) > displayUnitPrice && (
+          {hasDisplayedDiscount && (
             <>
               <span className="text-sm text-gray-400 line-through">
                 {formatPriceWithStoredSettings(originalPrice)}
@@ -2677,16 +2669,22 @@ export default function ProductDetails() {
           ) : null}
       {/* ── REASSURANCE ── */}
       <section className="bg-white px-4 pt-3 pb-4">
-        <div className="flex flex-col gap-2.5 text-[12px] font-semibold text-[#6b6459]">
-          <span className="inline-flex items-center gap-2">
-            <TruckIcon className="h-4 w-4 shrink-0" /><span>{deliveryPrimaryLabel} · {deliverySecondaryLabel}</span>
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <ShieldCheckIcon className="h-3 w-3" /> Paiement sécurisé{product.warrantyEnabled ? ` · Garantie ${Number(product.warrantyPeriodValue || 0)}${warrantyPeriodUnitLabel}` : ''}{product.certified ? ' · Certifié HDMarket' : ''}
-          </span>
-          <span className={`inline-flex w-fit items-center gap-2 rounded-full px-2 py-1 font-bold ${stockStatus.className}`}>
-            <span className="h-1.5 w-1.5 rounded-full bg-current" />{stockStatus.label}
-          </span>
+        <div className="grid grid-cols-3 gap-2 text-[11px] font-bold text-[#6b6459]">
+          <div className="min-w-0 rounded-xl border border-[#eee8e0] bg-[#fffaf5] px-2.5 py-2.5">
+            <ShieldCheckIcon className="mb-1 h-4 w-4 text-[#e85d00]" />
+            <p className="truncate text-[#231f1b]">Paiement sécurisé</p>
+            {product.warrantyEnabled ? <p className="mt-0.5 truncate text-[10px] font-semibold text-[#8a8378]">Garantie incluse</p> : null}
+          </div>
+          <div className="min-w-0 rounded-xl border border-[#eee8e0] bg-[#fffaf5] px-2.5 py-2.5">
+            <TruckIcon className="mb-1 h-4 w-4 text-[#e85d00]" />
+            <p className="truncate text-[#231f1b]">{deliveryPrimaryLabel}</p>
+            <p className="mt-0.5 truncate text-[10px] font-semibold text-[#8a8378]">{deliverySecondaryLabel}</p>
+          </div>
+          <div className={`min-w-0 rounded-xl border px-2.5 py-2.5 ${stockStatus.className}`}>
+            <span className="mb-1 block h-2 w-2 rounded-full bg-current" />
+            <p className="truncate text-current">{stockStatus.label}</p>
+            <p className="mt-0.5 truncate text-[10px] font-semibold opacity-75">Disponibilité</p>
+          </div>
         </div>
       </section>
 
@@ -3364,7 +3362,12 @@ export default function ProductDetails() {
                 disabled={addingToCart}
                 className="flex min-h-12 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#e85d00] px-3 text-sm font-black text-white disabled:opacity-50">
                 {isPurchaseOutOfStock ? <BellIcon className="h-4 w-4 shrink-0" /> : <BoltIcon className="h-4 w-4 shrink-0" />}
-                <span>{isPurchaseOutOfStock ? (isInFavorites ? 'Suivi' : 'Me prévenir') : addingToCart ? 'Ajout...' : isOptionSelectionBlocked ? 'Choisir les options' : inCart ? 'Commander' : 'Acheter maintenant'}</span>
+                <span className="flex min-w-0 flex-col items-center leading-tight">
+                  <span>{isPurchaseOutOfStock ? (isInFavorites ? 'Suivi' : 'Me prévenir') : addingToCart ? 'Ajout...' : isOptionSelectionBlocked ? 'Choisir les options' : inCart ? 'Commander' : 'Acheter maintenant'}</span>
+                  {!isPurchaseOutOfStock && !isOptionSelectionBlocked ? (
+                    <span className="text-[10px] font-bold text-white/80">{formatPriceWithStoredSettings(displayUnitPrice)}</span>
+                  ) : null}
+                </span>
               </button>
             </div>
           </div>
@@ -3418,7 +3421,7 @@ export default function ProductDetails() {
                   <span className="text-xl font-black text-[#FF5000]">
                     {formatPriceWithStoredSettings(displayUnitPrice)}
                   </span>
-                  {hasDiscount && Number(originalPrice) > displayUnitPrice ? (
+                  {hasDisplayedDiscount ? (
                     <span className="text-xs text-gray-400 line-through">
                       {formatPriceWithStoredSettings(originalPrice)}
                     </span>
@@ -3889,7 +3892,7 @@ className="text-white drop-shadow-md h-5 w-5"
               </div>
 
               <div className="home-anim-pop space-y-3">
-                {hasDiscount ? (
+                  {hasDisplayedDiscount ? (
                   <>
                     <div className="flex flex-wrap items-baseline gap-3">
                       <span className="text-4xl sm:text-5xl font-black text-[#FF3D00]">{formatPriceWithStoredSettings(finalPrice)}</span>
@@ -5424,7 +5427,7 @@ className={`h-[18px] w-[18px] ${star <= userRating ? 'text-neutral-500 fill-neut
               onSwiper={(s) => {
                 modalSwiperRef.current = s;
               }}
-              onSlideChange={(s) => setSelectedImage(s.activeIndex)}
+              onSlideChange={(s) => selectGalleryImage(s.activeIndex)}
               className="h-full w-full [&_.swiper-slide]:flex [&_.swiper-slide]:items-center [&_.swiper-slide]:justify-center"
             >
               {galleryImages.map((item, index) => (
@@ -5489,7 +5492,7 @@ className={`h-[18px] w-[18px] ${star <= userRating ? 'text-neutral-500 fill-neut
                     <button
                       key={`modal-thumb-${item.src || index}`}
                       type="button"
-                      onClick={() => setSelectedImage(index)}
+                      onClick={() => selectGalleryImage(index)}
                       className={`relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border transition ${
                         safeSelectedImage === index
                           ? 'border-[#FF5000] ring-2 ring-[#FF5000]/50'

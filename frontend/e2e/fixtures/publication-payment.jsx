@@ -14,7 +14,7 @@ const user = { _id: 'seller', id: 'seller', role: 'admin' };
 function PaymentScreen() {
   const { commissionRatePercent } = useCommissionRate();
   return <><output data-testid="rate">{commissionRatePercent}</output>
-    <PaymentForm product={{ _id: 'listing', title: 'Commode', price: 190000 }} />
+    <PaymentForm product={{ _id: 'listing', title: 'Commode', price: 190000, ...(params.has('topup') ? { requiresAdditionalPayment: true, pendingPrice: 200000, listingFeeRemaining: 10, listingFeeStatus: 'PAYMENT_REQUIRED' } : {}) }} />
   </>;
 }
 createRoot(document.getElementById('root')).render(

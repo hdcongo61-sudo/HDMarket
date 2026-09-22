@@ -19,6 +19,17 @@ describe('ProductForm UX helpers', () => {
     ]);
   });
 
+  it('can require a photo only at the publish step', () => {
+    expect(getMissingProductFormFields({ title: 'Téléphone', description: 'Bon état', category: 'Téléphones', price: 20000 }, {
+      requireImage: true,
+      hasImages: false
+    })).toContainEqual({ name: 'images', label: 'Au moins une photo', missing: true });
+    expect(getMissingProductFormFields({ title: 'Téléphone', description: 'Bon état', category: 'Téléphones', price: 20000 }, {
+      requireImage: true,
+      hasImages: true
+    })).not.toContainEqual(expect.objectContaining({ name: 'images' }));
+  });
+
   it('shows no additional fee when the seller returns to the approved price', () => {
     expect(getListingFeeChangePreview({
       isEditing: true,

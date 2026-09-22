@@ -428,21 +428,7 @@ export default function AdminOrders() {
 
   const exportToExcel = async () => {
     try {
-      // Dynamically import xlsx library
-      let XLSX;
-      try {
-        // @ts-ignore - Dynamic import for optional dependency
-        XLSX = (await import('xlsx')).default || await import('xlsx');
-      } catch (importError) {
-        appAlert('Veuillez installer la bibliothèque xlsx: npm install xlsx');
-        console.error('xlsx library not found:', importError);
-        return;
-      }
-      
-      if (!XLSX || !XLSX.utils) {
-        appAlert('La bibliothèque xlsx n\'est pas correctement installée.');
-        return;
-      }
+      const { downloadSpreadsheet } = await import('../utils/downloadSpreadsheet');
       
       // Fetch all orders (without pagination)
       const params = buildAdminQueryParams({ includePagination: true, maxLimit: 10000 });
@@ -494,10 +480,6 @@ export default function AdminOrders() {
       });
 
       // Create workbook and worksheet
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Commandes');
-
       // Set column widths
       const colWidths = [
         { wch: 12 }, // ID Commande
@@ -523,22 +505,16 @@ export default function AdminOrders() {
         { wch: 15 }, // Date livraison
         { wch: 15 }  // Date expédition
       ];
-      worksheet['!cols'] = colWidths;
 
       // Generate filename with date
       const dateStr = new Date().toISOString().split('T')[0];
       const filename = `commandes_${statusFilter !== 'all' ? statusFilter + '_' : ''}${dateStr}.xlsx`;
 
       // Save file
-      XLSX.writeFile(workbook, filename);
+      await downloadSpreadsheet({ rows: excelData, widths: colWidths.map(col => col.wch), filename, sheetName: 'Commandes' });
     } catch (error) {
       console.error('Erreur export Excel:', error);
-      if (error?.message?.includes('Failed to fetch dynamically imported module') || 
-          error?.message?.includes('Cannot find module')) {
-        appAlert('Veuillez installer la bibliothèque xlsx: npm install xlsx');
-      } else {
-        appAlert('Impossible d\'exporter vers Excel. ' + (error?.message || ''));
-      }
+      appAlert('Impossible d\'exporter vers Excel. Réessayez après avoir vérifié votre connexion.');
     }
   };
 
@@ -2207,6 +2183,7 @@ export default function AdminOrders() {
                   </p>
                 </div>
 
+                {Number(viewOrderData.cashCollectedAmount || 0) > 0 && <p className="text-sm">Espèces reçues : {formatCurrency(viewOrderData.cashCollectedAmount)} · Total réglé : {formatCurrency(Number(viewOrderData.paidAmount || 0) + Number(viewOrderData.cashCollectedAmount || 0))}</p>}
                 {String(viewOrderData.paymentSource || '').toLowerCase() === 'pawapay' && Number(viewOrderData.paidAmount || 0) > 0 ? (
                   <div className="rounded-xl border border-orange-200 bg-orange-50 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">

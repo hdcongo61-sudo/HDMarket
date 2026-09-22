@@ -9,6 +9,7 @@ import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import CancellationTimer from '../components/CancellationTimer';
 import EditAddressModal from '../components/EditAddressModal';
+import OrderCashCollection from '../components/OrderCashCollection';
 import OrderChat from '../components/OrderChat';
 import GlassHeader from '../components/orders/GlassHeader';
 import StatusBadge from '../components/orders/StatusBadge';
@@ -1288,10 +1289,10 @@ export default function OrderDetail() {
         <div className="mx-auto max-w-5xl px-4 pt-4">
           <section className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm shadow-sm">
             <p className="font-black text-amber-900">
-              {getSponsorshipStatusMeta(order.sponsoredPayment.status).title}
+              {getSponsorshipStatusMeta(order.sponsoredPayment.status, order.remainingAmount).title}
             </p>
             <p className="mt-0.5 text-xs font-semibold text-amber-700">
-              {getSponsorshipStatusMeta(order.sponsoredPayment.status).hint}
+              {getSponsorshipStatusMeta(order.sponsoredPayment.status, order.remainingAmount).hint}
             </p>
             {['pending', 'declined', 'expired'].includes(order.sponsoredPayment.status) && (
               <Link
@@ -2028,6 +2029,7 @@ export default function OrderDetail() {
                     {formatCurrency(isInstallmentOrder ? installmentTotal : totalAmount)}
                   </span>
                 </div>
+                <OrderCashCollection order={order} />
                 {order.quotationSnapshot?.applied && remainingAmount > 0 && ['pending', 'pending_payment'].includes(order.status) ? (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
                     <PawaPayButton
@@ -2134,7 +2136,7 @@ export default function OrderDetail() {
                 <p className="text-sm text-gray-700">
                   Statut:{' '}
                   <span className="font-semibold">
-                    {saleConfirmationConfirmed ? 'Confirmée par vous' : 'En attente de confirmation vendeur'}
+                    {saleConfirmationConfirmed ? 'Confirmée par le vendeur' : 'En attente de confirmation vendeur'}
                   </span>
                 </p>
                 {installmentPlan?.guarantor?.required && (
@@ -2157,6 +2159,9 @@ export default function OrderDetail() {
                   visibleInstallmentEntries.map(({ entry, index }) => {
                     const isCurrentInstallment = installmentCurrentIndex === index;
                     const canUploadProof =
+                      !['cancelled', 'completed', 'delivered', 'dispute_opened'].includes(order.status) &&
+                      order.installmentSaleStatus !== 'cancelled' &&
+                      !['pending', 'failed'].includes(order.refundStatus) &&
                       saleConfirmationConfirmed &&
                       isCurrentInstallment &&
                       ['pending', 'overdue'].includes(entry?.status);
@@ -2210,7 +2215,7 @@ export default function OrderDetail() {
                           <div className="space-y-3">
                             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                               <PawaPayButton
-                                amount={Math.max(10, Math.ceil(Number(entry?.amount || 0)))}
+                                amount={Number(entry?.amount || 0)}
                                 purpose="INSTALLMENT_FUNDING"
                                 actionContext={{
                                   kind: 'INSTALLMENT_PAYMENT',

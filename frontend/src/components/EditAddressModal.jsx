@@ -2,24 +2,30 @@ import React, { useEffect, useId, useState } from 'react';
 import { ExclamationCircleIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { useAppSettings } from '../context/AppSettingsContext';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from './modals/BaseModal';
+import api from '../services/api';
 
 export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
-  const { cities } = useAppSettings();
-  const cityOptions = Array.isArray(cities) && cities.length
-    ? cities.map((item) => item.name).filter(Boolean)
-    : ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+  const { cities = [], communes = [] } = useAppSettings();
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [deliveryCity, setDeliveryCity] = useState(cityOptions[0] || 'Brazzaville');
+  const [cityId, setCityId] = useState('');
+  const [communeId, setCommuneId] = useState('');
+  const [phone, setPhone] = useState('');
+  const [quote, setQuote] = useState(null);
+  const cityOptions = cities.filter(city => !city.countryId || String(city.countryId?._id || city.countryId) === String(order?.countryId?._id || order?.countryId));
+  const communeOptions = communes.filter(commune => String(commune.cityId?._id || commune.cityId) === cityId);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen && order) {
       setDeliveryAddress(order.deliveryAddress || '');
-      setDeliveryCity(order.deliveryCity || cityOptions[0] || 'Brazzaville');
+      setCityId(String(order.shippingAddressSnapshot?.cityId || ''));
+      setCommuneId(String(order.shippingAddressSnapshot?.communeId || ''));
+      setPhone(order.shippingAddressSnapshot?.phone || order.customer?.phone || '');
+      setQuote(null);
       setError('');
     }
-  }, [cityOptions, isOpen, order]);
+  }, [isOpen, order]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,19 +38,23 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
 
     setLoading(true);
     try {
-      await onSave({
-        deliveryAddress: deliveryAddress.trim(),
-        deliveryCity
-      });
+      const input = { shippingAddress: { cityId, communeId, addressLine: deliveryAddress.trim(), phone: phone.trim() } };
+      if (!quote) {
+        const { data } = await api.post(`/orders/${order._id}/address-preview`, input);
+        setQuote(data);
+        return;
+      }
+      await onSave({ ...input, expectedDeliveryFee: quote.deliveryFeeTotal, expectedTotalAmount: quote.totalAmount });
       onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Impossible de modifier l\'adresse.');
+      setQuote(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const canEdit = order && order.status !== 'delivering' && order.status !== 'delivered' && order.status !== 'cancelled';
+  const canEdit = order?.deliveryMode === 'DELIVERY' && ['pending', 'pending_payment', 'paid', 'confirmed', 'pending_installment', 'installment_in_progress', 'installment_paid'].includes(order?.status);
   const titleId = useId();
 
   return (
@@ -109,7 +119,8 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
                   data-autofocus
                   id="deliveryAddress"
                   value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  onChange={(e) => { setDeliveryAddress(e.target.value); setQuote(null); }}
+                  disabled={loading}
                   placeholder="Entrez la nouvelle adresse complète..."
                   rows={3}
                   required
@@ -129,20 +140,40 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
                 </label>
                 <select
                   id="deliveryCity"
-                  value={deliveryCity}
-                  onChange={(e) => setDeliveryCity(e.target.value)}
+                  value={cityId}
+                  onChange={(e) => { setCityId(e.target.value); setCommuneId(''); setQuote(null); }}
+                  disabled={loading}
                   required
                   className="ui-input w-full rounded-xl px-4 py-3 text-gray-900 dark:text-white"
                 >
+                  <option value="">Choisir une ville</option>
                   {cityOptions.map((city) => (
-                    <option key={city} value={city}>
-                      {city}
+                    <option key={city._id} value={city._id}>
+                      {city.name}
                     </option>
                   ))}
                 </select>
               </div>
 
               {/* Info Message */}
+              <div>
+                <label htmlFor="deliveryCommune" className="mb-2 block text-sm font-semibold">Commune *</label>
+                <select id="deliveryCommune" className="ui-input w-full" required disabled={loading || !cityId} value={communeId}
+                  onChange={e => { setCommuneId(e.target.value); setQuote(null); }}>
+                  <option value="">Choisir une commune</option>
+                  {communeOptions.map(commune => <option key={commune._id} value={commune._id}>{commune.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="deliveryPhone" className="mb-2 block text-sm font-semibold">Téléphone *</label>
+                <input id="deliveryPhone" type="tel" required minLength={6} maxLength={30} className="ui-input w-full" value={phone} disabled={loading}
+                  onChange={e => { setPhone(e.target.value); setQuote(null); }} />
+              </div>
+              {quote && <div role="status" className="rounded-xl bg-orange-50 p-3 text-sm text-gray-900">
+                <p>Livraison : {Number(quote.deliveryFeeTotal).toLocaleString('fr-FR')} FCFA</p>
+                <p>Nouveau total : {Number(quote.totalAmount).toLocaleString('fr-FR')} FCFA</p>
+                <p>Reste à régler : {Number(quote.remainingAmount).toLocaleString('fr-FR')} FCFA</p>
+              </div>}
               <div className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900/20 border border-neutral-200 dark:border-neutral-800">
                 <p className="text-xs text-neutral-800 dark:text-neutral-300">
                   <span className="font-semibold">Note :</span> La modification de l'adresse sera notifiée aux vendeurs concernés.
@@ -164,10 +195,10 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
             {canEdit && (
               <button
                 type="submit"
-                disabled={loading || !deliveryAddress.trim()}
+                disabled={loading || !deliveryAddress.trim() || !cityId || !communeId || !phone.trim()}
                 className="hd-primary-button flex-1 px-4 py-2.5 rounded-xl text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Enregistrement...' : 'Enregistrer'}
+                {loading ? 'Vérification…' : quote ? 'Confirmer l’adresse et les frais' : 'Vérifier les frais'}
               </button>
             )}
           </div>

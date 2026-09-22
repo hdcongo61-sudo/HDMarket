@@ -1,233 +1,119 @@
-/**
- * Enhanced Seller Analytics Service V2
- * Proposal 9: Rich analytics dashboard with trends, product performance & customer insights.
- */
-
 import Order from '../models/orderModel.js';
 import Product from '../models/productModel.js';
-import ProductView from '../models/productViewModel.js';
-import User from '../models/userModel.js';
+import ProductDailyView from '../models/productDailyViewModel.js';
+import { paidSellerOrderFilter, sellerOrderLines, sellerOrderRevenue } from '../utils/sellerAnalytics.js';
 
-const COMPLETED_STATUSES = [
-  'delivery_proof_submitted', 'delivered', 'picked_up_confirmed',
-  'confirmed_by_client', 'completed'
-];
-
-const toNumber = (v, fallback = 0) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
+const pct = (part, total) => total > 0 ? Math.round(part / total * 1000) / 10 : null;
+const change = (current, previous) => pct(current - previous, previous);
+const orderFields = 'items totalAmount deliveryFeeTotal createdAt customer';
+const windows = () => {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const start30 = new Date(today);
+  start30.setUTCDate(start30.getUTCDate() - 29);
+  const startPrev30 = new Date(start30);
+  startPrev30.setUTCDate(startPrev30.getUTCDate() - 30);
+  return { today, start30, startPrev30 };
 };
 
-const pct = (part, total) => total ? Math.round((part / total) * 100 * 10) / 10 : 0;
-
-// ─── OVERVIEW ─────────────────────────────────────────
+const measuredViews = async (sellerId, start) => {
+  const [rows, first] = await Promise.all([
+    ProductDailyView.find({ seller: sellerId, day: { $gte: start } }).select('product day views').lean(),
+    ProductDailyView.findOne({}).sort({ createdAt: 1 }).select('createdAt').lean()
+  ]);
+  return { rows, measuredSince: first?.createdAt ? new Date(first.createdAt) : null };
+};
 
 export const getOverview = async (sellerId) => {
-  const now = new Date();
-  const start30 = new Date(now);
-  start30.setDate(start30.getDate() - 30);
-  const startPrev30 = new Date(start30);
-  startPrev30.setDate(startPrev30.getDate() - 30);
-
-  // Orders in last 30 days
-  const [orders30, ordersPrev30, allProducts] = await Promise.all([
-    Order.find({ seller: sellerId, status: { $in: COMPLETED_STATUSES }, createdAt: { $gte: start30 } })
-      .select('totalAmount createdAt')
-      .lean(),
-    Order.find({ seller: sellerId, status: { $in: COMPLETED_STATUSES }, createdAt: { $gte: startPrev30, $lt: start30 } })
-      .select('totalAmount')
-      .lean(),
-    Product.find({ user: sellerId, status: 'approved' })
-      .select('_id title price discount salesCount views images')
-      .lean()
+  const { today, start30, startPrev30 } = windows();
+  const [orders, totalProducts, measurement] = await Promise.all([
+    Order.find({ ...paidSellerOrderFilter(sellerId), createdAt: { $gte: startPrev30 } }).select(orderFields).lean(),
+    Product.countDocuments({ user: sellerId, status: 'approved' }),
+    measuredViews(sellerId, startPrev30)
   ]);
-
-  // Revenue
-  const revenue30 = orders30.reduce((s, o) => s + toNumber(o.totalAmount), 0);
-  const revenuePrev30 = ordersPrev30.reduce((s, o) => s + toNumber(o.totalAmount), 0);
-  const revenueChange = pct(revenue30 - revenuePrev30, revenuePrev30 || 1);
-
-  // Orders count
-  const ordersCount30 = orders30.length;
-  const ordersCountPrev30 = ordersPrev30.length;
-  const ordersChange = pct(ordersCount30 - ordersCountPrev30, ordersCountPrev30 || 1);
-
-  // Total views (last 30 days)
-  const viewsAgg = await ProductView.aggregate([
-    { $match: { seller: { $exists: true, $ne: null }, viewedAt: { $gte: start30 } } },
-    { $match: { seller: String(sellerId) } },
-    { $count: 'total' }
-  ]);
-  const totalViews = viewsAgg[0]?.total || 0;
-
-  // Views previous 30 days
-  const viewsPrevAgg = await ProductView.aggregate([
-    { $match: { seller: { $exists: true, $ne: null }, viewedAt: { $gte: startPrev30, $lt: start30 } } },
-    { $match: { seller: String(sellerId) } },
-    { $count: 'total' }
-  ]);
-  const totalViewsPrev = viewsPrevAgg[0]?.total || 0;
-  const viewsChange = pct(totalViews - totalViewsPrev, totalViewsPrev || 1);
-
-  // Conversion rate (orders / views)
-  const conversionRate = totalViews > 0 ? pct(ordersCount30, totalViews) : 0;
-  const conversionPrev = totalViewsPrev > 0 ? pct(ordersCountPrev30, totalViewsPrev) : 0;
-
-  // Total products
-  const totalProducts = allProducts.length;
-
-  // Sales trend (daily for last 14 days)
-  const dailySales = [];
-  for (let i = 13; i >= 0; i--) {
-    const day = new Date(now);
-    day.setDate(day.getDate() - i);
-    const dayStart = new Date(day);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(day);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    const dayOrders = orders30.filter(o => {
-      const d = new Date(o.createdAt);
-      return d >= dayStart && d <= dayEnd;
-    });
-    dailySales.push({
-      date: day.toISOString().slice(0, 10),
-      orders: dayOrders.length,
-      revenue: dayOrders.reduce((s, o) => s + toNumber(o.totalAmount), 0)
-    });
-  }
-
+  const orders30 = orders.filter((order) => new Date(order.createdAt) >= start30);
+  const ordersPrev = orders.filter((order) => new Date(order.createdAt) < start30);
+  const revenue = (list) => Math.round(list.reduce((sum, order) => sum + sellerOrderRevenue(order, sellerId), 0));
+  const revenue30 = revenue(orders30);
+  const revenuePrev = revenue(ordersPrev);
+  const { rows, measuredSince } = measurement;
+  const views = rows.filter((row) => new Date(row.day) >= start30).reduce((sum, row) => sum + row.views, 0);
+  const previousCovered = measuredSince && measuredSince <= startPrev30;
+  const previousViews = previousCovered ? rows.filter((row) => new Date(row.day) < start30).reduce((sum, row) => sum + row.views, 0) : null;
+  const measuredStart = measuredSince ? new Date(Math.max(start30.getTime(), measuredSince.getTime())) : null;
+  const measuredOrders = measuredStart ? orders30.filter((order) => new Date(order.createdAt) >= measuredStart).length : 0;
+  const dailySales = Array.from({ length: 14 }, (_, index) => {
+    const day = new Date(today);
+    day.setUTCDate(day.getUTCDate() - 13 + index);
+    const date = day.toISOString().slice(0, 10);
+    const daily = orders30.filter((order) => new Date(order.createdAt).toISOString().slice(0, 10) === date);
+    return { date, orders: daily.length, revenue: revenue(daily) };
+  });
   return {
-    revenue: { current: revenue30, previous: revenuePrev30, change: revenueChange },
-    orders: { current: ordersCount30, previous: ordersCountPrev30, change: ordersChange },
-    views: { current: totalViews, previous: totalViewsPrev, change: viewsChange },
-    conversion: { current: conversionRate, previous: conversionPrev },
-    totalProducts,
-    dailySales
+    revenue: { current: revenue30, previous: revenuePrev, change: change(revenue30, revenuePrev) },
+    orders: { current: orders30.length, previous: ordersPrev.length, change: change(orders30.length, ordersPrev.length) },
+    views: { current: measuredSince ? views : null, previous: previousViews, change: previousCovered ? change(views, previousViews) : null },
+    conversion: { current: measuredSince ? pct(measuredOrders, views) : null, previous: previousCovered ? pct(ordersPrev.length, previousViews) : null },
+    measurement: { since: measuredSince, partial: !measuredSince || measuredSince > start30, definition: 'paid_orders_per_counted_product_view' },
+    totalProducts, dailySales
   };
 };
 
-// ─── PRODUCT PERFORMANCE ──────────────────────────────
-
 export const getProductPerformance = async (sellerId) => {
-  const products = await Product.find({ user: sellerId, status: 'approved' })
-    .select('title price discount salesCount views images')
-    .sort({ salesCount: -1 })
-    .limit(50)
-    .lean();
-
-  const now = new Date();
-  const start30 = new Date(now);
-  start30.setDate(start30.getDate() - 30);
-
-  // Get orders in last 30 days to compute revenue per product
-  const orders30 = await Order.find({
-    seller: sellerId,
-    status: { $in: COMPLETED_STATUSES },
-    createdAt: { $gte: start30 }
-  })
-    .select('items.product items.price items.quantity totalAmount')
-    .lean();
-
-  const productRevenue = new Map();
-  for (const order of orders30) {
-    for (const item of order.items || []) {
-      const pid = String(item.product || '');
-      const rev = toNumber(item.price) * toNumber(item.quantity || 1);
-      productRevenue.set(pid, (productRevenue.get(pid) || 0) + rev);
+  const { start30 } = windows();
+  const [products, orders, measurement] = await Promise.all([
+    Product.find({ user: sellerId, status: 'approved' }).select('title price discount salesCount viewsCount images').sort({ salesCount: -1 }).limit(50).lean(),
+    Order.find({ ...paidSellerOrderFilter(sellerId), createdAt: { $gte: start30 } }).select(orderFields).lean(),
+    measuredViews(sellerId, start30)
+  ]);
+  const revenue = new Map();
+  const measuredOrders = new Map();
+  const views = new Map();
+  const measuredStart = measurement.measuredSince ? new Date(Math.max(start30.getTime(), measurement.measuredSince.getTime())) : null;
+  for (const order of orders) {
+    const seenProducts = new Set();
+    for (const line of sellerOrderLines(order, sellerId)) {
+      revenue.set(line.productId, (revenue.get(line.productId) || 0) + line.revenue);
+      seenProducts.add(line.productId);
+    }
+    if (measuredStart && new Date(order.createdAt) >= measuredStart) {
+      for (const id of seenProducts) measuredOrders.set(id, (measuredOrders.get(id) || 0) + 1);
     }
   }
-
-  const items = products.map((p) => {
-    const pid = String(p._id);
-    return {
-      _id: p._id,
-      title: p.title,
-      price: p.price,
-      discount: p.discount || 0,
-      salesCount: p.salesCount || 0,
-      views: p.views || 0,
-      revenue30: productRevenue.get(pid) || 0,
-      conversionRate: (p.views || 0) > 0
-        ? pct(p.salesCount || 0, p.views || 1)
-        : 0
-    };
-  });
-
-  return { items, total: items.length };
+  for (const row of measurement.rows) views.set(String(row.product), (views.get(String(row.product)) || 0) + row.views);
+  const items = products.map((product) => ({
+    _id: product._id, title: product.title, price: product.price, discount: product.discount || 0,
+    salesCount: product.salesCount || 0, views: product.viewsCount || 0,
+    revenue30: Math.round(revenue.get(String(product._id)) || 0),
+    conversionRate: measuredStart ? pct(measuredOrders.get(String(product._id)) || 0, views.get(String(product._id)) || 0) : null
+  }));
+  return { items, total: items.length, measuredSince: measurement.measuredSince };
 };
 
-// ─── CUSTOMER INSIGHTS ────────────────────────────────
-
 export const getCustomerInsights = async (sellerId) => {
-  const orders = await Order.find({
-    seller: sellerId,
-    status: { $in: COMPLETED_STATUSES }
-  })
-    .select('customer createdAt totalAmount')
-    .populate('customer', 'city commune name')
-    .lean();
-
-  // Top cities
+  const orders = await Order.find(paidSellerOrderFilter(sellerId)).select(orderFields).populate('customer', 'city').lean();
   const cityMap = new Map();
-  const customerSet = new Set();
+  const customerOrders = new Map();
   const hourMap = new Map();
   const dayMap = new Map();
-  let repeatCustomers = 0;
-  const customerOrderCount = new Map();
-
   for (const order of orders) {
-    const custId = String(order.customer?._id || '');
+    const id = String(order.customer?._id || '');
+    if (id) customerOrders.set(id, (customerOrders.get(id) || 0) + 1);
     const city = order.customer?.city || 'Inconnu';
-
-    if (custId) {
-      customerSet.add(custId);
-      customerOrderCount.set(custId, (customerOrderCount.get(custId) || 0) + 1);
-    }
-
     cityMap.set(city, (cityMap.get(city) || 0) + 1);
-
-    const hour = new Date(order.createdAt).getHours();
-    hourMap.set(hour, (hourMap.get(hour) || 0) + 1);
-
-    const day = new Date(order.createdAt).getDay();
-    dayMap.set(day, (dayMap.get(day) || 0) + 1);
+    const date = new Date(order.createdAt);
+    hourMap.set(date.getUTCHours(), (hourMap.get(date.getUTCHours()) || 0) + 1);
+    dayMap.set(date.getUTCDay(), (dayMap.get(date.getUTCDay()) || 0) + 1);
   }
-
-  // Count repeat customers
-  for (const [, count] of customerOrderCount) {
-    if (count > 1) repeatCustomers++;
-  }
-
-  // Format cities
-  const topCities = [...cityMap.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([name, count]) => ({ name, count }));
-
-  // Format peak hours
-  const peakHours = [...hourMap.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([hour, count]) => ({ hour: `${String(hour).padStart(2, '0')}h`, count }));
-
-  // Format peak days
+  const repeatCustomers = [...customerOrders.values()].filter((count) => count > 1).length;
   const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-  const peakDays = [...dayMap.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([day, count]) => ({ day: dayNames[day] || '?', count }));
-
-  const aov = orders.length > 0
-    ? Math.round(orders.reduce((s, o) => s + toNumber(o.totalAmount), 0) / orders.length)
-    : 0;
-
   return {
-    totalCustomers: customerSet.size,
-    repeatCustomers,
-    repeatRate: customerSet.size > 0 ? pct(repeatCustomers, customerSet.size) : 0,
-    aov,
-    topCities,
-    peakHours,
-    peakDays,
+    totalCustomers: customerOrders.size, repeatCustomers,
+    repeatRate: pct(repeatCustomers, customerOrders.size) ?? 0,
+    aov: orders.length ? Math.round(orders.reduce((sum, order) => sum + sellerOrderRevenue(order, sellerId), 0) / orders.length) : 0,
+    topCities: [...cityMap].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, count]) => ({ name, count })),
+    peakHours: [...hourMap].sort((a, b) => a[0] - b[0]).map(([hour, count]) => ({ hour: String(hour).padStart(2, '0') + 'h UTC', count })),
+    peakDays: [...dayMap].sort((a, b) => a[0] - b[0]).map(([day, count]) => ({ day: dayNames[day], count })),
     totalOrders: orders.length
   };
 };

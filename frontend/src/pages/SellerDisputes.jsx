@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowPathIcon, ChatBubbleLeftRightIcon, ClockIcon, PaperClipIcon, ShieldExclamationIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import PrivateAttachmentLink from '../components/PrivateAttachmentLink';
 import { useToast } from '../context/ToastContext';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 
@@ -222,16 +223,14 @@ export default function SellerDisputes() {
                   {item.proofImages?.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {item.proofImages.map((file, index) => (
-                        <a
+                        <PrivateAttachmentLink
                           key={`${item._id}-proof-client-${index}`}
-                          href={file.url}
-                          target="_blank"
-                          rel="noreferrer"
+                          file={file}
                           className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs text-gray-700"
                         >
                           <PaperClipIcon className="h-3.5 w-3.5" />
                           {file.originalName || file.filename || 'preuve client'}
-                        </a>
+                        </PrivateAttachmentLink>
                       ))}
                     </div>
                   )}
@@ -246,16 +245,14 @@ export default function SellerDisputes() {
                   {item.sellerProofImages?.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {item.sellerProofImages.map((file, index) => (
-                        <a
+                        <PrivateAttachmentLink
                           key={`${item._id}-proof-seller-${index}`}
-                          href={file.url}
-                          target="_blank"
-                          rel="noreferrer"
+                          file={file}
                           className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-700"
                         >
                           <PaperClipIcon className="h-3.5 w-3.5" />
                           {file.originalName || file.filename || 'preuve vendeur'}
-                        </a>
+                        </PrivateAttachmentLink>
                       ))}
                     </div>
                   )}

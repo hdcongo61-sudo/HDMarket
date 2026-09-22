@@ -59,6 +59,7 @@ export const runInstallmentProofValidationSlaSweep = async ({
 
   const orders = await Order.find({
     paymentType: 'installment',
+    status: { $in: ['pending_installment', 'installment_active', 'overdue_installment'] },
     isDraft: { $ne: true },
     'installmentPlan.saleConfirmationConfirmedAt': { $ne: null },
     'installmentPlan.schedule': {
@@ -163,4 +164,3 @@ export const runInstallmentProofValidationSlaSweep = async ({
     thresholdHours
   };
 };
-

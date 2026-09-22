@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { LEGAL_VERSION } from '../config/legalPolicy.js';
 
 // French labels for the field names end users can actually recognize.
 // Anything missing here falls back to the raw key name rather than crashing —
@@ -178,12 +179,12 @@ export const schemas = {
     verificationCode: Joi.string().min(0).max(10).optional(),
     role: Joi.string().valid('user', 'admin', 'manager').optional(),
     accountType: Joi.string().valid('person').default('person'),
-    address: Joi.string().min(4).max(200).required(),
-    city: Joi.string().trim().min(2).max(80).required(),
+    address: Joi.string().min(4).max(200).allow('', null).optional(),
+    city: Joi.string().trim().min(2).max(80).allow('', null).optional(),
     commune: Joi.string().trim().min(2).max(80).allow('', null),
     cityId: Joi.string().hex().length(24).allow('', null),
     communeId: Joi.string().hex().length(24).allow('', null),
-    gender: Joi.string().valid('homme', 'femme').required(),
+    gender: Joi.string().valid('homme', 'femme', '').allow(null).optional(),
     // Informational only — the controller derives the real country from
     // countryId/countryCode via resolveCountryContext(), never from this
     // field. A strict .valid('République du Congo') here used to reject
@@ -191,7 +192,7 @@ export const schemas = {
     // country's short `name` (e.g. "Congo"), not its `officialName`.
     country: Joi.string().trim().max(120).allow('', null).optional(),
     acceptedLegalTerms: Joi.boolean().valid(true).required(),
-    legalVersion: Joi.string().valid('2026-07-18').required(),
+    legalVersion: Joi.string().valid(LEGAL_VERSION).required(),
     referralCode: Joi.string().trim().max(20).allow('', null)
   }),
   registerSendCode: Joi.object({
@@ -218,14 +219,14 @@ export const schemas = {
     idToken: Joi.string().min(100).required(),
     name: Joi.string().min(2).max(60).required(),
     phone: Joi.string().min(5).max(30).required(),
-    address: Joi.string().min(4).max(200).required(),
-    city: Joi.string().trim().min(2).max(80).required(),
+    address: Joi.string().min(4).max(200).allow('', null).optional(),
+    city: Joi.string().trim().min(2).max(80).allow('', null).optional(),
     commune: Joi.string().trim().min(2).max(80).allow('', null),
     cityId: Joi.string().hex().length(24).allow('', null),
     communeId: Joi.string().hex().length(24).allow('', null),
-    gender: Joi.string().valid('homme', 'femme').required(),
+    gender: Joi.string().valid('homme', 'femme', '').allow(null).optional(),
     acceptedLegalTerms: Joi.boolean().valid(true).required(),
-    legalVersion: Joi.string().valid('2026-07-18').required(),
+    legalVersion: Joi.string().valid(LEGAL_VERSION).required(),
     referralCode: Joi.string().trim().max(20).allow('', null)
   }),
   appleProviderLogin: Joi.object({
@@ -235,14 +236,14 @@ export const schemas = {
     idToken: Joi.string().min(100).required(),
     name: Joi.string().min(2).max(60).required(),
     phone: Joi.string().min(5).max(30).required(),
-    address: Joi.string().min(4).max(200).required(),
-    city: Joi.string().trim().min(2).max(80).required(),
+    address: Joi.string().min(4).max(200).allow('', null).optional(),
+    city: Joi.string().trim().min(2).max(80).allow('', null).optional(),
     commune: Joi.string().trim().min(2).max(80).allow('', null),
     cityId: Joi.string().hex().length(24).allow('', null),
     communeId: Joi.string().hex().length(24).allow('', null),
-    gender: Joi.string().valid('homme', 'femme').required(),
+    gender: Joi.string().valid('homme', 'femme', '').allow(null).optional(),
     acceptedLegalTerms: Joi.boolean().valid(true).required(),
-    legalVersion: Joi.string().valid('2026-07-18').required(),
+    legalVersion: Joi.string().valid(LEGAL_VERSION).required(),
     referralCode: Joi.string().trim().max(20).allow('', null)
   }),
   passwordForgot: Joi.object({
@@ -291,7 +292,7 @@ export const schemas = {
     category: Joi.string().min(2).max(60),
     categoryId: Joi.string().hex().length(24).allow('', null),
     subcategoryId: Joi.string().hex().length(24).allow('', null),
-    condition: Joi.string().valid('new', 'used').default('used'),
+    condition: Joi.string().valid('new', 'used').default('new'),
     discount: Joi.number().min(0).max(99.99).default(0),
     installmentEnabled: Joi.boolean().truthy('true').falsy('false').optional(),
     installmentMinAmount: Joi.number().min(0).optional(),
@@ -456,8 +457,8 @@ export const schemas = {
     shopHours: Joi.string().allow('', null),
     freeDeliveryEnabled: Joi.boolean().truthy('true').falsy('false'),
     freeDeliveryNote: Joi.string().max(300).allow('', null),
-    address: Joi.string().min(4).max(200),
-    city: Joi.string().trim().min(2).max(80),
+    address: Joi.string().min(4).max(200).allow(''),
+    city: Joi.string().trim().min(2).max(80).allow(''),
     commune: Joi.string().trim().min(2).max(80).allow('', null),
     cityId: Joi.string().hex().length(24).allow('', null),
     communeId: Joi.string().hex().length(24).allow('', null),
@@ -1019,8 +1020,14 @@ export const schemas = {
       .required()
   }),
   orderAddressUpdate: Joi.object({
-    deliveryAddress: Joi.string().min(4).max(300).required(),
-    deliveryCity: Joi.string().trim().min(2).max(80).required()
+    shippingAddress: Joi.object({
+      cityId: Joi.string().hex().length(24).required(),
+      communeId: Joi.string().hex().length(24).required(),
+      addressLine: Joi.string().trim().min(4).max(300).required(),
+      phone: Joi.string().trim().min(6).max(30).required()
+    }).required(),
+    expectedDeliveryFee: Joi.number().integer().min(0),
+    expectedTotalAmount: Joi.number().integer().min(0)
   }),
   orderMessageUpdate: Joi.object({
     text: Joi.string().trim().min(0).max(1000).required().messages({

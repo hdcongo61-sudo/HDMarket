@@ -12,6 +12,8 @@ import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/mo
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { validateSelectedAttributes } from '../utils/productAttributes';
+import { buildCartItemMutationKey } from '../utils/cartPricing';
+import CartDeliveryEstimate from '../components/CartDeliveryEstimate';
 
 const TrashIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -80,7 +82,7 @@ export default function Cart() {
   );
   const buyerCity = useMemo(() => (user?.city || '').trim(), [user?.city]);
   const getCartItemKey = (item) =>
-    String(item?.cartItemId || item?.selectionKey || item?.product?._id || '');
+    String(item?.cartItemId || buildCartItemMutationKey({ productId: item?.product?._id, selectionKey: item?.selectionKey, selectedAttributes: item?.selectedAttributes }));
 
   const sellerCityData = useMemo(() => {
     const normalize = (value) => value?.toString().trim().toLowerCase();
@@ -258,6 +260,7 @@ export default function Cart() {
             </button>
           )}
       </header>
+      {!user && items.length > 0 && <p className="rounded-xl bg-orange-50 p-3 text-sm text-orange-900">Votre panier est sauvegardé sur cet appareil. Connectez-vous au moment de commander.</p>}
 
       {/* Clear Cart Confirmation Modal Enhanced */}
       <BaseModal
@@ -651,19 +654,7 @@ export default function Cart() {
                   <p className="text-xs text-gray-500">Économies déjà incluses dans le sous-total.</p>
                 )}
 
-                {/* Shipping Estimate Enhanced */}
-                <div className="flex items-center justify-between gap-4">
-                  <span className="font-semibold text-[#6b6459]">{t('cartPage.delivery', 'Livraison')}</span>
-                  <span className="text-right text-sm font-semibold text-[#6b6459]">{t('cartPage.deliveryNext', 'calculée à l’étape suivante')}</span>
-                </div>
-
-                {/* Divider Enhanced */}
-                <div className="border-t border-[#e2dcd2] pt-5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xl font-black text-gray-900">{t('cartPage.totalExcludingDelivery', 'Total hors livraison')}</span>
-                    <span className="text-3xl font-black text-neutral-950">{formatPrice(totals.subtotal)}</span>
-                  </div>
-                </div>
+                <CartDeliveryEstimate key={cart.countryId} items={items} subtotal={totals.subtotal} />
 
                 {/* Info Note Enhanced */}
                 <div className="border-t border-[#f0ebe4] pt-4">

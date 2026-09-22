@@ -2,6 +2,7 @@ import asyncHandler from 'express-async-handler';
 import SellerPayout from '../models/sellerPayoutModel.js';
 import SellerSettlement from '../models/sellerSettlementModel.js';
 import User from '../models/userModel.js';
+import DeliveryGuy from '../models/deliveryGuyModel.js';
 import {
   normalizePayoutPhone,
   processSellerSettlements,
@@ -44,8 +45,9 @@ export const getMySellerSettlements = asyncHandler(async (req, res) => {
 
 export const updateMyPayoutAccount = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
-  if (!user || user.accountType !== 'shop') {
-    return res.status(403).json({ message: 'Un compte boutique est requis pour recevoir des versements.' });
+  const courier = user && await DeliveryGuy.exists({ userId: user._id, isActive: true, buyForMeOptIn: true });
+  if (!user || (user.accountType !== 'shop' && !courier)) {
+    return res.status(403).json({ message: 'Un compte boutique ou livreur actif est requis pour recevoir des versements.' });
   }
   if (!user.phoneVerified) {
     return res.status(400).json({

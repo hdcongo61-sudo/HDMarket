@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { BuildingStorefrontIcon, ChevronRightIcon, CreditCardIcon, CubeIcon, EnvelopeIcon, MapPinIcon, PhoneIcon, ShieldCheckIcon, ShoppingBagIcon, SparklesIcon, TruckIcon } from '@heroicons/react/24/outline';
-import api from '../services/api';
+import useServiceAvailability from '../hooks/useServiceAvailability';
 import { useAppSettings } from '../context/AppSettingsContext';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
@@ -26,38 +26,7 @@ export default function About() {
   const supportPhone = String(information.supportPhone || '').trim();
   const location = [information.city, information.country].filter(Boolean).join(', ') || 'Brazzaville, Congo';
 
-  const [buyForMeEnabled, setBuyForMeEnabled] = useState(false);
-  const [parcelDeliveryEnabled, setParcelDeliveryEnabled] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    api
-      .get('/buy-for-me/capabilities')
-      .then(({ data }) => {
-        if (active) setBuyForMeEnabled(Boolean(data?.enabled));
-      })
-      .catch(() => {
-        if (active) setBuyForMeEnabled(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    api
-      .get('/parcels/capabilities')
-      .then(({ data }) => {
-        if (active) setParcelDeliveryEnabled(Boolean(data?.enabled));
-      })
-      .catch(() => {
-        if (active) setParcelDeliveryEnabled(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  const { buyForMeEnabled, parcelDeliveryEnabled } = useServiceAvailability();
 
   const features = useMemo(() => {
     const list = [

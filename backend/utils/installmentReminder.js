@@ -3,6 +3,9 @@ import Product from '../models/productModel.js';
 import { createNotification } from './notificationService.js';
 import { addDays } from './installmentUtils.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { isPastDueDate } from '../services/installmentPolicyService.js';
+import { withCommerceOperation } from '../services/commerceOperationService.js';
+import { installmentOrderKey } from '../services/installmentPaymentService.js';
 
 const ACTIVE_INSTALLMENT_STATUSES = [
   'pending_installment',
@@ -23,14 +26,6 @@ const getNextDueDate = (schedule = []) => {
   return next?.dueDate || null;
 };
 
-const isPastDueDate = (dueDate, now = new Date()) => {
-  if (!dueDate) return false;
-  const deadline = new Date(dueDate);
-  if (Number.isNaN(deadline.getTime())) return false;
-  deadline.setHours(23, 59, 59, 999);
-  return now.getTime() > deadline.getTime();
-};
-
 export const processInstallmentReminders = async () => {
   const now = new Date();
   const envFallback = Math.max(1, Number(process.env.INSTALLMENT_REMINDER_LEAD_DAYS || 3));
@@ -43,7 +38,7 @@ export const processInstallmentReminders = async () => {
     status: { $in: ACTIVE_INSTALLMENT_STATUSES },
     isDraft: { $ne: true },
     'installmentPlan.saleConfirmationConfirmedAt': { $ne: null }
-  }).select('customer items status installmentPlan');
+  }).select('_id');
 
   if (!orders.length) {
     return {
@@ -58,11 +53,15 @@ export const processInstallmentReminders = async () => {
   let overdueWarningsSent = 0;
   let suspendedProducts = 0;
 
-  for (const order of orders) {
+  for (const reference of orders) {
+    await withCommerceOperation(installmentOrderKey(reference._id), async session => {
+    const order = await Order.findOne({ _id: reference._id, status: { $in: ACTIVE_INSTALLMENT_STATUSES },
+      'installmentPlan.saleConfirmationConfirmedAt': { $ne: null } }).session(session);
+    if (!order) return;
     const schedule = Array.isArray(order.installmentPlan?.schedule)
       ? order.installmentPlan.schedule
       : [];
-    if (!schedule.length) continue;
+    if (!schedule.length) return;
 
     let changed = false;
     const sellerId = resolveItemShopId(order.items?.[0]);
@@ -70,6 +69,14 @@ export const processInstallmentReminders = async () => {
       const entry = schedule[index];
       if (!entry?.dueDate) continue;
       if (entry.status === 'paid' || entry.status === 'waived') continue;
+      // A submitted proof awaits review; seller delay must not turn it into
+      // unpaid debt or remove it from the proof-validation escalation queue.
+      if (entry.transactionProof?.transactionCode && entry.transactionProof.paymentMethod !== 'pawapay' && entry.status === 'overdue') {
+        entry.status = 'proof_uploaded';
+        entry.overdueAt = null;
+        changed = true;
+      }
+      if (entry.status === 'proof_uploaded' || entry.transactionProof?.transactionCode) continue;
 
       const dueDate = new Date(entry.dueDate);
       if (isPastDueDate(dueDate, now)) {
@@ -155,20 +162,20 @@ export const processInstallmentReminders = async () => {
 
     if (changed) {
       order.markModified('installmentPlan');
-      await order.save();
+      await order.save({ session });
     }
 
     const productId = order.items?.[0]?.product;
-    if (!productId) continue;
+    if (!productId) return;
     const product = await Product.findById(productId).select(
       '_id installmentEnabled installmentMaxMissedPayments installmentSuspendedAt user title'
-    );
-    if (!product?.installmentEnabled) continue;
+    ).session(session);
+    if (!product?.installmentEnabled) return;
     const maxMissed = Number(product.installmentMaxMissedPayments || 3);
     if (overdueCount >= maxMissed) {
       product.installmentEnabled = false;
       product.installmentSuspendedAt = now;
-      await product.save();
+      await product.save({ session });
       suspendedProducts += 1;
 
       if (product.user) {
@@ -187,6 +194,7 @@ export const processInstallmentReminders = async () => {
         });
       }
     }
+    });
   }
 
   return {

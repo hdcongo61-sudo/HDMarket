@@ -15,7 +15,9 @@ import {
 } from '../utils/notificationService.js';
 import { notifyBuyerOrderCancelled } from '../utils/orderCancellationNotification.js';
 import { getManyRuntimeConfigs } from '../services/configService.js';
-import { initiateOrderRefund, resolveOrderDepositId } from '../services/refundService.js';
+import { initiateOrderRefund, recoverReservedRefund, resolveOrderDepositId } from '../services/refundService.js';
+import { canManageEvidence } from '../utils/privateAttachments.js';
+import { disputeEligibility, DISPUTABLE_ORDER_STATUSES } from '../utils/disputeEligibility.js';
 import {
   getEscrowSettings,
   recordEscrowAudit,
@@ -99,8 +101,8 @@ const toUploadedFile = (file) => ({
   originalName: file.originalname,
   mimetype: file.mimetype,
   size: file.size,
-  path: `uploads/disputes/${file.filename}`,
-  url: `uploads/disputes/${file.filename}`
+  path: `api/private-attachments/disputes/${file.filename}`,
+  url: `api/private-attachments/disputes/${file.filename}`
 });
 
 const monthRange = (value = new Date()) => {
@@ -325,6 +327,20 @@ const serializeDispute = (disputeDoc) => {
   };
 };
 
+export const listEligibleDisputeOrders = asyncHandler(async (req, res) => {
+  const [thresholds, escrowSettings, existing] = await Promise.all([
+    getDisputeConfigThresholds(), getEscrowSettings(),
+    Dispute.find({ clientId: req.user.id }).select('orderId').lean()
+  ]);
+  const orders = await Order.find({ customer: req.user.id,
+    status: { $in: DISPUTABLE_ORDER_STATUSES }, _id: { $nin: existing.map(item => item.orderId) }
+  }).sort({ createdAt: -1 }).limit(100).select(DISPUTE_ORDER_SELECT + ' updatedAt').lean();
+  const now = new Date();
+  res.json(orders.map(order => ({ ...order, allowedDisputeReasons: DISPUTE_REASONS.filter(reason =>
+    disputeEligibility({ order, reason, thresholds, escrowSettings, now }).allowed
+  ) })).filter(order => order.allowedDisputeReasons.length));
+});
+
 export const createDispute = asyncHandler(async (req, res) => {
   const [thresholds, escrowSettings] = await Promise.all([
     getDisputeConfigThresholds(),
@@ -380,31 +396,9 @@ export const createDispute = asyncHandler(async (req, res) => {
   }
   const isPawaPayEscrow =
     String(order.paymentSource || '').toLowerCase() === 'pawapay' && Number(order.paidAmount || 0) > 0;
-  if (isPawaPayEscrow && !escrowSettings.disputeEnabled) {
-    return res.status(403).json({ message: 'Les litiges escrow sont temporairement désactivés.' });
-  }
-  if (isPawaPayEscrow && ['RELEASED', 'REFUNDED'].includes(order.escrowStatus)) {
-    return res.status(409).json({ message: 'Les fonds ont déjà été libérés ou remboursés.' });
-  }
-  if (!['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status)) {
-    return res.status(400).json({ message: 'Le litige est possible uniquement après livraison.' });
-  }
-
-  const deliveredAt = order.deliveredAt ? new Date(order.deliveredAt) : new Date(order.updatedAt || order.createdAt);
-  const configuredWindowMs = isPawaPayEscrow
-    ? Number(escrowSettings.maximumDisputeTimeMinutes || 0) * 60 * 1000
-    : Number(thresholds.disputeWindowHours || 0) * 60 * 60 * 1000;
-  const configuredWindowEnd = new Date(deliveredAt.getTime() + configuredWindowMs);
-  const autoReleaseAt = order.autoReleaseAt ? new Date(order.autoReleaseAt) : null;
-  const disputeWindowEndsAt =
-    autoReleaseAt && autoReleaseAt < configuredWindowEnd ? autoReleaseAt : configuredWindowEnd;
-  if (now > disputeWindowEndsAt) {
-    return res.status(400).json({
-      message: 'Le délai pour bloquer les fonds et ouvrir un litige est dépassé.',
-      deliveredAt,
-      disputeWindowEndsAt
-    });
-  }
+  const eligibility = disputeEligibility({ order, reason: reasonValue, thresholds, escrowSettings, now });
+  if (!eligibility.allowed) return res.status(eligibility.status).json({ message: eligibility.message });
+  const { disputeWindowEndsAt } = eligibility;
 
   const sellerId = getOrderSellerId(order);
   if (!sellerId) {
@@ -422,6 +416,7 @@ export const createDispute = asyncHandler(async (req, res) => {
         [
           {
             orderId,
+            countryId: order.countryId || req.user.countryId || null,
             clientId: userId,
             sellerId,
             reason: reasonValue,
@@ -439,7 +434,7 @@ export const createDispute = asyncHandler(async (req, res) => {
       const orderUpdate = await Order.updateOne(
         {
           _id: orderId,
-          status: { $in: ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'] },
+          status: order.status,
           ...(isPawaPayEscrow ? { escrowStatus: { $nin: ['RELEASED', 'REFUNDED'] } } : {})
         },
         {
@@ -765,7 +760,7 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Valeur "favor" invalide.' });
   }
 
-  const dispute = await Dispute.findById(id);
+  let dispute = await Dispute.findById(id);
   if (!dispute) {
     return res.status(404).json({ message: 'Litige introuvable.' });
   }
@@ -775,14 +770,17 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
 
   const order = await Order.findById(dispute.orderId);
   if (!order) return res.status(404).json({ message: 'Commande liée au litige introuvable.' });
+  if (!canManageEvidence(req.user, dispute.countryId || order.countryId)) {
+    return res.status(403).json({ message: 'Accès pays refusé.' });
+  }
   const needsRefund = ['refund_full', 'refund_partial', 'compensation'].includes(resolutionType);
   let resolutionAmount = 0;
   if (needsRefund) {
     resolutionAmount = resolutionType === 'refund_full'
       ? Number(order.paidAmount || 0)
       : requestedResolutionAmount;
-    if (!Number.isFinite(resolutionAmount) || resolutionAmount <= 0) {
-      return res.status(400).json({ message: 'Indiquez un montant de remboursement supérieur à zéro.' });
+    if (!Number.isInteger(resolutionAmount) || resolutionAmount <= 0) {
+      return res.status(400).json({ message: 'Indiquez un montant de remboursement entier en FCFA, supérieur à zéro.' });
     }
     if (resolutionAmount - Number(order.paidAmount || 0) > 0.01) {
       return res.status(400).json({ message: 'Le remboursement ne peut pas dépasser le montant payé.' });
@@ -809,12 +807,14 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
   const session = await mongoose.startSession();
   try {
     await session.withTransaction(async () => {
-      dispute.status = nextStatus;
-      dispute.resolutionType = resolutionType;
-      dispute.resolutionAmount = resolutionAmount;
-      dispute.adminDecision = adminDecision;
-      dispute.resolvedAt = now;
-      await dispute.save({ session });
+      dispute = await Dispute.findOneAndUpdate(
+        { _id: id, status: { $in: ['OPEN', 'SELLER_RESPONDED', 'UNDER_REVIEW'] } },
+        { $set: { status: nextStatus, resolutionType, resolutionAmount, adminDecision, resolvedAt: now } },
+        { session, new: true, runValidators: true }
+      );
+      if (!dispute) {
+        throw Object.assign(new Error('Ce litige a déjà été clôturé. Actualisez la page.'), { status: 409 });
+      }
 
       const orderPatch =
         resolutionType === 'refund_full'
@@ -866,21 +866,21 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
         await dispute.save({ session });
       }
     });
+  } catch (error) {
+    if (error.status === 409) return res.status(409).json({ message: error.message });
+    throw error;
   } finally {
-    session.endSession();
+    await session.endSession();
   }
 
   let refund = null;
   if (needsRefund) {
-    refund = await initiateOrderRefund({
-      order: await Order.findById(dispute.orderId),
-      requestedBy: req.user.id,
-      amount: resolutionAmount,
-      source: resolutionType === 'refund_full' ? 'DISPUTE_FULL' : 'DISPUTE_PARTIAL',
-      dispute: dispute._id
-    });
-    dispute.refundId = refund._id;
-    await dispute.save();
+    try {
+      refund = await startDisputeRefund(dispute, req.user.id);
+    } catch {
+      // The decision is committed. Keep it and expose a separate retry action.
+      // Never ask staff to repeat the decision or its reputation adjustments.
+    }
   }
 
   const isPawaPayEscrow =
@@ -971,9 +971,55 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
   }).catch(() => {});
 
   res.json({
-    message: 'Litige résolu.',
+    message: dispute.refundError ? 'Décision enregistrée. Le remboursement nécessite une nouvelle tentative.' : 'Litige résolu.',
     dispute: serializeDispute(dispute)
   });
+});
+
+const startDisputeRefund = async (dispute, requestedBy, { recover = false } = {}) => {
+  try {
+    let refund = await initiateOrderRefund({
+      order: await Order.findById(dispute.orderId), requestedBy,
+      amount: dispute.resolutionAmount,
+      source: dispute.resolutionType === 'refund_full' ? 'DISPUTE_FULL' : 'DISPUTE_PARTIAL',
+      dispute: dispute._id
+    });
+    if (recover) refund = await recoverReservedRefund(refund);
+    dispute.refundId = refund._id;
+    dispute.refundModel = refund.constructor?.modelName === 'InstallmentRefundBatch' ? 'InstallmentRefundBatch' : 'Refund';
+    dispute.refundError = refund.status === 'FAILED' ? 'Le remboursement a échoué. Vérifiez les informations avant de réessayer.' : '';
+    await dispute.save();
+    return refund;
+  } catch (error) {
+    dispute.refundError = String(error?.message || 'Impossible de lancer le remboursement.').slice(0, 500);
+    await dispute.save();
+    throw error;
+  }
+};
+
+export const retryAdminDisputeRefund = asyncHandler(async (req, res) => {
+  const dispute = await Dispute.findById(req.params.id);
+  if (!dispute) return res.status(404).json({ message: 'Litige introuvable.' });
+  const order = await Order.findById(dispute.orderId);
+  if (!order || !canManageEvidence(req.user, dispute.countryId || order.countryId)) {
+    return res.status(403).json({ message: 'Accès refusé.' });
+  }
+  if (!['RESOLVED_CLIENT', 'RESOLVED_SELLER'].includes(dispute.status) ||
+    !['refund_full', 'refund_partial', 'compensation'].includes(dispute.resolutionType)) {
+    return res.status(409).json({ message: 'Aucun remboursement décidé pour ce litige.' });
+  }
+  try {
+    const refund = await startDisputeRefund(dispute, req.user.id, { recover: true });
+    await logDisputeAction({ disputeId: dispute._id, orderId: dispute.orderId,
+      actorId: req.user.id, actorRole: 'admin', action: 'REFUND_RETRIED',
+      metadata: { refundId: refund.refundId, status: refund.status }
+    });
+    return res.json({ refund, dispute: serializeDispute(dispute),
+      message: refund.status === 'COMPLETED' ? 'Remboursement déjà confirmé.' :
+        refund.status === 'FAILED' ? dispute.refundError : 'Remboursement en cours de vérification.' });
+  } catch (error) {
+    return res.status(Number(error.status || 502)).json({ message: dispute.refundError });
+  }
 });
 
 export const runDisputeDeadlineChecks = asyncHandler(async (req, res) => {

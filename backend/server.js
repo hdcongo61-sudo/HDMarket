@@ -46,6 +46,8 @@ import userPreferenceRoutes from './routes/userPreferenceRoutes.js';
 import deviceRoutes from './routes/deviceRoutes.js';
 import marketplacePromoCodeRoutes from './routes/marketplacePromoCodeRoutes.js';
 import disputeRoutes from './routes/disputeRoutes.js';
+import { blockPrivateUploads } from './utils/privateAttachments.js';
+import { downloadPrivateAttachment } from './controllers/privateAttachmentController.js';
 import boostRoutes from './routes/boostRoutes.js';
 import globalNotificationRoutes from './routes/globalNotificationRoutes.js';
 import notificationCampaignRoutes from './routes/notificationCampaignRoutes.js';
@@ -113,7 +115,10 @@ import { initRedis, closeRedis } from './config/redisClient.js';
 import { getRuntimeConfig, preloadRuntimeConfigCache } from './services/configService.js';
 import { maintenanceModeMiddleware } from './middlewares/maintenanceModeMiddleware.js';
 import { reconcilePendingRefunds } from './services/refundService.js';
+import { processShoppingTransfers } from './services/buyForMeTransferService.js';
+import { blockLegacyShoppingReceipts } from './controllers/buyForMeMediaController.js';
 import { reconcilePendingPawaPayCheckouts } from './controllers/pawapayController.js';
+import { cleanupAbandonedShopConversionRequests, reconcilePendingShopConversionRefunds } from './controllers/shopConversionController.js';
 import {
   processSellerSettlements,
   reconcilePendingSellerPayouts
@@ -377,6 +382,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(
   '/uploads',
+    blockPrivateUploads,
+    blockLegacyShoppingReceipts,
   express.static(path.join(__dirname, 'uploads'), {
     maxAge: '30d',
     immutable: true,
@@ -387,6 +394,7 @@ app.use(
 );
 
 app.get('/', (req, res) => res.json({ ok: true, name: 'HDMarket API' }));
+app.get('/api/private-attachments/:kind/:filename', protect, downloadPrivateAttachment);
 app.get('/api/health', (req, res) => res.json({ ok: true, timestamp: new Date().toISOString() }));
 
 app.get('/api/health/details', protect, admin, async (req, res) => {
@@ -737,11 +745,14 @@ httpServer.listen(port, () => {
   const schedulerNotificationsEnabled = process.env.SCHEDULER_NOTIFICATIONS_ENABLED === 'true';
 
   const runRefundReconciliation = async () => {
-    try {
-      await reconcilePendingRefunds();
-    } catch (error) {
-      console.error('[pawapay-refunds] reconciliation failed:', error?.message || error);
-    }
+    const results = await Promise.allSettled([
+      reconcilePendingRefunds(),
+      processShoppingTransfers(),
+      reconcilePendingShopConversionRefunds()
+    ]);
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') console.error(index ? '[shopping-transfers] reconciliation failed' : '[pawapay-refunds] reconciliation failed', result.reason?.code || 'RETRY_REQUIRED');
+    });
   };
   setTimeout(runRefundReconciliation, 30_000);
   setInterval(runRefundReconciliation, 5 * 60 * 1000);
@@ -760,6 +771,21 @@ httpServer.listen(port, () => {
   };
   setTimeout(runPawaPayCheckoutReconciliation, 40_000);
   setInterval(runPawaPayCheckoutReconciliation, 2 * 60 * 1000);
+
+  let shopConversionCleanupRunning = false;
+  const runShopConversionCleanup = async () => {
+    if (shopConversionCleanupRunning) return;
+    shopConversionCleanupRunning = true;
+    try {
+      await cleanupAbandonedShopConversionRequests();
+    } catch (error) {
+      console.error('[shop-conversion] abandoned document cleanup failed:', error?.message || error);
+    } finally {
+      shopConversionCleanupRunning = false;
+    }
+  };
+  setTimeout(runShopConversionCleanup, 60_000);
+  setInterval(runShopConversionCleanup, 60 * 60 * 1000);
 
   let escrowReleaseRunning = false;
   const runEscrowReleasePass = async () => {

@@ -23,6 +23,7 @@ const NotifToggle = React.memo(({ label, checked, onChange }) => (
     <button
       type="button"
       role="switch"
+      aria-label={label}
       aria-checked={checked}
       onClick={onChange}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ${
@@ -381,6 +382,13 @@ export default function UserSettings() {
           </div>
           <ChevronRightIcon className="shrink-0 text-gray-400 h-[18px] w-[18px]" />
         </Link>
+
+        <SectionCard id="privacy" icon={ShieldExclamationIcon} title="Confidentialité et mes droits" subtitle="Vos choix restent modifiables à tout moment.">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Link to="/cookies" className="flex min-h-11 items-center rounded-xl border border-neutral-300 px-3 text-sm font-bold text-[#9a3412] dark:text-orange-300">Cookies et confidentialité</Link>
+            <Link to="/confidentialite#mes-droits" className="flex min-h-11 items-center rounded-xl border border-neutral-300 px-3 text-sm font-bold text-[#9a3412] dark:text-orange-300">Accès, rectification et suppression</Link>
+          </div>
+        </SectionCard>
 
         <SectionCard
           id="region"

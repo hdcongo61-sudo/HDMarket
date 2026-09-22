@@ -320,7 +320,7 @@ export const listFreeDeliveryShops = asyncHandler(async (req, res) => {
 
 export const getShopProfile = asyncHandler(async (req, res) => {
   const shop = await loadShopByIdentifier(req.params.id, [
-    'name shopName phone accountType createdAt shopLogo shopBanner shopBannerMobile shopColor shopAddress shopLocationAddress shopVerified shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isActive isBlocked followersCount slug'
+    'name shopName phone accountType createdAt shopLogo shopBanner shopBannerMobile shopColor shopAddress shopLocationAddress shopVerified shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isActive isBlocked followersCount slug countryId'
   ].join(' '));
   if (!shop || shop.accountType !== 'shop' || shop.isActive === false) {
     return res.status(404).json({ message: 'Boutique introuvable.' });
@@ -346,7 +346,8 @@ export const getShopProfile = asyncHandler(async (req, res) => {
 
   const publicProductFilter = await withVerifiedPublicProductFilter({
     user: shop._id,
-    status: 'approved'
+    status: 'approved',
+    ...(req.countryContext ? buildCountryDataFilter(req.countryContext) : {})
   });
 
   const [totalProducts, productsRaw] = await Promise.all([

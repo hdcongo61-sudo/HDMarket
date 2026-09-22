@@ -3,21 +3,22 @@ import { useLocation } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import {
   setAnalyticsUser,
+  disableAnalytics,
   trackPageView,
   trackRealtimeMonitoringEvent
 } from '../services/analytics';
-import { hasAnalyticsConsent, PRIVACY_EVENT } from '../services/privacyPreferences';
+import { hasAnalyticsConsent, subscribePrivacyPreference } from '../services/privacyPreferences';
 
 export default function AnalyticsTracker() {
   const location = useLocation();
   const { user } = useContext(AuthContext);
   const [analyticsAllowed, setAnalyticsAllowed] = React.useState(hasAnalyticsConsent);
 
-  useEffect(() => {
-    const update = () => setAnalyticsAllowed(hasAnalyticsConsent());
-    window.addEventListener(PRIVACY_EVENT, update);
-    return () => window.removeEventListener(PRIVACY_EVENT, update);
-  }, []);
+  useEffect(() => subscribePrivacyPreference(() => {
+    const allowed = hasAnalyticsConsent();
+    if (!allowed) disableAnalytics();
+    setAnalyticsAllowed(allowed);
+  }), []);
 
   useEffect(() => {
     if (analyticsAllowed) setAnalyticsUser(user);

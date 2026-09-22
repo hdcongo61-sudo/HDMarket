@@ -45,8 +45,9 @@ import {
 import { resolvePermissionsForUser } from '../services/rbacService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { recordRealtimeMonitoringEvent } from '../services/realtimeMonitoringService.js';
-import { ensureDefaultCountry, findCountry } from '../services/countryService.js';
+import { ensureDefaultCountry, findCountry, buildCountryDataFilter } from '../services/countryService.js';
 import { resolveCanonicalLocation } from '../services/locationSelectionService.js';
+import { isShopConversionAccountChange } from '../utils/shopConversionPolicy.js';
 
 const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   product_comment: true,
@@ -142,23 +143,6 @@ const clampNumber = (value, min, max) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return min;
   return Math.min(max, Math.max(min, numeric));
-};
-
-const normalizeRuntimeBoolean = (value, fallback = false) => {
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return value !== 0;
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    if (['true', '1', 'yes', 'oui', 'on'].includes(normalized)) return true;
-    if (['false', '0', 'no', 'non', 'off', ''].includes(normalized)) return false;
-  }
-  return fallback;
-};
-
-const normalizeRuntimeLimit = (value, fallback = 0) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(0, Math.floor(parsed));
 };
 
 const haversineDistanceKm = (from, to) => {
@@ -779,12 +763,16 @@ export const followShop = asyncHandler(async (req, res) => {
   if (shopId === req.user.id) {
     return res.status(400).json({ message: 'Vous ne pouvez pas suivre votre propre boutique.' });
   }
-  const shop = await User.findById(shopId).select('accountType shopVerified shopName name');
+  const shop = await User.findById(shopId).select('accountType shopVerified shopName name countryId');
   if (!shop || shop.accountType !== 'shop') {
     return res.status(404).json({ message: 'Boutique introuvable.' });
   }
   if (!shop.shopVerified) {
     return res.status(403).json({ message: 'Seules les boutiques certifiées peuvent être suivies.' });
+  }
+  if (req.countryContext?.countryId && shop.countryId &&
+      String(shop.countryId) !== String(req.countryContext.countryId)) {
+    return res.status(404).json({ message: 'Boutique introuvable.' });
   }
 
   const updatedUser = await User.updateOne(
@@ -823,8 +811,12 @@ export const followShop = asyncHandler(async (req, res) => {
 
 export const unfollowShop = asyncHandler(async (req, res) => {
   const shopId = req.params.id;
-  const shop = await User.findById(shopId).select('accountType');
+  const shop = await User.findById(shopId).select('accountType countryId');
   if (!shop || shop.accountType !== 'shop') {
+    return res.status(404).json({ message: 'Boutique introuvable.' });
+  }
+  if (req.countryContext?.countryId && shop.countryId &&
+      String(shop.countryId) !== String(req.countryContext.countryId)) {
     return res.status(404).json({ message: 'Boutique introuvable.' });
   }
 
@@ -861,9 +853,13 @@ export const getFollowingShops = asyncHandler(async (req, res) => {
   if (!followedIds.length) {
     return res.json([]);
   }
-  const shops = await User.find({ _id: { $in: followedIds }, accountType: 'shop' })
+  const shops = await User.find({
+    _id: { $in: followedIds },
+    accountType: 'shop',
+    ...(req.countryContext ? buildCountryDataFilter(req.countryContext) : {})
+  })
     .select(
-      'shopName shopAddress shopLogo shopVerified followersCount createdAt name city slug'
+      'shopName shopAddress shopLogo shopVerified followersCount createdAt name city slug countryId'
     )
     .sort({ shopName: 1 })
     .lean();
@@ -1221,32 +1217,11 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   if (accountType) {
     const nextAccountType = accountType === 'shop' ? 'shop' : 'person';
-    if (nextAccountType === 'shop' && user.accountType !== 'shop') {
-      const conversionEnabled = normalizeRuntimeBoolean(
-        await getRuntimeConfig('enable_shop_conversion', { fallback: true }),
-        true
-      );
-      if (!conversionEnabled) {
-        return res.status(403).json({
-          message: 'La conversion en boutique est temporairement désactivée.'
-        });
-      }
-      const [limitRaw, periodRaw] = await Promise.all([
-        getRuntimeConfig('shop_creation_limit_count', { fallback: 100 }),
-        getRuntimeConfig('shop_creation_limit_period_days', { fallback: 30 })
-      ]);
-      const shopLimit = normalizeRuntimeLimit(limitRaw, 100);
-      const periodDays = Math.max(1, normalizeRuntimeLimit(periodRaw, 30));
-      const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
-      const createdShops = await User.countDocuments({
-        accountType: 'shop',
-        accountTypeChangedAt: { $gte: since }
+    if (isShopConversionAccountChange({ currentType: user.accountType, nextType: nextAccountType })) {
+      return res.status(403).json({
+        code: 'SHOP_CONVERSION_REQUIRED',
+        message: 'Utilisez le parcours Devenir Boutique. Un paiement, des justificatifs et une validation administrative sont requis.'
       });
-      if (createdShops >= shopLimit) {
-        return res.status(429).json({
-          message: `Limite atteinte: ${shopLimit} boutique(s) peuvent être créées sur ${periodDays} jour(s).`
-        });
-      }
     }
     if (nextAccountType !== user.accountType) {
       user.accountTypeChangedBy = req.user.id;
@@ -1257,9 +1232,6 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   if (typeof address !== 'undefined') {
     const trimmed = address.toString().trim();
-    if (!trimmed) {
-      return res.status(400).json({ message: "L'adresse est requise." });
-    }
     user.address = trimmed;
   }
 
@@ -1279,10 +1251,12 @@ export const updateProfile = asyncHandler(async (req, res) => {
     const location = await resolveCanonicalLocation({
       cityId,
       communeId,
-      cityName: city || user.city,
+      cityName: typeof city === 'undefined' ? user.city : city,
       communeName: typeof commune === 'undefined' ? user.commune : commune,
       countryId: accountCountry._id,
-      allowLegacyCountryFallback: accountCountry.code === 'CG'
+      allowLegacyCountryFallback: accountCountry.code === 'CG',
+      requireCommuneWhenConfigured: user.accountType === 'shop',
+      allowEmptyCity: user.accountType !== 'shop'
     });
     user.cityId = location.cityId;
     user.communeId = location.communeId;

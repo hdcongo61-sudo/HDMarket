@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
+import { LEGAL_VERSION } from '../config/legalPolicy';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
 import { ArrowLeftIcon, ArrowPathIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
@@ -80,11 +81,11 @@ const strengthLabelOf = (score) => {
 export default function Register() {
   const { user, login } = useContext(AuthContext);
   const { showToast } = useToast();
-  const { cities, communes, language, runtime, getRuntimeValue } = useAppSettings();
+  const { language, runtime, getRuntimeValue } = useAppSettings();
   const { country: selectedCountry, countries: availableCountries, changeCountry } = useCountry();
   const nav = useNavigate();
   const location = useLocation();
-  const from = location.state?.from || '/';
+  const from = typeof location.state === 'string' ? location.state : location.state?.from || '/';
   const initialProviderAuth = location.state?.providerAuth || null;
   const isFrench = String(language || 'fr')
     .toLowerCase()
@@ -198,11 +199,7 @@ export default function Register() {
     confirmPassword: '',
     phone: '',
     accountType: 'person',
-    address: '',
-    country: selectedCountry?.name || 'République du Congo',
-    city: '',
-    commune: '',
-    gender: ''
+    country: selectedCountry?.name || 'République du Congo'
   });
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -225,7 +222,7 @@ export default function Register() {
 
   useEffect(() => {
     if (!selectedCountry?.name) return;
-    setForm((previous) => ({ ...previous, country: selectedCountry.name, city: '', commune: '' }));
+    setForm((previous) => ({ ...previous, country: selectedCountry.name }));
     setPhoneVerified(false);
     setCodeSent(false);
     setVerificationCode('');
@@ -250,6 +247,10 @@ export default function Register() {
   const lastOtpAttemptRef = useRef('');
 
   useEffect(() => {
+    if (step === 2 && !providerAuth) passwordRef.current?.focus();
+  }, [step, providerAuth]);
+
+  useEffect(() => {
     return () => {
       if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
       if (successRedirectTimerRef.current) clearTimeout(successRedirectTimerRef.current);
@@ -270,37 +271,6 @@ export default function Register() {
       setFormError(isFrench ? 'Cette méthode de création de compte est désactivée.' : 'This account creation method is disabled.');
     }
   }, [authAvailability, isFrench, providerAuth]);
-
-  const cityRecords = useMemo(
-    () =>
-      Array.isArray(cities) && cities.length
-        ? cities.filter((item) => item?.name)
-        : [
-            { _id: 'fallback-bzv', name: 'Brazzaville' },
-            { _id: 'fallback-pn', name: 'Pointe-Noire' },
-            { _id: 'fallback-ou', name: 'Ouesso' },
-            { _id: 'fallback-oy', name: 'Oyo' }
-          ],
-    [cities]
-  );
-
-  const cityOptions = cityRecords.map((item) => item.name);
-  const selectedCityRecord = cityRecords.find((item) => item.name === form.city) || null;
-  const availableCommunes = useMemo(() => {
-    if (!selectedCityRecord?._id || !Array.isArray(communes)) return [];
-    return communes.filter((item) => {
-      const itemCityId = item?.cityId?._id || item?.cityId;
-      return String(itemCityId || '') === String(selectedCityRecord._id);
-    });
-  }, [communes, selectedCityRecord?._id]);
-  const selectedCommuneRecord =
-    availableCommunes.find((item) => item?.name === form.commune) || null;
-  const selectedCityId = /^[a-f\d]{24}$/i.test(String(selectedCityRecord?._id || ''))
-    ? selectedCityRecord._id
-    : '';
-  const selectedCommuneId = /^[a-f\d]{24}$/i.test(String(selectedCommuneRecord?._id || ''))
-    ? selectedCommuneRecord._id
-    : '';
 
   const passwordChecks = useMemo(() => getPasswordChecks(form.password), [form.password]);
   const passwordScore = [
@@ -335,9 +305,6 @@ export default function Register() {
           passwordChecks.minLength &&
           passwordChecks.hasUppercase &&
           passwordChecks.hasNumber)) &&
-      form.address.trim() &&
-      form.city &&
-      form.gender &&
       acceptedTerms &&
       !loading
   );
@@ -522,18 +489,6 @@ export default function Register() {
     if (loading || successPayload || (!providerAuth && !authAvailability.email.registration)) return;
     setFormError('');
 
-    if (!form.city || !form.gender) {
-      setFormError(copy.cityGenderRequired);
-      return;
-    }
-    if (availableCommunes.length > 0 && !form.commune) {
-      setFormError(copy.communeRequired);
-      return;
-    }
-    if (!form.address.trim()) {
-      setFormError(copy.addressRequired);
-      return;
-    }
     if (!providerAuth && form.password !== form.confirmPassword) {
       setFormError(copy.passwordsMismatch);
       return;
@@ -562,14 +517,8 @@ export default function Register() {
             idToken: providerAuth.idToken,
             name: fullName,
             phone: form.phone,
-            city: form.city,
-            commune: form.commune || '',
-            cityId: selectedCityId,
-            communeId: selectedCommuneId,
-            gender: form.gender,
-            address: form.address.trim(),
             acceptedLegalTerms: true,
-            legalVersion: '2026-07-18',
+            legalVersion: LEGAL_VERSION,
             referralCode,
             countryId: selectedCountry?.id || selectedCountry?._id
           },
@@ -595,14 +544,8 @@ export default function Register() {
       payload.append('accountType', form.accountType || 'person');
       payload.append('country', form.country || 'République du Congo');
       payload.append('countryId', selectedCountry?.id || selectedCountry?._id || '');
-      payload.append('city', form.city);
-      payload.append('commune', form.commune || '');
-      payload.append('cityId', selectedCityId);
-      payload.append('communeId', selectedCommuneId);
-      payload.append('gender', form.gender);
-      payload.append('address', form.address.trim());
       payload.append('acceptedLegalTerms', 'true');
-      payload.append('legalVersion', '2026-07-18');
+      payload.append('legalVersion', LEGAL_VERSION);
       if (referralCode) payload.append('referralCode', referralCode);
 
       const { data } = await api.post('/auth/register', payload, {
@@ -645,10 +588,6 @@ export default function Register() {
     }
     setFormError('');
     setStep(2);
-    setTimeout(() => {
-      if (providerAuth) document.getElementById('register-city')?.focus();
-      else passwordRef.current?.focus();
-    }, 80);
   };
 
   return (
@@ -674,7 +613,7 @@ export default function Register() {
                   <p className="truncate text-[12.5px] font-bold text-[#78716c] dark:text-neutral-400">
                     {step === 1
                       ? (isFrench ? 'Étape 1 sur 2 · Profil' : 'Step 1 of 2 · Profile')
-                      : (isFrench ? 'Étape 2 sur 2 · Sécurité et livraison' : 'Step 2 of 2 · Security and delivery')}
+                      : (isFrench ? 'Étape 2 sur 2 · Sécurité' : 'Step 2 of 2 · Security')}
                   </p>
                   <div className="mt-1.5 h-[3px] overflow-hidden rounded-full bg-[#e7dfd5] dark:bg-neutral-800">
                     <div className="h-full rounded-full bg-[#e85d00] transition-all" style={{ width: step === 1 ? '50%' : '100%' }} />
@@ -687,14 +626,14 @@ export default function Register() {
                   <h1 className="text-[26px] font-black tracking-[-0.03em] text-[#141210] dark:text-white">
                     {step === 1
                       ? (isFrench ? 'Qui êtes-vous ?' : 'Who are you?')
-                      : (isFrench ? 'Sécurité et livraison' : 'Security and delivery')}
+                      : (isFrench ? 'Sécurisez votre compte' : 'Secure your account')}
                   </h1>
                   <p className="mt-1.5 text-[14.5px] font-medium leading-[1.55] text-[#78716c] dark:text-neutral-400">
                     {step === 1
                       ? (smsVerificationRequired
                           ? (isFrench ? 'Nous vérifions votre numéro pour sécuriser vos commandes.' : 'We verify your number to protect your orders.')
                           : (isFrench ? 'Indiquez vos informations pour créer votre compte.' : 'Tell us about yourself to create your account.'))
-                      : (isFrench ? 'Protégez votre compte et indiquez où livrer vos commandes.' : 'Protect your account and tell us where to deliver your orders.')}
+                      : (isFrench ? 'Choisissez votre mot de passe pour terminer votre inscription.' : 'Choose your password to finish signing up.')}
                   </p>
 
                   {step === 1 && !providerAuth && hasProviderRegistration ? (
@@ -828,43 +767,14 @@ export default function Register() {
                             </>
                           ) : null}
 
-                          <div className="grid grid-cols-2 gap-2.5">
-                            <div className="space-y-[7px]">
-                              <label htmlFor="register-city" className={labelClass}>{copy.city}</label>
-                              <div className="relative">
-                                <select id="register-city" className={`${fieldClass} !appearance-none !pr-9`} value={form.city} onChange={(event) => setForm((previous) => ({ ...previous, city: event.target.value, commune: '' }))} required><option value="">{copy.chooseCity}</option>{cityOptions.map((city) => <option key={city} value={city}>{city}</option>)}</select>
-                                <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#78716c] h-4 w-4" />
-                              </div>
-                            </div>
-                            <div className="space-y-[7px]">
-                              <label htmlFor="register-commune" className={labelClass}>{copy.commune}</label>
-                              <div className="relative">
-                                <select id="register-commune" className={`${fieldClass} !appearance-none !pr-9 disabled:!text-[#a8a29e]`} value={form.commune} onChange={(event) => setForm((previous) => ({ ...previous, commune: event.target.value }))} required={availableCommunes.length > 0} disabled={!form.city || availableCommunes.length === 0}><option value="">{form.city ? copy.chooseCommune : copy.chooseCityFirst}</option>{availableCommunes.map((commune) => <option key={commune._id} value={commune.name}>{commune.name}</option>)}</select>
-                                <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#78716c] h-4 w-4" />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-[7px]">
-                            <label htmlFor="register-address" className={labelClass}>{copy.address}</label>
-                            <textarea id="register-address" rows={2} className={`${fieldClass} !h-auto !min-h-[76px] !py-3`} placeholder={copy.addressPlaceholder} value={form.address} onChange={(event) => setForm((previous) => ({ ...previous, address: event.target.value }))} required />
-                          </div>
-
-                          <div className="space-y-[7px]">
-                            <p className={labelClass}>{copy.gender}</p>
-                            <div className="grid grid-cols-2 gap-2.5">
-                              {[{ value: 'homme', label: copy.male }, { value: 'femme', label: copy.female }].map((option) => (
-                                <label key={option.value} className={`flex min-h-[50px] cursor-pointer items-center justify-center rounded-[14px] text-sm font-semibold transition ${form.gender === option.value ? 'bg-[#e85d00] text-white' : 'bg-white text-[#57534e] ring-1 ring-inset ring-[#e7dfd5] dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-800'}`}><input type="radio" name="gender" value={option.value} checked={form.gender === option.value} onChange={(event) => setForm((previous) => ({ ...previous, gender: event.target.value }))} className="sr-only" />{option.label}</label>
-                              ))}
-                            </div>
-                          </div>
+                          <p className="text-sm text-[#78716c]">{isFrench ? "Votre adresse de livraison sera demandée lors de votre commande." : "We’ll ask for your delivery address at checkout."}</p>
 
                           {referralCode ? <p className="rounded-[14px] bg-white px-3.5 py-2.5 text-[12.5px] font-medium text-[#78716c] ring-1 ring-[#e7dfd5] dark:bg-neutral-900 dark:ring-neutral-800">Code de parrainage appliqué : <span className="font-bold text-[#141210] dark:text-white">{referralCode}</span></p> : null}
 
                           <label className="flex cursor-pointer items-start gap-2.5 text-[13px] font-medium leading-[1.5] text-[#57534e] dark:text-neutral-300">
                             <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="peer sr-only" />
-                            <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white text-transparent ring-1 ring-inset ring-[#d8d0c4] transition peer-checked:bg-[#e85d00] peer-checked:text-white peer-checked:ring-[#e85d00] dark:bg-neutral-900 dark:ring-neutral-700"><CheckIcon strokeWidth={3} className="h-3.5 w-3.5" /></span>
-                            <span>{copy.termsLead}{' '}<Link to="/conditions-utilisation" target="_blank" className="font-bold text-[#141210] underline dark:text-white">{copy.terms}</Link>{' '}{isFrench ? 'et la' : 'and the'}{' '}<Link to="/confidentialite" target="_blank" className="font-bold text-[#141210] underline dark:text-white">{copy.privacy}</Link>.</span>
+                            <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white text-transparent ring-1 ring-inset ring-[#d8d0c4] transition peer-checked:bg-[#c2410c] peer-checked:text-white peer-checked:ring-[#c2410c] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 dark:bg-neutral-900 dark:ring-neutral-700"><CheckIcon strokeWidth={3} className="h-3.5 w-3.5" /></span>
+                            <span>{copy.termsLead}{' '}<Link to="/conditions-utilisation" target="_blank" rel="noopener" className="font-bold text-[#141210] underline dark:text-white">{copy.terms}</Link>{' '}{isFrench ? 'et je reconnais avoir lu la' : 'and acknowledge reading the'}{' '}<Link to="/confidentialite" target="_blank" rel="noopener" className="font-bold text-[#141210] underline dark:text-white">{copy.privacy}</Link>. {isFrench ? 'Cela n’active pas les statistiques ou le diagnostic facultatifs.' : 'This does not enable optional analytics or diagnostics.'}</span>
                           </label>
                         </>
                       )}
@@ -888,7 +798,7 @@ export default function Register() {
                     ) : (
                       <button type="submit" form="register-form" disabled={!canSubmit} className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-5 text-[17px] font-extrabold text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-55">{loading ? <ArrowPathIcon className="animate-spin h-[18px] w-[18px]" /> : null}{loading ? copy.creatingAccount : copy.createAccount}</button>
                     )}
-                    <p className="mt-3 text-center text-[13px] font-medium text-[#78716c]">{copy.haveAccount}{' '}<Link to="/login" className="font-bold text-[#b3480a] hover:text-[#e85d00]">{copy.signIn}</Link></p>
+                    <p className="mt-3 text-center text-[13px] font-medium text-[#78716c]">{copy.haveAccount}{' '}<Link to="/login" state={{ from }} className="font-bold text-[#b3480a] hover:text-[#e85d00]">{copy.signIn}</Link></p>
                   </div>
                 </footer>
               ) : null}

@@ -15,6 +15,7 @@ import {
   Cell
 } from 'recharts';
 import api from '../services/api';
+import PrivateAttachmentLink from '../components/PrivateAttachmentLink';
 import VerifiedBadge from '../components/VerifiedBadge';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -26,6 +27,8 @@ import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModa
 import { ArrowPathIcon, ArrowTrendingUpIcon, ArrowUpRightIcon, BuildingStorefrontIcon, ChartBarIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronRightIcon, ClipboardDocumentListIcon, ClockIcon, ComputerDesktopIcon, CubeIcon, CurrencyDollarIcon, DevicePhoneMobileIcon, DeviceTabletIcon, DocumentTextIcon, ExclamationCircleIcon, GiftIcon, MapPinIcon, PaperAirplaneIcon, PaperClipIcon, PhoneIcon, QuestionMarkCircleIcon, ShieldCheckIcon, ShoppingBagIcon, ShoppingCartIcon, SparklesIcon, Square3Stack3DIcon, StarIcon, TrophyIcon, TruckIcon, UsersIcon, WifiIcon, WrenchIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import useAdminCounts from '../hooks/useAdminCounts';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useCountry } from '../context/CountryContext';
+import { formatMoneyTotals, formatRecordedMoney } from '../utils/moneyTotals';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
@@ -296,6 +299,8 @@ function AdminQuickKpiCard({ label, value }) {
 }
 
 export default function AdminDashboard() {
+  const { country } = useCountry();
+  const countryId = country?.id || country?._id || '';
   const { t, language, cities } = useAppSettings();
   const [payments, setPayments] = useState([]);
   const [filter, setFilter] = useState('waiting');
@@ -496,7 +501,7 @@ export default function AdminDashboard() {
     setStatsLoading(true);
     const payForOtherPromise = api.get('/orders/admin/pay-for-other-stats');
     try {
-      const { data } = await api.get('/admin/stats');
+      const { data } = await api.get('/admin/stats', { params: { countryId }, skipCache: true });
       setStats(data);
       setStatsError('');
     } catch (e) {
@@ -510,7 +515,7 @@ export default function AdminDashboard() {
     } catch {
       setPayForOtherStats(null);
     }
-  }, []);
+  }, [countryId]);
 
   const loadCacheStats = useCallback(async () => {
     setCacheStatsLoading(true);
@@ -736,7 +741,7 @@ export default function AdminDashboard() {
     if (query) {
       url += `?${query}`;
     }
-    const { data } = await api.get(url);
+    const { data } = await api.get(url, { skipCache: true, headers: countryId ? { 'x-country-id': countryId } : {} });
     let normalized = Array.isArray(data)
       ? data.map((payment) => ({
           ...payment,
@@ -801,7 +806,7 @@ export default function AdminDashboard() {
       const totalPages = Math.max(1, Math.ceil(normalized.length / PAYMENTS_PER_PAGE));
       return Math.min(prev, totalPages);
     });
-  }, [filter, paymentSearchValue, normalizeUrl]);
+  }, [filter, paymentSearchValue, normalizeUrl, countryId]);
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -2086,9 +2091,9 @@ export default function AdminDashboard() {
                 icon={ChatBubbleLeftRightIcon}
               />
               <StatCard
-                title="CA total"
-                value={formatCurrency(stats?.payments?.revenue)}
-                subtitle={`${formatCurrency(stats?.payments?.revenueLast30Days)} sur 30 jours`}
+                title="Commissions de publication"
+                value={formatMoneyTotals(stats?.payments?.currencies, 'revenue')}
+                subtitle={`${formatMoneyTotals(stats?.payments?.currencies, 'revenueLast30Days')} sur 30 jours`}
                 highlight
                 icon={ArrowTrendingUpIcon}
                 trend={stats?.payments?.revenueLast30Days > 0 ? 1 : -1}
@@ -2320,7 +2325,7 @@ export default function AdminDashboard() {
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-slate-400">
-                    {formatCurrency(payment.amount)} · {payment.operator}
+                    {formatRecordedMoney(payment.amount, payment.currency)} · {payment.operator}
                   </p>
                   <p className="text-xs text-gray-400 dark:text-slate-500">
                     {payment.product || 'Produit inconnu'} · {formatDate(payment.createdAt)}
@@ -2786,7 +2791,7 @@ export default function AdminDashboard() {
                       <td className="p-2 capitalize">{formatMonthLabel(row.month)}</td>
                       <td className="p-2">{formatNumber(row.newUsers)}</td>
                       <td className="p-2">{formatNumber(row.newProducts)}</td>
-                      <td className="p-2">{formatCurrency(row.revenue)}</td>
+                      <td className="p-2">{formatMoneyTotals(row.revenues)}</td>
                     </tr>
                   ))
                 ) : (
@@ -3754,8 +3759,8 @@ export default function AdminDashboard() {
               icon={CheckCircleIcon}
             />
             <SectionStatCard
-              label="CA validé"
-              value={formatCurrency(stats?.payments?.revenue)}
+              label="Commissions confirmées"
+              value={formatMoneyTotals(stats?.payments?.currencies, 'revenue')}
               helper="Total confirmé"
               icon={CurrencyDollarIcon}
             />
@@ -3833,7 +3838,7 @@ export default function AdminDashboard() {
                   </span>
                   <span className="hidden xs:inline-block text-gray-400 dark:text-slate-500">•</span>
                   <span>
-                    Montant : <strong className="text-gray-800 dark:text-slate-200">{formatCurrency(p.amount)}</strong>
+                    Montant : <strong className="text-gray-800 dark:text-slate-200">{formatRecordedMoney(p.amountPaid ?? p.amount, p.currency)}</strong>
                   </span>
                 </div>
                 {p.product?.images?.length ? (
@@ -3976,7 +3981,7 @@ export default function AdminDashboard() {
                   <td className="p-2 border">{formatCurrency(p.product?.price)}</td>
                   <td className="p-2 border">{p.payerName}</td>
                   <td className="p-2 border">{p.operator}</td>
-                  <td className="p-2 border">{formatCurrency(p.amount)}</td>
+                  <td className="p-2 border">{formatRecordedMoney(p.amountPaid ?? p.amount, p.currency)}</td>
                   <td className="p-2 border">
                     <span
                       className={`inline-block rounded px-2 py-1 text-xs font-semibold ${
@@ -4210,16 +4215,15 @@ export default function AdminDashboard() {
                         {complaint.attachments
                           .filter((attachment) => attachment.url)
                           .map((attachment, index) => (
-                            <a
+                            <PrivateAttachmentLink
                               key={`${attachment.filename}-${index}`}
-                              href={attachment.url}
-                              target="_blank"
-                              rel="noreferrer"
+                              file={attachment}
+                              kind="complaints"
                               className="inline-flex items-center gap-1 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 px-3 py-2 text-xs font-medium text-gray-600 dark:text-slate-300 hover:border-neutral-200"
                             >
                               <PaperClipIcon className="w-3 h-3" />
                               {attachment.originalName || attachment.filename}
-                            </a>
+                            </PrivateAttachmentLink>
                           ))}
                       </div>
                     ) : null}

@@ -29,6 +29,25 @@ const DEFAULT_NOTIFICATION_ICON = '/icons/icon-192.svg';
 const DEFAULT_NOTIFICATION_BADGE = '/icons/icon-192.svg';
 const NETWORK_TIMEOUT_MS = 30000;
 
+const isPrivateEvidenceUrl = (value) => {
+  try {
+    const path = decodeURIComponent(new URL(value, self.location.origin).pathname).replace(/\\/g, '/');
+    return /^\/uploads\/(complaints|disputes)(\/|$)/i.test(path) || path.startsWith('/api/private-attachments/');
+  } catch {
+    return false;
+  }
+};
+
+const purgePrivateEvidenceCache = async () => {
+  for (const name of await caches.keys()) {
+    if (!name.startsWith('hdmarket-')) continue;
+    const cache = await caches.open(name);
+    for (const request of await cache.keys()) {
+      if (isPrivateEvidenceUrl(request.url)) await cache.delete(request);
+    }
+  }
+};
+
 const DEV_HOSTS = new Set(['localhost', '127.0.0.1']);
 const DEV_BYPASS_PATHS = [
   /^\/@vite\//,
@@ -317,6 +336,7 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  event.waitUntil(purgePrivateEvidenceCache());
   event.waitUntil(
     caches.keys().then((names) =>
       Promise.all(
@@ -499,6 +519,10 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   if (request.method !== 'GET') return;
+  if (isPrivateEvidenceUrl(request.url)) {
+    event.respondWith(fetch(request, { cache: 'no-store' }));
+    return;
+  }
   if (isDevHost()) return;
   if (DEV_BYPASS_PATHS.some((pattern) => pattern.test(url.pathname))) return;
 

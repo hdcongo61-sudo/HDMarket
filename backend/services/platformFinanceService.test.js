@@ -4,7 +4,7 @@ import PawaPayCheckout from '../models/pawapayCheckoutModel.js';
 import Payment from '../models/paymentModel.js';
 describe('platform finance separation', () => {
   it('never adds merchant payments or duplicates funding rows to platform receipts', () => {
-    expect(financeSources.find(x => x.model === Payment).match.paymentType).toBe('LISTING_FEE');
+    expect(financeSources.find(x => x.model === Payment).match.$or).toEqual([{ paymentType: 'LISTING_FEE' }, { paymentType: { $exists: false }, product: { $ne: null } }]);
     expect(financeSources.find(x => x.model === PawaPayCheckout).match).toEqual({ purpose: 'IMAGE_EDIT_FUNDING', status: 'COMPLETED', paymentState: 'CONFIRMED' });
     expect(financeSources.some(x => x.match.paymentType === 'ORDER_PAYMENT')).toBe(false);
   });

@@ -20,6 +20,7 @@ import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.j
 import { getInstallmentProgress } from '../utils/installmentUtils.js';
 import {
   consumeMarketplacePromoForOrder,
+  previewMarketplacePromoForOrder,
   rollbackConsumedMarketplacePromo
 } from '../utils/marketplacePromoCodeService.js';
 import { DELIVERY_FEE_SOURCE, resolveDeliveryPricing } from '../utils/deliveryPricing.js';
@@ -39,7 +40,7 @@ import {
   invalidateUserCache
 } from '../utils/cache.js';
 import { buildAdminOrderFilter as buildAdvancedAdminOrderFilter } from '../services/adminOrderAutomationService.js';
-import { getAdminCountryFilter } from '../services/countryService.js';
+import { getAdminCountryFilter, buildCountryDataFilter } from '../services/countryService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import {
   assertSellerCanSubmitDeliveryProof,
@@ -51,6 +52,9 @@ import {
 import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 import { buildPhoneCandidates } from '../utils/firebaseVerification.js';
 import { safeAsync } from '../utils/safeAsync.js';
+import { allocatePayment } from '../utils/paymentAllocation.js';
+import { completeOrderCheckoutOnce } from '../services/orderCheckoutCompletionService.js';
+import { changeSponsoredGroup, completeSponsoredCheckout, sponsorshipAmounts } from '../services/sponsoredPaymentService.js';
 import { HIDE_PENDING_SPONSORED } from '../utils/sellerOrderVisibility.js';
 import { applyDeliveryFeeToOrder } from '../services/orderDeliveryFeeService.js';
 import {
@@ -72,7 +76,11 @@ import {
 } from '../utils/deliveryDistanceWarning.js';
 import { getPawaPayConfig } from '../services/pawapayService.js';
 import { resolveAttributionForOrder } from '../services/socialCommerce/attributionService.js';
-import { initiateOrderRefund } from '../services/refundService.js';
+import { quoteOrderAddress, changeOrderAddress } from '../services/orderAddressService.js';
+import { withCommerceOperation } from '../services/commerceOperationService.js';
+import { cancelOrderSafely, recoverCancellationRefund } from '../services/orderCancellationService.js';
+import { refreshInstallmentOrder } from '../services/installmentPaymentService.js';
+import { recoverInstallmentRefundsForOrder } from '../services/installmentRefundService.js';
 import { ensureSellerSettlementForOrder } from '../services/sellerSettlementService.js';
 import {
   listEscrowAuditForOrder,
@@ -559,6 +567,21 @@ const invalidateOrderCachesForMutation = async ({ customerId, sellerIds = [], in
   }
 };
 
+const finishInstallmentCancellation = async (order, actorId, cancelledBy) => {
+  await (order.paymentType === 'installment' ? recoverInstallmentRefundsForOrder(order._id) : recoverCancellationRefund(order._id)).catch(() => {});
+  emitOrderLifecycleUpdate({ order, updatedBy: actorId });
+  const sellerIds = [...new Set(order.items.map(item => resolveItemShopId(item)).filter(Boolean).map(String))];
+  const recipients = cancelledBy === 'buyer' ? sellerIds : [order.customer];
+  await Promise.allSettled([
+    syncReviewReminderForOrderLifecycle(order),
+    invalidateOrderCachesForMutation({ customerId: order.customer, sellerIds }),
+    ...order.items.map(async item => Product.updateOne({ _id: item.product }, { $set: { salesCount: await calculateProductSalesCount(item.product) } })),
+    ...recipients.map(userId => createNotification({ userId, actorId, type: 'order_cancelled', allowSelf: true,
+      dedupeKey: `installment-cancelled:${order._id}:${userId}`,
+      metadata: { orderId: order._id, status: 'cancelled', cancelledBy, reason: order.cancellationReason } }))
+  ]);
+};
+
 const getRequestIp = (req) =>
   (req.headers['x-forwarded-for'] || req.ip || '')
     .toString()
@@ -885,6 +908,7 @@ const buildOrderResponse = (order) => {
     obj.paymentType === 'installment' ? getInstallmentProgress(obj.installmentPlan || {}) : null;
   return {
     ...obj,
+    totalPaidAmount: Number(obj.paidAmount || 0) + Number(obj.cashCollectedAmount || 0),
     items: Array.isArray(obj.items)
       ? obj.items.map((item) => {
           const selectedAttributes = Array.isArray(item.selectedAttributes)
@@ -1138,7 +1162,7 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
 // This handler is called only after a signed PawaPay callback confirms payment.
 const CHECKOUT_PAYMENT_PERCENTS = [50, 70, 100];
 
-export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
+const buildPawaPayCheckoutOrders = async (req, res) => {
   const userId = req.user?.id || req.user?._id;
   const {
     items,
@@ -1152,9 +1176,8 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
   const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
   const acquisition = await resolveAttributionForOrder(rawAcquisition || {});
   // 50/70/100% of the order total, paid now via PawaPay — the rest is
-  // collected at delivery/pickup. Only 100% keeps the free-delivery
-  // incentive; anything less charges the real delivery fee (see
-  // resolveDeliveryPricing below).
+  // collected at delivery/pickup. Free delivery at 100% is available only
+  // when enabled in the checkout's saved offer.
   const minimumDepositPercent = Math.max(
     50,
     Math.min(100, Number(await getRuntimeConfig('escrow_minimum_deposit_percent', { fallback: 50 })) || 50)
@@ -1170,6 +1193,9 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
     });
   }
   const isFullPayment = paymentPercent >= 100;
+  // Keep the benefit quoted before payment even if the setting changes while
+  // the customer is on the provider's page. Older checkouts included it.
+  const waiveDeliveryFee = isFullPayment && (req.pawaPayCheckout?.actionContext?.fullPaymentFreeDelivery ?? true);
 
   if (!req.pawaPayCheckout || req.pawaPayCheckout.status !== 'COMPLETED') {
     return res.status(403).json({ message: 'Confirmation PawaPay requise.' });
@@ -1197,13 +1223,24 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
     });
 
   // Calculate total
-  const productIds = items.map((i) => i.productId);
+  if (items.some(item => !ensureObjectId(item.productId) || !Number.isSafeInteger(Number(item.quantity)) || Number(item.quantity) < 1)) {
+    return res.status(400).json({ message: 'Article ou quantité invalide.' });
+  }
+  const productIds = [...new Set(items.map((i) => String(i.productId)))];
   const products = await Product.find({ _id: { $in: productIds }, status: 'approved' }).lean();
-  if (products.length !== items.length) {
+  if (products.length !== productIds.length) {
     return res.status(400).json({ message: 'Un ou plusieurs produits ne sont plus disponibles.' });
   }
 
   const productMap = new Map(products.map((p) => [String(p._id), p]));
+  const countryIds = new Set(products.map(product => String(product.countryId || req.pawaPayCheckout.countryId || '')));
+  const currencies = new Set(products.map(product => product.currency || 'XAF'));
+  if (countryIds.size !== 1 || currencies.size !== 1 || !currencies.has('XAF') ||
+    (req.pawaPayCheckout.countryId && !countryIds.has(String(req.pawaPayCheckout.countryId))) ||
+    (deliveryMode === 'DELIVERY' && ((shipping.cityDoc.countryId && !countryIds.has(String(shipping.cityDoc.countryId))) ||
+      (shipping.communeDoc.countryId && !countryIds.has(String(shipping.communeDoc.countryId)))))) {
+    return res.status(400).json({ message: 'Les articles, le paiement et la destination doivent appartenir au même pays.' });
+  }
   let totalAmount = 0;
   const orderItems = [];
   const consumedPromos = [];
@@ -1223,6 +1260,10 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
     const product = productMap.get(String(item.productId));
     if (!product) continue;
 
+    if (deliveryMode === 'PICKUP' ? product.pickupAvailable === false : product.deliveryAvailable === false) {
+      return res.status(400).json({ message: 'Ce mode de réception n’est pas disponible pour un des articles.' });
+    }
+
     const selectedAttributesValidation = validateSelectedAttributesForProduct({
       productAttributes: product.attributes,
       selectedAttributes: item.selectedAttributes
@@ -1236,6 +1277,8 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
       item.quantity,
       selectedAttributesValidation.selectedAttributes
     );
+    orderItem.snapshot.countryId = product.countryId || req.pawaPayCheckout.countryId;
+    orderItem.snapshot.currency = product.currency || 'XAF';
     totalAmount += Number(orderItem.lineTotal || 0);
     orderItems.push(orderItem);
   }
@@ -1267,29 +1310,34 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
       const sellerItems = shopItemMap.get(sellerId);
       if (!sellerItems || sellerItems.length === 0) continue;
       try {
-        const promoResult = await consumeMarketplacePromoForOrder({
+        const promoResult = await (req.quotePreview ? previewMarketplacePromoForOrder : consumeMarketplacePromoForOrder)({
           code: promoCode,
           boutiqueId: sellerId,
           clientId: userId,
-          items: sellerItems
+          items: sellerItems,
+          session: req.checkoutSession
         });
-        if (promoResult?.applied) {
-          consumedPromos.push({ promoId: promoResult.promo?._id, clientId: userId });
+        if (promoResult?.applied || promoResult?.valid) {
+          consumedPromos.push({ promoId: promoResult.promo?._id || promoResult.promo?.id, clientId: userId, sellerId,
+            code: promoCode, discountAmount: Math.round(Number(promoResult.pricing?.discountAmount || 0)) });
           const oldSubtotal = sellerItems.reduce((s, oi) => s + Number(oi.lineTotal || 0), 0);
-          const newSubtotal = Number(promoResult.pricing?.finalAmount || oldSubtotal);
+          const newSubtotal = Math.round(Number(promoResult.pricing?.finalAmount ?? oldSubtotal));
           const promoDiscount = Math.max(0, oldSubtotal - newSubtotal);
           totalAmount -= promoDiscount;
           // Apply discount proportionally across seller items
           if (promoDiscount > 0 && oldSubtotal > 0) {
-            const ratio = newSubtotal / oldSubtotal;
-            sellerItems.forEach((oi) => {
-              oi.lineTotal = Math.round(Number(oi.lineTotal || 0) * ratio);
-              oi.unitPrice = Math.round(Number(oi.unitPrice || 0) * ratio);
+            const lines = allocatePayment(newSubtotal, sellerItems.map((oi, index) => ({ key: String(index), amount: oi.lineTotal })));
+            sellerItems.forEach((oi, index) => {
+              oi.lineTotal = lines.get(String(index));
+              oi.unitPrice = oi.lineTotal / oi.quantity;
             });
           }
+        } else {
+          throw Object.assign(new Error(promoResult?.message || 'Code promo invalide.'), { status: 400 });
         }
-      } catch {
-        // Promo code invalid or expired — silently skip
+      } catch (error) {
+        if (error.hasErrorLabel?.('TransientTransactionError')) throw error;
+        throw error;
       }
     }
   }
@@ -1302,12 +1350,10 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
     shopGroups.get(sid).push(oi);
   });
 
-  // Delivery fee — waived only at 100% (mirrors the existing full-payment
-  // incentive); below that, the real per-seller fee is charged, same
-  // resolution logic userCheckoutOrder uses.
+  // Apply the saved offer, otherwise resolve the real fee per seller.
   const deliveryPricingBySeller = new Map();
   let deliveryFeeTotalAllSellers = 0;
-  if (!isFullPayment) {
+  if (!waiveDeliveryFee) {
     const sellerDocs = await User.find({ _id: { $in: Array.from(shopGroups.keys()) } })
       .select('_id freeDeliveryEnabled')
       .lean();
@@ -1338,18 +1384,26 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
   }
 
   const createdOrders = [];
+  const quotedOrders = [];
+  const allocations = allocatePayment(paidAmount, [...shopGroups].map(([sellerId, sellerItems]) => ({
+    key: sellerId,
+    amount: sellerItems.reduce((sum, item) => sum + item.lineTotal, 0) +
+      (waiveDeliveryFee ? 0 : Number(deliveryPricingBySeller.get(sellerId)?.deliveryFeeTotal || 0))
+  })));
   for (const [sellerId, sellerItems] of shopGroups) {
     const sellerSubtotal = sellerItems.reduce((s, i) => s + i.lineTotal, 0);
-    const sellerDeliveryFee = isFullPayment
+    const sellerDeliveryFee = waiveDeliveryFee
       ? 0
       : Number(deliveryPricingBySeller.get(sellerId)?.deliveryFeeTotal || 0);
     const sellerTotal = sellerSubtotal + sellerDeliveryFee;
-    const sellerPaidAmount = Math.round((sellerTotal * paymentPercent) / 100);
+    const sellerPaidAmount = allocations.get(sellerId);
     const sellerRemainingAmount = Math.max(0, sellerTotal - sellerPaidAmount);
 
-    const order = await Order.create({
+    const orderData = {
       customer: userId,
       createdBy: userId,
+      countryId: [...countryIds][0],
+      currency: [...currencies][0],
       items: sellerItems,
       deliveryAddress: shipping.deliveryAddress,
       deliveryCity: shipping.deliveryCity,
@@ -1365,11 +1419,12 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
       paymentStatus: isFullPayment ? 'PAID_FULL' : 'PARTIAL',
       paymentCompletedAt: isFullPayment ? new Date() : null,
       deliveryMode,
-      deliveryFeeSource: isFullPayment
+      deliveryFeeSource: waiveDeliveryFee
         ? 'FULL_PAYMENT_WAIVER'
         : deliveryPricingBySeller.get(sellerId)?.deliveryFeeSource || DELIVERY_FEE_SOURCE.PRODUCT_FEE,
-      deliveryFeeWaived: isFullPayment,
-      deliveryFeeLocked: isFullPayment,
+      deliveryFeeWaived: waiveDeliveryFee,
+      deliveryFeeLocked: waiveDeliveryFee,
+      deliveryFeeWaiverReason: waiveDeliveryFee ? 'FULL_PAYMENT' : '',
       itemsSubtotal: sellerSubtotal,
       deliveryFeeTotal: sellerDeliveryFee,
       discountTotal: 0,
@@ -1377,25 +1432,16 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
       paidAmount: sellerPaidAmount,
       remainingAmount: sellerRemainingAmount,
       adminPriority: sellerTotal >= escrowHighValueOrderThreshold ? 'HIGH' : 'LOW',
-      acquisition
-    });
-    await recordEscrowAudit({
-      order,
-      actor: userId,
-      actorRole: 'buyer',
-      action: 'ESCROW_FUNDED',
-      fromStatus: 'WAITING_PAYMENT',
-      toStatus: 'IN_ESCROW',
-      amount: sellerPaidAmount,
-      metadata: {
-        checkoutId: req.pawaPayCheckout.checkoutId,
-        paymentPercent,
-        highValueOrder: sellerTotal >= escrowHighValueOrderThreshold,
-        fulfillmentMethod: deliveryMode === 'PICKUP' ? 'STORE_PICKUP' : 'DELIVERY'
-      }
-    }).catch((error) => console.error('[escrow] checkout funding audit failed:', error?.message || error));
+      acquisition,
+      appliedPromoCode: consumedPromos.find(promo => promo.sellerId === sellerId) || undefined
+    };
+    if (req.quoteOnly) { quotedOrders.push(orderData); continue; }
+    const [order] = await Order.create([orderData], { session: req.checkoutSession });
     createdOrders.push(order);
   }
+
+  if (req.quoteOnly) return res.json({ countryId: [...countryIds][0], currency: 'XAF', amount: paidAmount,
+    capturedAt: new Date(), orders: quotedOrders, consumedPromos });
 
   res.status(201).json({
     message: isFullPayment
@@ -1406,8 +1452,13 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
     orders: createdOrders.map(buildOrderResponse)
   });
 
-  // Fire-and-forget: notify sellers + buyer
+  // The wrapper runs these effects only after the order transaction commits.
+  req.notifyCheckoutCreated = async () => {
   createdOrders.forEach((order) => {
+    void recordEscrowAudit({ order, actor: userId, actorRole: 'buyer', action: 'ESCROW_FUNDED',
+      fromStatus: 'WAITING_PAYMENT', toStatus: 'IN_ESCROW', amount: order.paidAmount,
+      metadata: { checkoutId: req.pawaPayCheckout.checkoutId, paymentPercent }
+    }).catch(() => {});
     const sellerId = String(order.items?.[0]?.snapshot?.shopId || '');
     if (sellerId && sellerId !== String(userId)) {
       createNotification({
@@ -1447,7 +1498,9 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
       }
     }).catch(() => {});
   });
+  };
   } catch (err) {
+    if (err.hasErrorLabel?.('TransientTransactionError')) throw err;
     console.error('[pawaPayCheckout] Error:', err?.message || err, err?.stack);
     const statusCode = Number(err?.statusCode || err?.status || 500);
     return res.status(statusCode >= 400 && statusCode < 600 ? statusCode : 500).json({
@@ -1457,10 +1510,69 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
       error: process.env.NODE_ENV !== 'production' ? String(err?.message || err) : undefined
     });
   }
+};
+
+// Uses the same pricing rules as legacy completion, without creating an order.
+export const quotePawaPayOrder = async ({ userId, action, amount, countryId, session = null, preview = true }) => {
+  let status = 200, payload;
+  await buildPawaPayCheckoutOrders({ user: { _id: userId }, body: action, quoteOnly: true, quotePreview: preview,
+    checkoutSession: session, pawaPayCheckout: { status: 'COMPLETED', amount, countryId, actionContext: action } }, {
+    status(value) { status = value; return this; }, json(value) { payload = value; return this; }
+  });
+  if (status >= 400 || !payload?.orders?.length) throw Object.assign(new Error(payload?.message || 'Devis indisponible.'), { status, statusCode: status });
+  return payload;
+};
+
+export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
+  let message = 'Commande confirmée avec PawaPay.';
+  try {
+    const result = await completeOrderCheckoutOnce({
+      checkout: req.pawaPayCheckout, userId: req.user?.id || req.user?._id,
+      createOrders: async (session) => {
+        const quote = req.pawaPayCheckout.orderSnapshot;
+        if (quote?.orders?.length) {
+          if (Number(quote.amount) !== Number(req.pawaPayCheckout.amount)) throw new Error('Montant du devis incohérent.');
+          const orders = [];
+          for (const data of quote.orders) {
+            const [order] = await Order.create([{ ...data, customer: req.user._id, createdBy: req.user._id,
+              paymentCheckoutId: req.pawaPayCheckout.checkoutId, paymentTransactionCode: req.pawaPayCheckout.checkoutId,
+              paymentDepositId: req.pawaPayCheckout.depositId || '' }], { session });
+            orders.push(order);
+          }
+          req.notifyCheckoutCreated = async () => Promise.allSettled(orders.map(order => createNotification({
+            userId: order.items[0].snapshot.shopId, actorId: req.user._id, type: 'order_received',
+            deepLink: `/seller/orders/detail/${order._id}`, metadata: { orderId: order._id, totalAmount: order.totalAmount, remainingAmount: order.remainingAmount }
+          })));
+          return orders;
+        }
+        let status = 200, payload;
+        await buildPawaPayCheckoutOrders({ ...req, checkoutSession: session,
+          set notifyCheckoutCreated(value) { req.notifyCheckoutCreated = value; }
+        }, {
+          status(value) { status = value; return this; },
+          json(value) { payload = value; return this; }
+        });
+        if (status >= 400 || !payload?.orders?.length) {
+          throw Object.assign(new Error(payload?.message || 'Impossible de finaliser la commande.'), { status: status >= 400 ? status : 500 });
+        }
+        message = payload.message;
+        return payload.orders;
+      }
+    });
+    res.status(result.created ? 201 : 200).json({ message, orders: result.orders.map(buildOrderResponse) });
+    if (result.created && req.notifyCheckoutCreated) {
+      void safeAsync(req.notifyCheckoutCreated, { label: 'pawapay_order_created' });
+    }
+  } catch (error) {
+    res.status(error.status || 500).json({ message: error.status && error.status < 500
+      ? error.message : 'Erreur interne lors de la finalisation PawaPay. Veuillez réessayer.' });
+  }
 });
 
 export const userCheckoutOrder = asyncHandler(async (req, res) => {
-  if (getPawaPayConfig().exclusiveMode) {
+  // A sponsorship creates an unpaid request. The payer still has to complete
+  // a confirmed PawaPay checkout; no manual payment is accepted here.
+  if (getPawaPayConfig().exclusiveMode && !String(req.body?.sponsorship?.payerPhone || '').trim()) {
     return res.status(403).json({
       code: 'PAWAPAY_ONLY',
       message: 'Ce mode de paiement est désactivé. Réglez la commande avec PawaPay.'
@@ -1506,14 +1618,14 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
   let sponsorRequestGroupId = '';
   let sponsorExpiresAt = null;
   if (isSponsored) {
-    const payForOtherEnabled = await getRuntimeConfig('enable_pay_for_other', { fallback: false });
+    const payForOtherEnabled = await getRuntimeConfig('enable_pay_for_other', { countryId: req.countryContext?.countryId, fallback: false });
     if (!payForOtherEnabled) {
       return res.status(403).json({ message: 'Le paiement par un proche est désactivé.' });
     }
     try {
       [sponsorPayer, sponsorExpiresAt] = await Promise.all([
         resolveEligibleSponsorPayer(requestedPayerPhone, userId),
-        computeSponsorExpiry()
+        computeSponsorExpiry(req.countryContext?.countryId)
       ]);
     } catch (error) {
       if (error?.status) {
@@ -1524,7 +1636,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     sponsorRequestGroupId = new mongoose.Types.ObjectId().toString();
   }
 
-  const cart = await Cart.findOne({ user: userId }).lean();
+  const cart = await Cart.findOne({ user: userId, ...buildCountryDataFilter(req.countryContext) }).lean();
   if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
     return res.status(400).json({ message: 'Votre panier est vide.' });
   }
@@ -1782,7 +1894,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
             ? 0
             : Number(deliveryPricing.deliveryFeeTotal || 0);
         const totalAmount = Number((Number(discountedSubtotal || 0) + deliveryFeeTotal).toFixed(2));
-        const paidAmount = useFullPayment ? totalAmount : Math.round(Number(discountedSubtotal || 0) * 0.25);
+        const paidAmount = isSponsored ? 0 : useFullPayment ? totalAmount : Math.round(Number(discountedSubtotal || 0) * 0.25);
         const remainingAmount = useFullPayment ? 0 : Math.max(0, totalAmount - paidAmount);
         const deliveryCode = await generateDeliveryCode();
 
@@ -1790,6 +1902,8 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
           sellerId,
           items: sellerItems,
           customer: customer._id,
+          countryId: cart.countryId || req.countryContext?.countryId,
+          currency: cart.currency || req.countryContext?.currency?.code,
           createdBy: userId,
           deliveryAddress: shipping.deliveryAddress,
           deliveryCity: shipping.deliveryCity,
@@ -1800,7 +1914,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
           deliveryFeeWaived: useFullPayment,
           deliveryFeeLocked: useFullPayment,
           deliveryFeeWaiverReason: useFullPayment ? 'FULL_PAYMENT' : '',
-          paymentStatus: useFullPayment ? 'PAID_FULL' : 'PARTIAL',
+          paymentStatus: isSponsored ? 'PENDING' : useFullPayment ? 'PAID_FULL' : 'PARTIAL',
           paymentCompletedAt: useFullPayment ? new Date() : null,
           checkoutPromotionApplied: Boolean(checkoutPromotionApplied) && useFullPayment,
           deliveryMode,
@@ -1841,7 +1955,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
       orderPayloads.map(({ sellerId, ...payload }) => payload)
     );
 
-    await Cart.updateOne({ user: userId }, { $set: { items: [] } });
+    await Cart.updateOne({ _id: cart._id, user: userId }, { $set: { items: [] } });
   } catch (error) {
     if (consumedPromos.length) {
       await Promise.all(
@@ -2215,9 +2329,9 @@ const resolveEligibleSponsorPayer = async (phone, requesterId) => {
   return payer;
 };
 
-const computeSponsorExpiry = async () => {
+const computeSponsorExpiry = async (countryId) => {
   const ttlHours =
-    Number(await getRuntimeConfig('pay_for_other_request_ttl_hours', { fallback: 48 })) || 48;
+    Number(await getRuntimeConfig('pay_for_other_request_ttl_hours', { countryId, fallback: 48 })) || 48;
   return new Date(Date.now() + ttlHours * 60 * 60 * 1000);
 };
 
@@ -2232,16 +2346,16 @@ const reviveSponsoredOrder = (order) => {
 // Capture payment across a sponsorship group's orders.
 // Throws { status, message, code } on validation failure. Shared by the
 // designated-payer accept flow and the requester "pay myself" flow.
+const sponsorshipDeposit = (order) => Math.round(Math.max(0, Number(order.totalAmount || 0) - Number(order.deliveryFeeTotal || 0)) * 0.25);
+
 const captureGroupPayment = async ({
   orders,
   payerUserId,
-  payerUser,
   paymentMode,
   paymentOption = 'deposit',
   payerName,
   transactionCode,
-  sponsoredStatus,
-  pawaPayCheckout = null
+  sponsoredStatus
 }) => {
   if (getPawaPayConfig().exclusiveMode && paymentMode !== 'pawapay') {
     throw Object.assign(
@@ -2251,30 +2365,7 @@ const captureGroupPayment = async ({
   }
   const now = new Date();
   if (paymentMode === 'pawapay') {
-    const total = orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
-    if (!pawaPayCheckout || Math.abs(Number(pawaPayCheckout.amount || 0) - total) > 0.01) {
-      throw Object.assign(new Error('Le montant confirmé par PawaPay est invalide.'), {
-        status: 400
-      });
-    }
-    await Promise.all(
-      orders.map((order) => {
-        reviveSponsoredOrder(order);
-        order.status = 'paid';
-        order.paymentStatus = 'PAID_FULL';
-        order.paymentSource = 'pawapay';
-        order.paymentCompletedAt = now;
-        order.paidAmount = Number(order.totalAmount || 0);
-        order.remainingAmount = 0;
-        order.paymentName = 'PawaPay';
-        order.paymentTransactionCode = pawaPayCheckout.checkoutId;
-        order.sponsoredPayment.status = sponsoredStatus;
-        order.sponsoredPayment.respondedAt = now;
-        order.sponsoredPayment.paidBy = payerUserId;
-        return order.save();
-      })
-    );
-    return;
+    throw Object.assign(new Error('Utilisez la confirmation sécurisée PawaPay.'), { status: 403 });
   }
   // mobile money — payer supplies a transaction code (25% deposit or full payment,
   // per paymentOption); the seller verifies the code later.
@@ -2300,6 +2391,10 @@ const captureGroupPayment = async ({
       order.paymentCompletedAt = now;
       order.paidAmount = Number(order.totalAmount || 0);
       order.remainingAmount = 0;
+    } else {
+      order.paymentStatus = 'PARTIAL';
+      order.paidAmount = sponsorshipDeposit(order);
+      order.remainingAmount = Math.max(0, Number(order.totalAmount || 0) - order.paidAmount);
     }
     order.sponsoredPayment.status = sponsoredStatus;
     order.sponsoredPayment.respondedAt = now;
@@ -2389,8 +2484,10 @@ const summarizeSponsorshipGroup = (orders = []) => {
     expiresAt: sp.expiresAt || null,
     orderCount: orders.length,
     totalAmount: orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0),
-    // 25% acompte recorded at checkout — what a mobile-money "deposit" payment covers.
-    depositAmount: orders.reduce((sum, order) => sum + Number(order.paidAmount || 0), 0),
+    paidAmount: orders.reduce((sum, order) => sum + Number(order.paidAmount || 0), 0),
+    remainingAmount: orders.reduce((sum, order) => sum + Math.max(0, Number(order.totalAmount || 0) - Number(order.paidAmount || 0)), 0),
+    // Requested deposit for legacy manual payments, not an amount already paid.
+    depositAmount: sponsorshipAmounts(orders, 'deposit').amount,
     productTitles: orders
       .flatMap((order) => (order.items || []).map((item) => item?.snapshot?.title).filter(Boolean))
       .slice(0, 3),
@@ -2416,21 +2513,27 @@ export const expireStaleSponsorships = async (filter = {}) => {
   };
   const stale = await Order.find(staleFilter).select('_id sponsoredPayment customer').lean();
   if (!stale.length) return;
-  await Order.updateMany(staleFilter, {
-    $set: {
-      'sponsoredPayment.status': 'expired',
-      'sponsoredPayment.respondedAt': now,
-      status: 'cancelled',
-      cancelledAt: now,
-      cancellationReason: 'Demande de paiement par un proche expirée.'
-    }
-  });
   const groups = new Map();
   for (const order of stale) {
     const gid = order.sponsoredPayment.requestGroupId;
     if (gid && !groups.has(gid)) groups.set(gid, order);
   }
   for (const order of groups.values()) {
+    try {
+      const expired = await changeSponsoredGroup(order.sponsoredPayment.requestGroupId, async (current, session) => {
+        const eligible = current.filter(item => item.sponsoredPayment.status === 'pending' && item.sponsoredPayment.expiresAt < now);
+        if (!eligible.length) return false;
+        await Order.updateMany({ _id: { $in: eligible.map(item => item._id) } }, { $set: {
+          'sponsoredPayment.status': 'expired', 'sponsoredPayment.respondedAt': now,
+          status: 'cancelled', cancelledAt: now, cancellationReason: 'Demande de paiement par un proche expirée.'
+        } }, { session });
+        return true;
+      });
+      if (!expired) continue;
+    } catch (error) {
+      if (error.status === 409) continue;
+      throw error;
+    }
     void safeAsync(
       () =>
         createNotification({
@@ -2447,7 +2550,9 @@ export const expireStaleSponsorships = async (filter = {}) => {
 
 // GET /orders/sponsor/resolve?phone= — confirm who a phone number belongs to.
 export const resolveSponsorPayer = asyncHandler(async (req, res) => {
-  const enabled = await getRuntimeConfig('enable_pay_for_other', { fallback: false });
+  const enabled = await getRuntimeConfig('enable_pay_for_other', {
+    countryId: req.countryContext?.countryId || req.user?.selectedCountryId || req.user?.countryId, fallback: false
+  });
   if (!enabled) return res.status(403).json({ message: 'Fonctionnalité désactivée.' });
   const phone = String(req.query?.phone || '').trim();
   if (!phone) return res.status(400).json({ found: false, message: 'Numéro requis.' });
@@ -2466,7 +2571,7 @@ const makeSponsorshipList = (roleField) =>
   asyncHandler(async (req, res) => {
     const userId = req.user?.id || req.user?._id;
     const orders = await Order.find({ 'sponsoredPayment.isSponsored': true, [roleField]: userId })
-      .select('sponsoredPayment totalAmount paidAmount items.snapshot.title createdAt')
+      .select('sponsoredPayment totalAmount deliveryFeeTotal paidAmount items.snapshot.title createdAt')
       .populate('sponsoredPayment.requester sponsoredPayment.payer', 'name shopName')
       .sort({ createdAt: -1 })
       .limit(120)
@@ -2483,31 +2588,54 @@ const makeSponsorshipList = (roleField) =>
 export const listIncomingSponsorships = makeSponsorshipList('sponsoredPayment.payer');
 export const listSentSponsorships = makeSponsorshipList('sponsoredPayment.requester');
 
+const cancelPendingSponsoredGroup = (groupId, userId, role, status, reason) =>
+  changeSponsoredGroup(groupId, async (orders, session) => {
+    if (!orders.length || orders.some(order => String(order.sponsoredPayment[role]) !== String(userId) || order.sponsoredPayment.status !== 'pending')) {
+      throw Object.assign(new Error('Demande introuvable ou déjà traitée.'), { status: 404 });
+    }
+    const now = new Date();
+    await Order.updateMany({ _id: { $in: orders.map(order => order._id) } }, { $set: {
+      'sponsoredPayment.status': status, 'sponsoredPayment.respondedAt': now,
+      status: 'cancelled', cancelledAt: now, cancelledBy: userId, cancellationReason: reason
+    } }, { session });
+    return orders;
+  });
+
+const finishSponsoredPayment = async (req, res, kind) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const groupId = String(req.params?.groupId || '');
+    const result = await completeSponsoredCheckout({ checkout: req.pawaPayCheckout, groupId, kind, userId });
+    if (result.changed) {
+      notifySellersSponsoredPaid(result.orders, userId);
+      if (kind === 'SPONSORSHIP_ACCEPT') {
+        void safeAsync(() => createNotification({ userId: result.orders[0].customer, actorId: userId,
+          type: 'sponsorship_accepted', metadata: { requestGroupId: groupId,
+            totalAmount: result.orders.reduce((sum, order) => sum + order.totalAmount, 0),
+            paidAmount: req.pawaPayCheckout.amount, paymentMode: 'pawapay' }
+        }), { label: 'sponsorship_accepted_notification' });
+      }
+      for (const order of result.orders) {
+        void safeAsync(() => recordEscrowAudit({ order, actor: userId, actorRole: 'buyer',
+          action: 'ESCROW_FUNDED', fromStatus: 'WAITING_PAYMENT', toStatus: 'IN_ESCROW', amount: order.paidAmount,
+          metadata: { checkoutId: req.pawaPayCheckout.checkoutId, sponsored: true }
+        }), { label: 'sponsored_escrow_funded' });
+      }
+    }
+    return res.json({ message: result.orders.some(order => order.remainingAmount > 0)
+      ? 'Acompte confirmé. Le solde reste à régler à la livraison ou au retrait.' : 'Commande réglée. Merci !',
+      requestGroupId: groupId, status: kind === 'SPONSORSHIP_ACCEPT' ? 'accepted' : 'self_paid' });
+  } catch (error) {
+    return res.status(error.status || 500).json({ message: error.message });
+  }
+};
+
 // POST /orders/sponsor/:groupId/cancel — requester cancels a still-pending request.
 export const cancelSponsorship = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
   const groupId = String(req.params?.groupId || '').trim();
-  const groupFilter = {
-    'sponsoredPayment.requestGroupId': groupId,
-    'sponsoredPayment.requester': userId,
-    'sponsoredPayment.status': 'pending'
-  };
-  const orders = await Order.find(groupFilter).select('sponsoredPayment').lean();
-  if (!orders.length) {
-    return res.status(404).json({ message: 'Demande introuvable ou déjà traitée.' });
-  }
-  const now = new Date();
+  const orders = await cancelPendingSponsoredGroup(groupId, userId, 'requester', 'cancelled', 'Demande de paiement par un proche annulée.');
   const payerId = orders[0].sponsoredPayment?.payer;
-  await Order.updateMany(groupFilter, {
-    $set: {
-      'sponsoredPayment.status': 'cancelled',
-      'sponsoredPayment.respondedAt': now,
-      status: 'cancelled',
-      cancelledAt: now,
-      cancelledBy: userId,
-      cancellationReason: 'Demande de paiement par un proche annulée.'
-    }
-  });
   if (payerId) {
     void safeAsync(
       () =>
@@ -2528,6 +2656,9 @@ export const respondSponsorship = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
   const groupId = String(req.params?.groupId || '').trim();
   const { action, paymentMode = 'mobile_money', paymentOption = 'deposit', payerName, transactionCode } = req.body || {};
+  if (action === 'accept' && paymentMode === 'pawapay') {
+    return finishSponsoredPayment(req, res, 'SPONSORSHIP_ACCEPT');
+  }
 
   const groupFilter = {
     'sponsoredPayment.requestGroupId': groupId,
@@ -2547,16 +2678,7 @@ export const respondSponsorship = asyncHandler(async (req, res) => {
   const now = new Date();
 
   if (action === 'decline') {
-    await Order.updateMany(groupFilter, {
-      $set: {
-        'sponsoredPayment.status': 'declined',
-        'sponsoredPayment.respondedAt': now,
-        status: 'cancelled',
-        cancelledAt: now,
-        cancelledBy: userId,
-        cancellationReason: 'Paiement par un proche refusé.'
-      }
-    });
+    await cancelPendingSponsoredGroup(groupId, userId, 'payer', 'declined', 'Paiement par un proche refusé.');
     void safeAsync(
       () =>
         createNotification({
@@ -2609,9 +2731,6 @@ export const retrySponsorship = asyncHandler(async (req, res) => {
   const groupId = String(req.params?.groupId || '').trim();
   const { payerPhone, message } = req.body || {};
 
-  const enabled = await getRuntimeConfig('enable_pay_for_other', { fallback: false });
-  if (!enabled) return res.status(403).json({ message: 'Le paiement par un proche est désactivé.' });
-
   const orders = await Order.find({
     'sponsoredPayment.requestGroupId': groupId,
     'sponsoredPayment.requester': userId,
@@ -2620,6 +2739,9 @@ export const retrySponsorship = asyncHandler(async (req, res) => {
   if (!orders.length) {
     return res.status(404).json({ message: 'Demande introuvable ou non éligible à une nouvelle tentative.' });
   }
+  const countryId = orders[0].countryId;
+  const enabled = await getRuntimeConfig('enable_pay_for_other', { countryId, fallback: false });
+  if (!enabled) return res.status(403).json({ message: 'Le paiement par un proche est désactivé.' });
   const attempts = Number(orders[0].sponsoredPayment?.attemptCount || 1);
   if (attempts >= MAX_SPONSOR_ATTEMPTS) {
     return res.status(400).json({ message: 'Nombre maximal de tentatives atteint.', code: 'max_attempts' });
@@ -2631,7 +2753,7 @@ export const retrySponsorship = asyncHandler(async (req, res) => {
   try {
     [payer, expiresAt] = await Promise.all([
       resolveEligibleSponsorPayer(phone, userId),
-      computeSponsorExpiry()
+      computeSponsorExpiry(countryId)
     ]);
   } catch (error) {
     if (error?.status) {
@@ -2641,7 +2763,12 @@ export const retrySponsorship = asyncHandler(async (req, res) => {
   }
 
   const now = new Date();
-  for (const order of orders) {
+  await changeSponsoredGroup(groupId, async (current, session) => {
+  if (!current.length || current.some(order => String(order.sponsoredPayment.requester) !== String(userId) ||
+    !['declined', 'expired'].includes(order.sponsoredPayment.status) || Number(order.sponsoredPayment.attemptCount || 1) !== attempts)) {
+    throw Object.assign(new Error('Cette demande a déjà été modifiée. Actualisez la page.'), { status: 409 });
+  }
+  for (const order of current) {
     reviveSponsoredOrder(order);
     order.sponsoredPayment.status = 'pending';
     order.sponsoredPayment.payer = payer._id;
@@ -2652,8 +2779,10 @@ export const retrySponsorship = asyncHandler(async (req, res) => {
     order.sponsoredPayment.expiresAt = expiresAt;
     order.sponsoredPayment.attemptCount = attempts + 1;
     order.sponsoredPayment.paidBy = null;
+    order.sponsoredPayment.checkoutId = '';
+    await order.save({ session });
   }
-  await Promise.all(orders.map((order) => order.save()));
+  });
 
   const total = orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
   void safeAsync(
@@ -2690,6 +2819,7 @@ export const paySelfSponsorship = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
   const groupId = String(req.params?.groupId || '').trim();
   const { paymentMode = 'mobile_money', paymentOption = 'deposit', payerName, transactionCode } = req.body || {};
+  if (paymentMode === 'pawapay') return finishSponsoredPayment(req, res, 'SPONSORSHIP_PAY_SELF');
 
   const orders = await Order.find({
     'sponsoredPayment.requestGroupId': groupId,
@@ -2825,6 +2955,17 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
   }
 
   const { status, deliveryAddress, deliveryCity, trackingNote, deliveryGuyId, cancellationReason } = req.body;
+  if (status && status !== order.status && ['cancelled', 'completed', 'dispute_opened', 'confirmed_by_client', 'picked_up_confirmed', 'delivered'].includes(order.status)) {
+    return res.status(409).json({ message: 'Une commande clôturée ou en litige ne peut pas être rouverte ici.' });
+  }
+  if ((deliveryAddress && deliveryAddress !== order.deliveryAddress) || (deliveryCity && deliveryCity !== order.deliveryCity)) {
+    return res.status(409).json({ message: 'Utilisez le changement d’adresse avec validation de la destination et des frais.' });
+  }
+  if (status === 'cancelled') {
+    const cancelled = await cancelOrderSafely({ orderId: id, actorId: req.user.id || req.user._id, reason: cancellationReason });
+    await finishInstallmentCancellation(cancelled, req.user.id || req.user._id, 'admin');
+    return res.json(buildOrderResponse(await baseOrderQuery().findById(id)));
+  }
   const previousStatus = order.status;
   let notifyPending = false;
   let notifyConfirmed = false;
@@ -3364,6 +3505,10 @@ export const getUserOrder = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
+  if (order.paymentType === 'installment') {
+    await refreshInstallmentOrder(order._id);
+    order = await baseOrderQuery().findById(order._id);
+  }
   await ensureOrderProductSlugs([order]);
 
   // If user is not the customer, filter items to only show their shop's items
@@ -3627,6 +3772,12 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
+  // Sponsored requests must cancel through the group transaction, which also
+  // protects an in-flight payment and the other shops in the same request.
+  if (order.sponsoredPayment?.isSponsored && order.sponsoredPayment.status === 'pending') {
+    return res.status(409).json({ message: 'Gérez cette annulation depuis « Paiement par un proche ».',
+      code: 'SPONSORSHIP_GROUP_REQUIRED' });
+  }
 
   const { status } = req.body;
   const previousStatus = order.status;
@@ -3662,6 +3813,11 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
     }
   }
 
+  if (status === 'cancelled') {
+    const cancelled = await cancelOrderSafely({ orderId: id, actorId: userId, buyer: true, reason: 'Annulation par le client.' });
+    await finishInstallmentCancellation(cancelled, userId, 'buyer');
+    return res.json(buildOrderResponse(await baseOrderQuery().findById(id)));
+  }
   if (order.status !== status) {
     order.status = status;
     if (status === 'delivering' && !order.shippedAt) {
@@ -3748,88 +3904,44 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
 /**
  * Update delivery address for an order (buyer only, before shipping)
  */
+export const previewOrderAddress = asyncHandler(async (req, res) => {
+  const quote = await quoteOrderAddress({ orderId: req.params.id, userId: req.user.id || req.user._id, input: req.body });
+  res.json({ shippingAddress: quote.destination, deliveryFeeTotal: quote.deliveryFeeTotal, totalAmount: quote.totalAmount, remainingAmount: quote.remainingAmount });
+});
+
 export const userUpdateOrderAddress = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const userId = req.user?.id || req.user?._id;
+  const userId = req.user.id || req.user._id;
+  const order = await changeOrderAddress({ orderId: req.params.id, userId, input: req.body });
+  await invalidateOrderCachesForMutation({ customerId: userId, sellerIds: order.items.map(item => item.snapshot.shopId) });
+  await Promise.allSettled(order.items.map(item => createNotification({ userId: item.snapshot.shopId, actorId: userId,
+    type: 'order_address_updated', metadata: { orderId: order._id, newAddress: order.deliveryAddress, newCity: order.deliveryCity } })));
+  res.json(buildOrderResponse(await baseOrderQuery().findById(order._id)));
+});
 
-  if (!ensureObjectId(id)) {
-    return res.status(400).json({ message: 'Commande inconnue.' });
+export const sellerRecordCashCollection = asyncHandler(async (req, res) => {
+  const { sellerId, actorId } = await resolveSellerAccess(req, 'manage_delivery_requests');
+  const amount = Number(req.body.amount);
+  if (!Number.isSafeInteger(amount) || amount <= 0 || req.body.method !== 'CASH') {
+    return res.status(400).json({ message: 'Montant entier et mode espèces requis.' });
   }
-
-  const order = await Order.findById(id);
-  if (!order) {
-    return res.status(404).json({ message: 'Commande introuvable.' });
-  }
-
-  // Verify the order belongs to the user
-  if (String(order.customer) !== String(userId)) {
-    return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à modifier cette commande.' });
-  }
-
-  // Address cannot be modified once order is "Prête à livrer" or "En cours de livraison"
-  if (
-    ['ready_for_delivery', 'delivering', 'out_for_delivery', 'delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(
-      String(order.status)
-    )
-  ) {
-    return res.status(400).json({
-      message: 'Impossible de modifier l\'adresse de livraison. La commande est déjà en cours de livraison ou livrée.',
-      code: 'ORDER_ALREADY_SHIPPED'
-    });
-  }
-
-  if (order.status === 'cancelled') {
-    return res.status(400).json({ 
-      message: 'Impossible de modifier l\'adresse d\'une commande annulée.',
-      code: 'ORDER_CANCELLED'
-    });
-  }
-
-  const { deliveryAddress, deliveryCity } = req.body;
-  const oldAddress = order.deliveryAddress;
-  const oldCity = order.deliveryCity;
-
-  // Update address
-  order.deliveryAddress = deliveryAddress.trim();
-  order.deliveryCity = deliveryCity;
-
-  await order.save();
-  const populated = await baseOrderQuery().findById(order._id);
-  await ensureOrderProductSlugs([populated]);
-
-  // Send notification to sellers about address change
-  if (Array.isArray(order.items) && order.items.length > 0) {
-    const sellerIds = new Set();
-    order.items.forEach((item) => {
-      const shopId = item?.snapshot?.shopId;
-      if (shopId) sellerIds.add(String(shopId));
-    });
-
-    await Promise.all(
-      Array.from(sellerIds).map((sellerId) =>
-        createNotification({
-          userId: sellerId,
-          actorId: userId,
-          type: 'order_address_updated',
-          metadata: {
-            orderId: order._id,
-            oldAddress: oldAddress,
-            newAddress: deliveryAddress.trim(),
-            oldCity: oldCity,
-            newCity: deliveryCity,
-            status: order.status
-          },
-          allowSelf: true
-        })
-      )
-    );
-  }
-
-  await invalidateOrderCachesForMutation({
-    customerId: order.customer,
-    sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
+  const order = await withCommerceOperation(`order:${req.params.id}`, async session => {
+    const current = await Order.findOne({ _id: req.params.id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false }).session(session);
+    if (!current) throw Object.assign(new Error('Commande introuvable.'), { status: 404 });
+    if (current.paymentType === 'installment' || current.disputeOpened || current.cancellationRefundRequired ||
+      ['pending', 'processed'].includes(current.refundStatus) ||
+      !['ready_for_pickup', 'delivering', 'out_for_delivery', 'delivery_proof_submitted', 'delivered', 'picked_up_confirmed', 'confirmed_by_client', 'completed'].includes(current.status) ||
+      !(current.remainingAmount > 0) || amount !== current.remainingAmount) {
+      throw Object.assign(new Error('Le solde ou l’état de la commande a changé. Actualisez avant de confirmer.'), { status: 409 });
+    }
+    current.cashCollectedAmount = Number(current.cashCollectedAmount || 0) + amount;
+    current.cashCollections.push({ amount, actor: actorId, collectedAt: new Date(), method: 'CASH' });
+    await current.save({ session });
+    return current;
   });
-  res.json(buildOrderResponse(populated));
+  await invalidateOrderCachesForMutation({ customerId: order.customer, sellerIds: [sellerId] });
+  await createNotification({ userId: order.customer, actorId, type: 'payment_validated',
+    metadata: { orderId: order._id, amount, method: 'CASH', message: 'Le vendeur a confirmé la réception du solde en espèces.' } }).catch(() => {});
+  res.json(buildOrderResponse(await baseOrderQuery().findById(order._id)));
 });
 
 /**
@@ -4000,6 +4112,10 @@ export const sellerGetOrder = asyncHandler(async (req, res) => {
     order = await baseOrderQuery().findOne({ _id: id, customer: actorId, isDraft: false });
     if (order) {
       // User is the customer — return full order (not filtered)
+      if (order.paymentType === 'installment') {
+        await refreshInstallmentOrder(order._id);
+        order = await baseOrderQuery().findById(order._id);
+      }
       await ensureOrderProductSlugs([order]);
       return res.json(buildOrderResponse(order));
     }
@@ -4009,6 +4125,10 @@ export const sellerGetOrder = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
 
+  if (order.paymentType === 'installment') {
+    await refreshInstallmentOrder(order._id);
+    order = await baseOrderQuery().findById(order._id);
+  }
   await ensureOrderProductSlugs([order]);
   const filteredItems = filterOrderItemsForSeller(order, sellerId);
   if (!filteredItems.length) {
@@ -4638,6 +4758,11 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
 
+  if (status === 'cancelled') {
+    const cancelled = await cancelOrderSafely({ orderId: id, actorId, sellerId, reason: req.body.reason });
+    await finishInstallmentCancellation(cancelled, actorId, 'seller');
+    return res.json(buildOrderResponse(await baseOrderQuery().findById(id)));
+  }
   if (order.paymentType === 'installment') {
     let transitionContext;
     try {
@@ -5315,142 +5440,11 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'La raison de l\'annulation est requise (minimum 5 caractères).' });
   }
 
-  const paidAmount = Number(order.paidAmount || 0);
-  const refundAmount = Math.max(0, paidAmount);
-  order.status = 'cancelled';
-  order.cancelledAt = new Date();
-  order.cancelledBy = actorId;
-  order.cancellationReason = reason.trim();
-  let refund = null;
-  if (refundAmount > 0) {
-    try {
-      refund = await initiateOrderRefund({
-        order,
-        requestedBy: actorId,
-        amount: refundAmount,
-        source: 'SELLER_CANCELLATION'
-      });
-    } catch (error) {
-      return res.status(Number(error?.status || 400)).json({
-        message: error?.message || 'Impossible de lancer le remboursement PawaPay.'
-      });
-    }
-  }
-
-  await order.save();
-  await syncReviewReminderForOrderLifecycle(order);
-  const populated = await baseOrderQuery().findById(order._id);
-  await ensureOrderProductSlugs([populated]);
-  const sellerIds = Array.isArray(order.items)
-    ? order.items
-        .map((item) => item?.snapshot?.shopId)
-        .filter(Boolean)
-    : [];
-  emitOrderStatusUpdated({
-    orderId: order._id,
-    status: order.status,
-    installmentSaleStatus: order.installmentSaleStatus,
-    customerId: order.customer,
-    sellerIds,
-    updatedBy: actorId,
-    updatedAt: order.cancelledAt?.toISOString?.() || new Date().toISOString()
-  });
-  await auditAssistantOrderAction({
-    access,
-    action: 'assistant_order_rejected',
-    order,
-    metadata: {
-      reason: order.cancellationReason,
-      issueRefund: refundAmount > 0,
-      refundAmount
-    }
-  });
-
-  // Update product salesCount when order is cancelled (decrease count)
-  if (Array.isArray(order.items)) {
-    for (const item of order.items) {
-      if (item.product) {
-        const salesCount = await calculateProductSalesCount(item.product);
-        await Product.updateOne(
-          { _id: item.product },
-          { $set: { salesCount } }
-        );
-      }
-    }
-  }
-
-  // Send notification to customer
-  await createNotification({
-    userId: order.customer,
-    actorId,
-    type: 'order_cancelled',
-    metadata: {
-      orderId: order._id,
-      deliveryAddress: order.deliveryAddress,
-      deliveryCity: order.deliveryCity,
-      status: 'cancelled',
-      cancelledBy: 'seller',
-      reason: order.cancellationReason,
-      refundRequested: refundAmount > 0,
-      refundMethod: refundAmount > 0 ? 'pawapay' : '',
-      refundId: refund?.refundId || '',
-      refundStatus: refund?.status || 'none',
-      refundAmount
-    },
-    allowSelf: true
-  });
-
-  if (refundAmount > 0) {
-    const adminRecipients = await User.find({
-      $or: [{ role: 'admin' }, { role: 'manager' }, { canVerifyPayments: true }]
-    })
-      .select('_id')
-      .lean();
-    await Promise.all(
-      adminRecipients.map((recipient) =>
-        createNotification({
-          userId: recipient._id,
-          actorId,
-          type: 'admin_broadcast',
-          metadata: {
-            message: `Remboursement PawaPay lancé pour la commande #${String(order._id).slice(-6)}: ${formatSmsAmount(refundAmount)} FCFA.`,
-            orderId: order._id,
-            refundId: refund?.refundId || '',
-            refundStatus: refund?.status || 'PROCESSING',
-            refundRequested: true,
-            refundAmount
-          }
-        })
-      )
-    );
-  }
-
-  // Send SMS if configured
-  if (isTwilioMessagingConfigured()) {
-    const customer = await User.findById(order.customer).select('phone');
-    if (customer?.phone) {
-      const itemsSummary = buildSmsItemsSummary(order.items);
-      const total = formatSmsAmount(order.totalAmount);
-      const reasonText = order.cancellationReason ? ` Raison: ${order.cancellationReason}` : '';
-      const refundText =
-        refundAmount > 0
-          ? ` Remboursement PawaPay de ${formatSmsAmount(refundAmount)} FCFA en cours vers le compte Mobile Money utilisé pour le paiement.`
-          : '';
-      const orderId = order._id ? String(order._id).slice(-6) : '';
-      const message = `HDMarket : Votre commande ${orderId} a été annulée par le vendeur.${reasonText}${refundText} ${itemsSummary ? `| ${itemsSummary}` : ''} | Total: ${total} FCFA`;
-      await sendOrderSms({
-        phone: customer.phone,
-        message,
-        context: `order_cancelled:${order._id}`
-      });
-    }
-  }
-
-  await invalidateOrderCachesForMutation({
-    customerId: order.customer,
-    sellerIds: [sellerId]
-  });
-  res.json(buildOrderResponse(populated));
+  const cancelled = await cancelOrderSafely({ orderId: id, actorId, sellerId, reason: reason.trim() });
+  await finishInstallmentCancellation(cancelled, actorId, 'seller');
+  await auditAssistantOrderAction({ access, action: 'assistant_order_rejected', order: cancelled,
+    metadata: { reason: cancelled.cancellationReason, issueRefund: cancelled.paidAmount > 0 } });
+  return res.json(buildOrderResponse(await baseOrderQuery().findById(id)));
 });
 
 export const sellerDeliveryStatsOverview = asyncHandler(async (req, res) => {

@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import { LEGAL_VERSION, LEGAL_JURISDICTION } from '../config/legalPolicy.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User from '../models/userModel.js';
@@ -165,7 +166,7 @@ const providerRegister = async (req, res, providerName) => {
   const normalizedEmail = String(decoded.email).toLowerCase().trim();
   const name = capitalizeName(req.body?.name || decoded.name || '');
 
-  if (!name || !phone || !city || !address?.trim() || !gender || acceptedLegalTerms !== true || legalVersion !== '2026-07-18') {
+  if (!name || !phone || acceptedLegalTerms !== true || legalVersion !== LEGAL_VERSION) {
     return res.status(400).json({ message: 'Missing fields', code: 'PROFILE_FIELDS_REQUIRED' });
   }
   const existingUser = await User.findOne({
@@ -207,14 +208,15 @@ const providerRegister = async (req, res, providerName) => {
   }
 
   const referrer = await resolveReferrerForRegistration({ referralCode, newUserPhone: normalizedPhone });
-  const location = await resolveCanonicalLocation({
+  const location = (city || cityId) ? await resolveCanonicalLocation({
     cityId,
     communeId,
     cityName: city,
     communeName: commune,
     countryId: countryContext.countryId,
-    allowLegacyCountryFallback: countryContext.country.code === 'CG'
-  });
+    allowLegacyCountryFallback: countryContext.country.code === 'CG',
+    requireCommuneWhenConfigured: false
+  }) : { cityId: null, communeId: null, cityName: '', communeName: '' };
 
   const user = await User.create({
     name,
@@ -228,16 +230,16 @@ const providerRegister = async (req, res, providerName) => {
     countryId: countryContext.countryId,
     selectedCountryId: countryContext.countryId,
     preferredCurrency: countryContext.country.currency.code,
-    address: address.trim(),
+    address: String(address || '').trim(),
     cityId: location.cityId,
     communeId: location.communeId,
     city: location.cityName,
     commune: location.communeName,
-    gender,
+    gender: gender || '',
     referredBy: referrer?._id || null,
     profileImage: String(decoded.picture || '').trim(),
     authProviders: { [providerName]: { uid: decoded.uid, linkedAt: new Date() } },
-    legalAcceptance: { accepted: true, termsVersion: legalVersion, privacyVersion: legalVersion, acceptedAt: new Date(), source: providerName }
+    legalAcceptance: { accepted: true, termsVersion: legalVersion, privacyVersion: legalVersion, jurisdiction: LEGAL_JURISDICTION, acceptedAt: new Date(), source: providerName }
   });
   if (referrer) {
     createNotification({
@@ -314,7 +316,7 @@ export const register = asyncHandler(async (req, res) => {
     legalVersion,
     referralCode
   } = req.body;
-  if (!name || !password || !phone || !city || !gender || !address?.trim() || acceptedLegalTerms !== true || legalVersion !== '2026-07-18') {
+  if (!name || !password || !phone || acceptedLegalTerms !== true || legalVersion !== LEGAL_VERSION) {
     return res.status(400).json({ message: 'Missing fields' });
   }
   // Enforce the same minimum as the frontend strength meter — the API must not
@@ -410,14 +412,15 @@ export const register = asyncHandler(async (req, res) => {
   }
 
   const referrer = await resolveReferrerForRegistration({ referralCode, newUserPhone: normalizedPhone });
-  const location = await resolveCanonicalLocation({
+  const location = (city || cityId) ? await resolveCanonicalLocation({
     cityId,
     communeId,
     cityName: city,
     communeName: commune,
     countryId: countryContext.countryId,
-    allowLegacyCountryFallback: countryContext.country.code === 'CG'
-  });
+    allowLegacyCountryFallback: countryContext.country.code === 'CG',
+    requireCommuneWhenConfigured: false
+  }) : { cityId: null, communeId: null, cityName: '', communeName: '' };
 
   const user = await User.create({
     name: normalizedName,
@@ -431,14 +434,14 @@ export const register = asyncHandler(async (req, res) => {
     countryId: countryContext.countryId,
     selectedCountryId: countryContext.countryId,
     preferredCurrency: countryContext.country.currency.code,
-    address: address.trim(),
+    address: String(address || '').trim(),
     cityId: location.cityId,
     communeId: location.communeId,
     city: location.cityName,
     commune: location.communeName,
-    gender,
+    gender: gender || '',
     referredBy: referrer?._id || null,
-    legalAcceptance: { accepted: true, termsVersion: legalVersion, privacyVersion: legalVersion, acceptedAt: new Date(), source: 'phone' }
+    legalAcceptance: { accepted: true, termsVersion: legalVersion, privacyVersion: legalVersion, jurisdiction: LEGAL_JURISDICTION, acceptedAt: new Date(), source: 'phone' }
   });
   if (referrer) {
     createNotification({

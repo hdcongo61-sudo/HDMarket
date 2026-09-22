@@ -3009,3 +3009,34 @@ body :where(.blur-2xl, .blur-3xl) {
 .dark .profile-statistics :where(.border-neutral-200, .border-gray-100, .border-gray-200) { border-color: #333; }
 .dark .profile-statistics .stats-overview { background: linear-gradient(120deg, #302116, #171717); border-color: #53331c; }
 .profile-statistics .stats-kpi { box-shadow: 0 2px 8px rgb(0 0 0 / 0.025); }
+
+/* Keyboard navigation remains visible even on controls styled with outline-none. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #9a3412 !important;
+  outline-offset: 3px;
+}
+.dark :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline-color: #fdba74 !important;
+}
+.skip-to-content {
+  position: fixed;
+  left: 1rem;
+  top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  z-index: 10000;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: #9a3412;
+  color: white;
+  font-weight: 700;
+  transform: translateY(-200%);
+}
+.skip-to-content:focus { transform: translateY(0); }
+#main-content:focus { outline: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

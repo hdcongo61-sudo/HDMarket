@@ -538,7 +538,7 @@ export default function Login() {
                   <footer className="mt-auto grid gap-3 pt-9 text-center text-[#57534e] dark:text-neutral-300 lg:mt-10 lg:border-t lg:border-[#e7dfd5] lg:pt-7 lg:text-left dark:lg:border-neutral-800">
                     {hasRegistration ? <p className="text-[14.5px] font-medium">
                       {copy.noAccount}{' '}
-                      <Link to="/register" className="font-extrabold text-[#b3480a] transition hover:text-[#f45f00] dark:text-orange-100">
+                      <Link to="/register" state={{ from }} className="font-extrabold text-[#b3480a] transition hover:text-[#f45f00] dark:text-orange-100">
                         {copy.createAccount}
                       </Link>
                     </p> : null}

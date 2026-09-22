@@ -4,10 +4,15 @@ import BuyForMeDispute from '../models/buyForMeDisputeModel.js';
 import BuyForMeOrder from '../models/buyForMeOrderModel.js';
 import BuyForMePreference from '../models/buyForMePreferenceModel.js';
 import BuyForMeReceipt from '../models/buyForMeReceiptModel.js';
-import BuyForMeRefund from '../models/buyForMeRefundModel.js';
 import BuyForMeTransaction from '../models/buyForMeTransactionModel.js';
 import DeliveryGuy from '../models/deliveryGuyModel.js';
 import User from '../models/userModel.js';
+import Checkout from '../models/pawapayCheckoutModel.js';
+import Transfer from '../models/buyForMeTransferModel.js';
+import { withCommerceOperation } from './commerceOperationService.js';
+import { eligibleShoppingDriver, shoppingAdminFilter, shoppingId, shoppingError } from './buyForMeAccessService.js';
+import { reserveShoppingRefund, reserveShoppingPayout, processShoppingTransfers } from './buyForMeTransferService.js';
+import { resolveCanonicalLocation } from './locationSelectionService.js';
 import { estimateParcelPrice } from './parcelRequestService.js';
 import { createNotification } from '../utils/notificationService.js';
 import { invalidateAdminCache, invalidateUserCache } from '../utils/cache.js';
@@ -22,7 +27,7 @@ const STORE_TYPES = [
   'LOCAL_MARKET',
   'OTHER'
 ];
-const BALANCE_PREFERENCES = ['WALLET_REFUND', 'DRIVER_TIP', 'PLATFORM_DONATION'];
+const BALANCE_PREFERENCES = ['ORIGINAL_PAYMENT', 'DRIVER_TIP', 'PLATFORM_DONATION'];
 const AUTHORIZATION_MODES = ['ITEM_ESTIMATES', 'SHOPPING_BUDGET'];
 const TERMINAL_STATUSES = ['COMPLETED', 'CANCELED', 'FAILED'];
 
@@ -86,6 +91,7 @@ const normalizeItems = (items = [], { requireEstimatedPrices = true } = {}) => {
       ? 'Ajoutez au moins un article avec sa quantité et son prix estimé.'
       : 'Ajoutez au moins un article avec sa quantité.');
   }
+  if (normalized.length !== items.length) throw createHttpError('Complétez chaque article avant de payer.');
   if (normalized.length > 30) throw createHttpError('Une demande est limitée à 30 articles.');
   return normalized;
 };
@@ -101,15 +107,20 @@ const getAuthorizedShoppingValue = (order = {}) =>
     order?.maxShoppingBudget
   );
 
-export const getBuyForMeConfig = async () =>
-  BuyForMeConfig.findOneAndUpdate(
+export const getBuyForMeConfig = async (countryId = null) => {
+  if (countryId) {
+    const scoped = await BuyForMeConfig.findOne({ key: `country:${countryId}` }).lean();
+    if (scoped) return scoped;
+  }
+  return BuyForMeConfig.findOneAndUpdate(
     { key: 'default' },
     { $setOnInsert: { key: 'default' } },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   ).lean();
+};
 
-export const updateBuyForMeConfig = async (patch = {}) => {
-  const current = await getBuyForMeConfig();
+export const updateBuyForMeConfig = async (patch = {}, countryId = null) => {
+  const current = await getBuyForMeConfig(countryId);
   const next = {};
   const booleanKeys = ['enabled'];
   booleanKeys.forEach((key) => {
@@ -142,6 +153,7 @@ export const updateBuyForMeConfig = async (patch = {}) => {
   }
 
   const candidate = { ...current, ...next };
+  if (candidate.minimumBudget < 1 || candidate.maximumBudget < 1) throw createHttpError('Le budget doit être supérieur à zéro.');
   if (candidate.maximumBudget < candidate.minimumBudget) {
     throw createHttpError('La valeur estimée maximale doit être supérieure à la valeur estimée minimale.');
   }
@@ -149,8 +161,8 @@ export const updateBuyForMeConfig = async (patch = {}) => {
     throw createHttpError('Le plafond de commission doit être supérieur au minimum.');
   }
   const config = await BuyForMeConfig.findOneAndUpdate(
-    { key: 'default' },
-    { $set: next, $setOnInsert: { key: 'default' } },
+    { key: countryId ? `country:${countryId}` : 'default' },
+    { $set: Object.fromEntries(['enabled', ...numericKeys, 'supportedStoreTypes', 'supportedCities'].map(key => [key, candidate[key]])) },
     { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
   ).lean();
   return config;
@@ -177,13 +189,20 @@ const checkAvailability = ({ config, storeType, pickup, budget }) => {
   }
 };
 
-export const quoteBuyForMe = async ({ storeType, pickup, dropoff, items, authorizationMode, shoppingBudget }) => {
+export const quoteBuyForMe = async ({ storeType, pickup, dropoff, items, authorizationMode, shoppingBudget, countryId }) => {
   const normalizedAuthorizationMode = normalizeAuthorizationMode(authorizationMode);
   const normalizedItems = normalizeItems(items, { requireEstimatedPrices: normalizedAuthorizationMode === 'ITEM_ESTIMATES' });
   const normalizedPickup = normalizeLocation(pickup);
   const normalizedDropoff = normalizeLocation(dropoff);
   if (!normalizedDropoff.address) {
     throw createHttpError('L’adresse de livraison est requise.');
+  }
+  if (countryId) {
+    for (const location of [normalizedPickup, normalizedDropoff]) {
+      if (location.cityId || location.cityName || location.communeId) Object.assign(location, await resolveCanonicalLocation({
+        ...location, countryId, requireCommuneWhenConfigured: false
+      }));
+    }
   }
   // If the customer has no preferred shop address, price the trip from their
   // delivery area. The courier can then choose a suitable nearby store.
@@ -194,7 +213,7 @@ export const quoteBuyForMe = async ({ storeType, pickup, dropoff, items, authori
     ? normalizedPickup
     : normalizedDropoff;
   const [config, deliveryQuote] = await Promise.all([
-    getBuyForMeConfig(),
+    getBuyForMeConfig(countryId),
     estimateParcelPrice({ pickup: pricingPickup, dropoff: normalizedDropoff })
   ]);
   const itemEstimatedValue = getEstimatedShoppingValue(normalizedItems);
@@ -239,9 +258,10 @@ const appendTimeline = (order, type, by, meta = {}) => {
   order.timeline.push({ type, by: by || null, at: new Date(), meta });
 };
 
-const notify = async ({ userId, actorId, title, message, orderId, priority = 'HIGH' }) => {
+const notify = async ({ userId, actorId, title, message, orderId, priority = 'HIGH', audience = 'customer' }) => {
   if (!userId) return;
   try {
+    const link = audience === 'courier' ? `/delivery/buy-for-me?orderId=${orderId}` : audience === 'admin' ? `/admin/buy-for-me?orderId=${orderId}` : orderId ? `/buy-for-me/${orderId}` : '/buy-for-me/orders';
     await createNotification({
       userId,
       actorId: actorId || null,
@@ -251,8 +271,8 @@ const notify = async ({ userId, actorId, title, message, orderId, priority = 'HI
       pushEnabled: true,
       entityType: 'shopping_order',
       entityId: String(orderId || ''),
-      deepLink: orderId ? `/buy-for-me/${orderId}` : '/buy-for-me/orders',
-      actionLink: orderId ? `/buy-for-me/${orderId}` : '/buy-for-me/orders',
+      deepLink: link,
+      actionLink: link,
       metadata: { title, message, shoppingOrderId: String(orderId || '') },
       title,
       message
@@ -269,29 +289,39 @@ const hydrateOrder = (query) =>
     .populate('receiptId');
 
 export const createPaidBuyForMeOrder = async ({ customerId, checkoutId, amountPaid, payload }) => {
+  const orderId = await withCommerceOperation(`shopping-create:${checkoutId}`, async session => {
+  const checkout = await Checkout.findOne({ checkoutId, user: customerId, paymentState: 'CONFIRMED' }).session(session).lean();
+  if (!checkout || checkout.amount !== amountPaid) throw createHttpError('Paiement confirmé introuvable.', 409);
+  const existing = await BuyForMeOrder.find({ 'payment.checkoutId': checkoutId }).session(session);
+  if (existing.length) {
+    if (existing.length !== 1 || asId(existing[0].customerId) !== asId(customerId) || !await BuyForMeTransaction.exists({
+      orderId: existing[0]._id, type: 'FUNDING', providerReference: checkoutId, amount: amountPaid
+    }).session(session)) throw createHttpError('Ce paiement historique nécessite un rapprochement.', 409);
+    return existing[0]._id;
+  }
+  const snapshot = checkout.buyForMeSnapshot;
+  if (!snapshot?.quote || !snapshot?.payload || !checkout.countryId || snapshot.quote.total !== amountPaid) {
+    throw createHttpError('Ce paiement nécessite un rapprochement du prix accepté. Ne payez pas à nouveau.', 409);
+  }
+  payload = snapshot.payload;
   const pickup = normalizeLocation(payload?.pickup);
   const dropoff = normalizeLocation(payload?.dropoff);
   const storeType = stringValue(payload?.storeType, 40).toUpperCase();
   const authorizationMode = normalizeAuthorizationMode(payload?.authorizationMode);
   const items = normalizeItems(payload?.items, { requireEstimatedPrices: authorizationMode === 'ITEM_ESTIMATES' });
-  const quote = await quoteBuyForMe({
-    storeType,
-    pickup,
-    dropoff,
-    items,
-    authorizationMode,
-    shoppingBudget: payload?.shoppingBudget
-  });
+  const quote = snapshot.quote;
   const estimatedShoppingValue = quote.estimatedShoppingValue;
   if (Math.abs(Number(amountPaid || 0) - quote.total) > 0.01) {
     throw createHttpError('Le montant payé ne correspond plus au prix à débattre. Veuillez réessayer.', 409);
   }
   const balancePreference = BALANCE_PREFERENCES.includes(String(payload?.balancePreference || '').toUpperCase())
     ? String(payload.balancePreference).toUpperCase()
-    : 'WALLET_REFUND';
+    : 'ORIGINAL_PAYMENT';
 
-  const order = await BuyForMeOrder.create({
+  const [order] = await BuyForMeOrder.create([{
     customerId,
+    countryId: checkout.countryId,
+    currency: checkout.currency,
     storeType,
     preferredStore: stringValue(payload?.preferredStore, 140),
     pickup,
@@ -318,73 +348,83 @@ export const createPaidBuyForMeOrder = async ({ customerId, checkoutId, amountPa
       { type: 'SHOPPING_ORDER_PAID', by: customerId, at: new Date(), meta: { checkoutId, total: quote.total } },
       { type: 'DRIVER_SEARCH_STARTED', by: customerId, at: new Date() }
     ]
-  });
-  await Promise.all([
-    BuyForMeTransaction.create({
+  }], { session });
+    await BuyForMeTransaction.create([{
       orderId: order._id,
       userId: customerId,
       type: 'FUNDING',
       amount: quote.total,
       status: 'RESERVED',
       providerReference: stringValue(checkoutId, 180)
-    }),
-    BuyForMePreference.findOneAndUpdate(
+    }], { session });
+    await BuyForMePreference.findOneAndUpdate(
       { userId: customerId },
       { $set: { defaultBalancePreference: balancePreference } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    ),
-    invalidateUserCache(customerId, ['notifications']),
-    invalidateAdminCache(['admin', 'dashboard', 'delivery'])
-  ]);
+      { upsert: true, new: true, setDefaultsOnInsert: true, session }
+    );
+    return order._id;
+  });
   await notify({
     userId: customerId,
     actorId: customerId,
     title: 'Demande Acheter Pour Moi créée',
     message: 'Votre paiement est confirmé. Nous recherchons un livreur.',
-    orderId: order._id
+    orderId
   });
-  return (await hydrateOrder(BuyForMeOrder.findById(order._id))).toObject();
+  await Promise.allSettled([invalidateUserCache(customerId, ['notifications']), invalidateAdminCache(['admin', 'dashboard', 'delivery'])]);
+  return (await hydrateOrder(BuyForMeOrder.findById(orderId))).toObject();
 };
 
-export const listMyBuyForMeOrders = async ({ customerId, page = 1, limit = 20 }) => {
+export const listMyBuyForMeOrders = async ({ customerId, page = 1, limit = 20, scope = 'all' }) => {
   const pageNumber = Math.max(1, Number(page) || 1);
   const pageSize = Math.max(1, Math.min(50, Number(limit) || 20));
   const filter = { customerId };
-  const [items, total] = await Promise.all([
+  const terminal = ['COMPLETED', 'CANCELED', 'FAILED'];
+  if (scope === 'active') filter.status = { $nin: terminal };
+  if (scope === 'history') filter.status = { $in: terminal };
+  const [items, total, activeCount, historyCount] = await Promise.all([
     hydrateOrder(BuyForMeOrder.find(filter).sort({ createdAt: -1 }).skip((pageNumber - 1) * pageSize).limit(pageSize)).lean(),
-    BuyForMeOrder.countDocuments(filter)
+    BuyForMeOrder.countDocuments(filter),
+    BuyForMeOrder.countDocuments({ customerId, status: { $nin: terminal } }),
+    BuyForMeOrder.countDocuments({ customerId, status: { $in: terminal } })
   ]);
-  return { items, total, page: pageNumber, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
+  return { items, total, counts: { active: activeCount, history: historyCount }, page: pageNumber, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
 };
 
 export const getBuyForMeOrderForCustomer = async ({ orderId, customerId }) => {
   const order = await hydrateOrder(BuyForMeOrder.findOne({ _id: orderId, customerId })).lean();
   if (!order) throw createHttpError('Demande introuvable.', 404);
+  order.transfers = await Transfer.find({ orderId }).select('type amount currency status failureReason completedAt reason').lean();
+  order.disputes = await BuyForMeDispute.find({ orderId, customerId }).sort({ createdAt: -1 }).lean();
   return order;
 };
 
 export const cancelBuyForMeOrder = async ({ orderId, customerId, reason = '' }) => {
-  const order = await BuyForMeOrder.findOne({ _id: orderId, customerId });
+  const order = await withCommerceOperation(`shopping:${orderId}`, async session => {
+  const order = await BuyForMeOrder.findOne({ _id: orderId, customerId }).session(session);
   if (!order) throw createHttpError('Demande introuvable.', 404);
-  const cancellationDuringOverage = order.status === 'WAITING_CUSTOMER_APPROVAL' && order.additionalPayment?.status === 'REQUIRED';
-  if (!['SEARCHING_DRIVER', 'DRIVER_ASSIGNED'].includes(order.status) && !cancellationDuringOverage) {
-    throw createHttpError('Cette demande ne peut plus être annulée à cette étape.', 409);
+  if (order.status === 'CANCELED') return order;
+  if (order.disputeOpen) throw createHttpError('Le litige doit être examiné avant toute annulation.', 409);
+  if (order.additionalPayment?.status === 'PENDING') throw createHttpError('Un paiement est en cours de vérification.', 409);
+  if (!['SEARCHING_DRIVER', 'DRIVER_ASSIGNED'].includes(order.status)) {
+    throw createHttpError('Les achats ont commencé. Signalez un problème pour une annulation avec remboursement adapté.', 409);
   }
   order.status = 'CANCELED';
   order.currentStage = 'FAILED';
   order.cancelledAt = new Date();
   order.cancelledBy = customerId;
-  if (cancellationDuringOverage) {
-    order.additionalPayment.status = 'DECLINED';
-    order.additionalPayment.resolvedAt = new Date();
-  }
+  order.additionalPayment.status = 'DECLINED';
+  await reserveShoppingRefund({ order, amount: order.payment.totalPaid - Number(order.refundDue || 0), reason: 'CANCELLATION', session });
   appendTimeline(order, 'SHOPPING_ORDER_CANCELED', customerId, { reason: stringValue(reason, 300) });
-  await order.save();
+  await order.save({ session });
+  return order;
+  });
   if (order.driverId) {
     const driver = await DeliveryGuy.findById(order.driverId).select('userId').lean();
-    await notify({ userId: driver?.userId, actorId: customerId, title: 'Course d’achat annulée', message: 'Le client a annulé cette demande.', orderId });
+    await notify({ userId: driver?.userId, actorId: customerId, title: 'Course d’achat annulée', message: 'Le client a annulé cette demande.', orderId, audience: 'courier' });
   }
-  await Promise.all([invalidateUserCache(customerId, ['notifications']), invalidateAdminCache(['admin', 'dashboard', 'delivery'])]);
+  await processShoppingTransfers({ orderId });
+  await Promise.allSettled([invalidateUserCache(customerId, ['notifications']), invalidateAdminCache(['admin', 'dashboard', 'delivery'])]);
   return getBuyForMeOrderForCustomer({ orderId, customerId });
 };
 
@@ -403,12 +443,18 @@ const toDriverJob = (order, driverId) => {
   return { ...raw, kind: 'BUY_FOR_ME', claimable: false };
 };
 
-export const listDriverBuyForMeJobs = async ({ driverId, scope = 'all', page = 1, limit = 30 }) => {
+export const listDriverBuyForMeJobs = async ({ driverId, scope = 'all', page = 1, limit = 30, orderId = '' }) => {
+  const driver = await eligibleShoppingDriver(driverId);
   const pageNumber = Math.max(1, Number(page) || 1);
   const pageSize = Math.max(1, Math.min(50, Number(limit) || 30));
-  const pool = { driverId: null, status: 'SEARCHING_DRIVER', currentStage: 'ASSIGNED' };
+  const pool = { countryId: driver.countryId, driverId: null, status: 'SEARCHING_DRIVER', currentStage: 'ASSIGNED', disputeOpen: { $ne: true } };
   const normalizedScope = ['assigned', 'pool', 'all'].includes(String(scope).toLowerCase()) ? String(scope).toLowerCase() : 'all';
-  const filter = normalizedScope === 'pool' ? pool : normalizedScope === 'assigned' ? { driverId } : { $or: [{ driverId }, pool] };
+  const filter = normalizedScope === 'pool' ? pool : normalizedScope === 'assigned' ? { driverId, countryId: driver.countryId } : { countryId: driver.countryId, $or: [{ driverId }, pool] };
+  if (orderId) {
+    if (!mongoose.isValidObjectId(orderId)) throw createHttpError('Mission invalide.');
+    filter._id = orderId;
+    filter.driverId = driverId;
+  }
   const [items, total] = await Promise.all([
     hydrateOrder(BuyForMeOrder.find(filter).sort({ updatedAt: -1 }).skip((pageNumber - 1) * pageSize).limit(pageSize)).lean(),
     BuyForMeOrder.countDocuments(filter)
@@ -421,10 +467,13 @@ export const listDriverBuyForMeJobs = async ({ driverId, scope = 'all', page = 1
   };
 };
 
-const getDriverOwnedOrder = async ({ orderId, driverId }) => {
-  const order = await BuyForMeOrder.findById(orderId);
+const getDriverOwnedOrder = async ({ orderId, driverId, session = null }) => {
+  const driver = await eligibleShoppingDriver(driverId);
+  const order = await BuyForMeOrder.findById(orderId).session(session);
   if (!order) throw createHttpError('Demande introuvable.', 404);
   if (asId(order.driverId) !== asId(driverId)) throw createHttpError('Cette mission ne vous est pas attribuée.', 403);
+  if (asId(order.countryId) !== asId(driver.countryId)) throw createHttpError('Cette mission appartient à un autre pays.', 403);
+  if (order.disputeOpen) throw createHttpError('Cette mission est suspendue pendant l’examen du litige.', 409);
   return order;
 };
 
@@ -435,10 +484,12 @@ const getDriverUserId = async (driverId) => {
 };
 
 export const acceptBuyForMeJob = async ({ orderId, driverId, actorId }) => {
+  const eligible = await eligibleShoppingDriver(driverId);
   const acceptedAt = new Date();
   const order = await BuyForMeOrder.findOneAndUpdate(
-    { _id: orderId, driverId: null, status: 'SEARCHING_DRIVER', currentStage: 'ASSIGNED' },
+    { _id: orderId, countryId: eligible.countryId, driverId: null, status: 'SEARCHING_DRIVER', currentStage: 'ASSIGNED', disputeOpen: { $ne: true } },
     {
+      $inc: { __v: 1 },
       $set: { driverId, status: 'DRIVER_ASSIGNED', currentStage: 'ACCEPTED', assignmentAcceptedAt: acceptedAt },
       $push: { timeline: { type: 'DRIVER_ACCEPTED', by: actorId, at: acceptedAt, meta: { driverId: asId(driverId) } } }
     },
@@ -522,6 +573,7 @@ export const respondToBuyForMeItem = async ({ orderId, customerId, itemId, actio
   const order = await BuyForMeOrder.findOne({ _id: orderId, customerId });
   if (!order) throw createHttpError('Demande introuvable.', 404);
   if (order.status !== 'WAITING_CUSTOMER_APPROVAL') throw createHttpError('Aucune décision client n’est attendue.', 409);
+  if (order.disputeOpen || ['REQUIRED', 'PENDING'].includes(order.additionalPayment?.status)) throw createHttpError('Un complément ou un litige doit être traité avant de reprendre.', 409);
   const item = order.items.id(itemId);
   if (!item || item.status !== 'UNAVAILABLE') throw createHttpError('Cet article ne nécessite pas de décision.', 409);
   const normalizedAction = String(action || '').toUpperCase();
@@ -533,7 +585,7 @@ export const respondToBuyForMeItem = async ({ orderId, customerId, itemId, actio
   } else if (normalizedAction === 'CANCEL') {
     item.status = 'CANCELED';
   } else if (normalizedAction === 'CONTINUE') {
-    item.status = 'UNAVAILABLE';
+    item.status = 'CANCELED';
   } else {
     throw createHttpError('Décision invalide.');
   }
@@ -542,13 +594,14 @@ export const respondToBuyForMeItem = async ({ orderId, customerId, itemId, actio
   appendTimeline(order, 'CUSTOMER_ITEM_DECISION', customerId, { itemId: String(item._id), action: normalizedAction, replacementNote: item.replacementNote });
   await order.save();
   const driver = await getDriverUserId(order.driverId);
-  await notify({ userId: driver.userId, actorId: customerId, title: 'Décision du client reçue', message: `Le client a répondu pour « ${item.name} ».`, orderId });
+  await notify({ userId: driver.userId, actorId: customerId, title: 'Décision du client reçue', message: `Le client a répondu pour « ${item.name} ».`, orderId, audience: 'courier' });
   return getBuyForMeOrderForCustomer({ orderId, customerId });
 };
 
 export const adjustBuyForMeOverage = async ({ orderId, customerId, adjustments = [] }) => {
   const order = await BuyForMeOrder.findOne({ _id: orderId, customerId });
   if (!order) throw createHttpError('Demande introuvable.', 404);
+  if (order.disputeOpen) throw createHttpError('Un litige est en cours.', 409);
   if (order.status !== 'WAITING_CUSTOMER_APPROVAL' || order.additionalPayment?.status !== 'REQUIRED') {
     throw createHttpError('Aucun dépassement à ajuster.', 409);
   }
@@ -588,13 +641,14 @@ export const adjustBuyForMeOverage = async ({ orderId, customerId, adjustments =
     actorId: customerId,
     title: 'Achats à ajuster',
     message: 'Le client a demandé des retraits ou remplacements pour rester dans son montant estimé.',
-    orderId
+    orderId, audience: 'courier'
   });
   return getBuyForMeOrderForCustomer({ orderId, customerId });
 };
 
 export const uploadBuyForMeReceipt = async ({ orderId, driverId, actorId, storeName, amountSpent, receiptImageUrl, productPhotoUrls = [], note = '' }) => {
-  const order = await getDriverOwnedOrder({ orderId, driverId });
+  const order = await withCommerceOperation(`shopping:${orderId}`, async session => {
+  const order = await getDriverOwnedOrder({ orderId, driverId, session });
   if (order.status !== 'SHOPPING') throw createHttpError('Le reçu peut être ajouté uniquement pendant les achats.', 409);
   const totalSpent = roundCurrency(amountSpent);
   const receiptUrl = stringValue(receiptImageUrl, 500);
@@ -613,7 +667,7 @@ export const uploadBuyForMeReceipt = async ({ orderId, driverId, actorId, storeN
         note: stringValue(note, 1000)
       }
     },
-    { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+    { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true, session }
   );
   order.receiptId = receipt._id;
   order.amountSpent = totalSpent;
@@ -625,34 +679,57 @@ export const uploadBuyForMeReceipt = async ({ orderId, driverId, actorId, storeN
     order.remainingBalance = 0;
     order.additionalPayment = { required: true, amount: excess, status: 'REQUIRED', requestedAt: new Date(), checkoutId: '', resolvedAt: null };
     appendTimeline(order, 'ADDITIONAL_PAYMENT_REQUIRED', actorId, { amount: excess, amountSpent: totalSpent });
-    await notify({ userId: order.customerId, actorId, title: 'Paiement complémentaire requis', message: `Le total des achats dépasse votre montant estimé de ${excess.toLocaleString('fr-FR')} FCFA. Validez le complément avant la livraison.`, orderId });
   } else {
     order.remainingBalance = Math.max(0, estimatedShoppingValue - totalSpent);
     order.status = 'RECEIPT_UPLOADED';
     order.currentStage = 'RECEIPT_UPLOADED';
     appendTimeline(order, 'RECEIPT_UPLOADED', actorId, { amountSpent: totalSpent, remainingBalance: order.remainingBalance });
+  }
+  await order.save({ session });
+  return order;
+  });
+  if (order.additionalPayment?.status === 'REQUIRED') {
+    await notify({ userId: order.customerId, actorId, title: 'Paiement complémentaire requis', message: `Le total des achats dépasse votre montant estimé de ${order.additionalPayment.amount.toLocaleString('fr-FR')} FCFA. Validez le complément avant la livraison.`, orderId });
+  } else {
     await notify({ userId: order.customerId, actorId, title: 'Reçu disponible', message: 'Votre livreur a ajouté le reçu. La livraison peut commencer.', orderId });
   }
-  await order.save();
   return (await hydrateOrder(BuyForMeOrder.findById(orderId))).toObject();
 };
 
 export const completeBuyForMeAdditionalPayment = async ({ orderId, customerId, checkoutId, amountPaid }) => {
-  const order = await BuyForMeOrder.findOne({ _id: orderId, customerId });
+  await withCommerceOperation(`shopping:${orderId}`, async session => {
+  const order = await BuyForMeOrder.findOne({ _id: orderId, customerId }).session(session);
   if (!order) throw createHttpError('Demande introuvable.', 404);
+  const checkout = await Checkout.findOne({ checkoutId, user: customerId, paymentState: 'CONFIRMED' }).session(session).lean();
+  if (!checkout || checkout.amount !== amountPaid || checkout.currency !== order.currency || asId(checkout.countryId) !== asId(order.countryId)) throw createHttpError('Paiement confirmé invalide.', 409);
+  if (await BuyForMeTransaction.exists({ orderId, type: 'ADDITIONAL_FUNDING', providerReference: checkoutId }).session(session)) return;
   const expected = roundCurrency(order.additionalPayment?.amount);
-  if (order.additionalPayment?.status !== 'REQUIRED' || expected <= 0) throw createHttpError('Aucun paiement complémentaire n’est requis.', 409);
-  if (Math.abs(roundCurrency(amountPaid) - expected) > 0.01) throw createHttpError('Le montant du complément est invalide.', 409);
+  await BuyForMeTransaction.create([{ orderId, userId: customerId, type: 'ADDITIONAL_FUNDING', amount: amountPaid, status: 'RESERVED', providerReference: checkoutId }], { session });
+  const matching = order.status === 'WAITING_CUSTOMER_APPROVAL' && !order.disputeOpen &&
+    ['PENDING', 'REQUIRED'].includes(order.additionalPayment?.status) && order.additionalPayment.checkoutId === checkoutId && expected === amountPaid;
+  if (!matching) {
+    // Money really arrived after a cancellation/change. Return it to the same
+    // payer instead of reviving the order or losing a confirmed payment.
+    order.payment.totalPaid += amountPaid;
+    await reserveShoppingRefund({ order, amount: amountPaid, reason: `LATE_PAYMENT_${checkoutId}`, checkoutId, session });
+    appendTimeline(order, 'LATE_PAYMENT_REFUND_REQUESTED', customerId, { checkoutId, amount: amountPaid });
+    await order.save({ session });
+    return;
+  }
   order.payment.totalPaid += expected;
   order.additionalPayment = { required: false, amount: expected, status: 'PAID', checkoutId: stringValue(checkoutId, 180), requestedAt: order.additionalPayment.requestedAt, resolvedAt: new Date() };
   order.remainingBalance = 0;
   order.status = 'RECEIPT_UPLOADED';
   order.currentStage = 'RECEIPT_UPLOADED';
   appendTimeline(order, 'ADDITIONAL_PAYMENT_PAID', customerId, { amount: expected, checkoutId });
-  await order.save();
-  await BuyForMeTransaction.create({ orderId, userId: customerId, type: 'ADDITIONAL_FUNDING', amount: expected, status: 'RESERVED', providerReference: stringValue(checkoutId, 180) });
-  const driver = await getDriverUserId(order.driverId);
-  await notify({ userId: driver.userId, actorId: customerId, title: 'Paiement complémentaire confirmé', message: 'Le client a validé le complément. Vous pouvez livrer la commande.', orderId });
+  await order.save({ session });
+  });
+  const order = await BuyForMeOrder.findById(orderId);
+  await processShoppingTransfers({ orderId });
+  if (order.status === 'RECEIPT_UPLOADED' && order.driverId) {
+    const driver = await DeliveryGuy.findById(order.driverId).select('userId').lean();
+    await notify({ userId: driver?.userId, actorId: customerId, title: 'Paiement complémentaire confirmé', message: 'Le client a validé le complément. Vous pouvez livrer la commande.', orderId, audience: 'courier' });
+  }
   return getBuyForMeOrderForCustomer({ orderId, customerId });
 };
 
@@ -660,6 +737,7 @@ export const declineBuyForMeAdditionalPayment = async ({ orderId, customerId }) 
   const order = await BuyForMeOrder.findOne({ _id: orderId, customerId });
   if (!order) throw createHttpError('Demande introuvable.', 404);
   if (order.additionalPayment?.status !== 'REQUIRED') throw createHttpError('Aucun paiement complémentaire en attente.', 409);
+  if (order.status !== 'WAITING_CUSTOMER_APPROVAL' || order.disputeOpen) throw createHttpError('Cette demande ne peut pas être modifiée.', 409);
   order.additionalPayment.status = 'DECLINED';
   order.additionalPayment.resolvedAt = new Date();
   order.receiptId = null;
@@ -670,7 +748,7 @@ export const declineBuyForMeAdditionalPayment = async ({ orderId, customerId }) 
   appendTimeline(order, 'ADDITIONAL_PAYMENT_DECLINED', customerId, { amount: order.additionalPayment.amount });
   await order.save();
   const driver = await getDriverUserId(order.driverId);
-  await notify({ userId: driver.userId, actorId: customerId, title: 'Paiement complémentaire refusé', message: 'Le client a refusé le complément. Ajustez les achats sans avancer la différence.', orderId });
+  await notify({ userId: driver.userId, actorId: customerId, title: 'Paiement complémentaire refusé', message: 'Le client a refusé le complément. Ajustez les achats sans avancer la différence.', orderId, audience: 'courier' });
   return getBuyForMeOrderForCustomer({ orderId, customerId });
 };
 
@@ -697,51 +775,78 @@ export const markBuyForMeDelivered = async ({ orderId, driverId, actorId }) => {
 };
 
 export const confirmBuyForMeOrder = async ({ orderId, customerId }) => {
-  const order = await BuyForMeOrder.findOne({ _id: orderId, customerId });
+  await withCommerceOperation(`shopping:${orderId}`, async session => {
+  const order = await BuyForMeOrder.findOne({ _id: orderId, customerId }).session(session);
   if (!order) throw createHttpError('Demande introuvable.', 404);
+  if (order.status === 'COMPLETED') {
+    if (order.settlementVersion !== 1) throw createHttpError('Cette ancienne demande doit être rapprochée avant tout versement.', 409);
+    return;
+  }
+  if (order.disputeOpen || await BuyForMeDispute.exists({ orderId, status: { $in: ['OPEN', 'IN_REVIEW'] } }).session(session)) throw createHttpError('Le litige doit être résolu avant de finaliser.', 409);
   if (order.status !== 'DELIVERED') throw createHttpError('La demande doit être livrée avant confirmation.', 409);
   order.status = 'COMPLETED';
   order.currentStage = 'COMPLETED';
-  const remaining = Math.max(0, getAuthorizedShoppingValue(order) - roundCurrency(order.amountSpent));
+  const available = order.payment.totalPaid - Number(order.refundDue || 0);
+  const costs = roundCurrency(order.amountSpent) + order.pricing.driverEarnings + order.pricing.serviceCommission;
+  if (costs > available) throw createHttpError('Le total des achats doit être rapproché avant la confirmation.', 409);
+  const remaining = available - costs;
   order.remainingBalance = remaining;
+  order.settlementVersion = 1;
   appendTimeline(order, 'CUSTOMER_CONFIRMED', customerId, { remainingBalance: remaining, preference: order.balancePreference });
-  await order.save();
-
+  const driver = await DeliveryGuy.findById(order.driverId).session(session).lean();
+  if (!driver?.userId) throw createHttpError('Profil livreur à rapprocher.', 409);
   const transactions = [
-    { orderId, userId: customerId, type: 'FUNDING', amount: order.payment.totalPaid, status: 'COMPLETED', metadata: { settled: true } },
-    { orderId, userId: null, type: 'DRIVER_EARNING', amount: order.pricing.driverEarnings, status: 'COMPLETED', metadata: { driverId: asId(order.driverId) } }
+    { orderId, userId: driver.userId, type: 'DRIVER_EARNING', amount: order.pricing.driverEarnings, status: 'PENDING', metadata: { driverId: asId(order.driverId) } },
+    { orderId, userId: driver.userId, type: 'DRIVER_REIMBURSEMENT', amount: order.amountSpent, status: 'PENDING', metadata: { driverId: asId(order.driverId) } }
   ];
   if (remaining > 0) {
-    if (order.balancePreference === 'WALLET_REFUND') {
-      await BuyForMeRefund.findOneAndUpdate(
-        { orderId },
-        { $set: { customerId, amount: remaining, destination: 'HDMARKET_WALLET', status: 'COMPLETED', reference: `shopping-${orderId}` } },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
-      transactions.push({ orderId, userId: customerId, type: 'WALLET_REFUND', amount: remaining, status: 'COMPLETED' });
+    if (['WALLET_REFUND', 'ORIGINAL_PAYMENT'].includes(order.balancePreference)) {
+      order.balancePreference = 'ORIGINAL_PAYMENT';
+      await reserveShoppingRefund({ order, amount: remaining, reason: 'UNSPENT_BALANCE', session });
     } else if (order.balancePreference === 'DRIVER_TIP') {
-      transactions.push({ orderId, userId: null, type: 'DRIVER_TIP', amount: remaining, status: 'COMPLETED', metadata: { driverId: asId(order.driverId) } });
+      transactions.push({ orderId, userId: driver.userId, type: 'DRIVER_TIP', amount: remaining, status: 'PENDING', metadata: { driverId: asId(order.driverId) } });
     } else {
       transactions.push({ orderId, userId: null, type: 'PLATFORM_DONATION', amount: remaining, status: 'COMPLETED' });
     }
   }
-  await BuyForMeTransaction.insertMany(transactions);
+  await BuyForMeTransaction.insertMany(transactions, { session });
+  await reserveShoppingPayout({ order, userId: driver.userId, amount: order.amountSpent + order.pricing.driverEarnings + (order.balancePreference === 'DRIVER_TIP' ? remaining : 0), session });
+  await BuyForMeTransaction.updateMany({ orderId, type: { $in: ['FUNDING', 'ADDITIONAL_FUNDING'] } }, { $set: { status: 'COMPLETED' } }, { session });
+  await order.save({ session });
+  });
+  const order = await BuyForMeOrder.findById(orderId);
   const driver = await getDriverUserId(order.driverId);
-  await notify({ userId: driver.userId, actorId: customerId, title: 'Mission finalisée', message: 'Le client a confirmé la réception des achats.', orderId });
-  await Promise.all([invalidateUserCache(customerId, ['notifications']), invalidateAdminCache(['admin', 'dashboard', 'delivery'])]);
+  await notify({ userId: driver.userId, actorId: customerId, title: 'Mission finalisée', message: 'Le client a confirmé la réception des achats. Votre versement est en cours de traitement.', orderId, audience: 'courier' });
+  await processShoppingTransfers({ orderId });
+  await Promise.allSettled([invalidateUserCache(customerId, ['notifications']), invalidateAdminCache(['admin', 'dashboard', 'delivery'])]);
   return getBuyForMeOrderForCustomer({ orderId, customerId });
 };
 
 export const openBuyForMeDispute = async ({ orderId, customerId, reason }) => {
-  const order = await BuyForMeOrder.findOne({ _id: orderId, customerId }).lean();
+  const result = await withCommerceOperation(`shopping:${orderId}`, async session => {
+  const order = await BuyForMeOrder.findOne({ _id: orderId, customerId }).session(session);
   if (!order) throw createHttpError('Demande introuvable.', 404);
-  const dispute = await BuyForMeDispute.create({ orderId, customerId, reason: stringValue(reason, 1000) });
-  await invalidateAdminCache(['admin', 'dashboard', 'delivery']);
-  return dispute.toObject();
+  const existing = await BuyForMeDispute.findOne({ orderId, status: { $in: ['OPEN', 'IN_REVIEW'] } }).session(session);
+  if (existing) return { dispute: existing, order };
+  if (TERMINAL_STATUSES.includes(order.status) || order.status === 'PENDING_PAYMENT') throw createHttpError('Cette demande est clôturée. Contactez l’assistance pour ce paiement historique.', 409);
+  if (!stringValue(reason, 1000)) throw createHttpError('Décrivez le problème.');
+  const [dispute] = await BuyForMeDispute.create([{ orderId, customerId, countryId: order.countryId, reason: stringValue(reason, 1000) }], { session });
+  order.disputeOpen = true;
+  appendTimeline(order, 'DISPUTE_OPENED', customerId, { disputeId: dispute._id });
+  await order.save({ session });
+  return { dispute, order };
+  });
+  const staff = await User.find({ $or: [{ role: 'founder' }, { role: 'admin', adminCountryIds: result.order.countryId }] }).select('_id').lean();
+  await Promise.all(staff.map(user => notify({ userId: user._id, actorId: customerId, title: 'Litige Acheter pour moi', message: 'Une demande nécessite votre examen.', orderId, audience: 'admin' })));
+  if (result.order.driverId) {
+    const driver = await getDriverUserId(result.order.driverId);
+    await notify({ userId: driver.userId, actorId: customerId, title: 'Mission suspendue', message: 'Un litige est en cours d’examen. Attendez la décision avant de poursuivre.', orderId, audience: 'courier' });
+  }
+  return result.dispute.toObject();
 };
 
-export const getAdminBuyForMeOrders = async ({ status = '', search = '', page = 1, limit = 30 } = {}) => {
-  const filter = {};
+export const getAdminBuyForMeOrders = async ({ status = '', search = '', page = 1, limit = 30, user, countryId } = {}) => {
+  const filter = await shoppingAdminFilter(user, countryId);
   if (status && status !== 'ALL') filter.status = String(status).toUpperCase();
   const phrase = stringValue(search, 120);
   if (phrase) {
@@ -761,16 +866,18 @@ export const getAdminBuyForMeOrders = async ({ status = '', search = '', page = 
   return { items, total, page: pageNumber, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
 };
 
-export const getAdminBuyForMeStats = async () => {
+export const getAdminBuyForMeStats = async ({ user, countryId } = {}) => {
+  const filter = await shoppingAdminFilter(user, countryId);
+  const match = { $match: filter };
   const [byStatus, totals, topStores, topDrivers, refunds] = await Promise.all([
-    BuyForMeOrder.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    BuyForMeOrder.aggregate([match, { $group: { _id: '$status', count: { $sum: 1 } } }]),
     BuyForMeOrder.aggregate([
-      { $match: { status: { $in: ['DELIVERED', 'COMPLETED'] } } },
+      match, { $match: { status: 'COMPLETED', settlementVersion: 1 } },
       { $group: { _id: null, revenue: { $sum: '$pricing.serviceCommission' }, basket: { $avg: { $ifNull: ['$estimatedShoppingValue', '$maxShoppingBudget'] } }, shoppingValue: { $avg: '$amountSpent' }, deliveryFee: { $avg: '$pricing.deliveryFee' }, commission: { $avg: '$pricing.serviceCommission' }, driverEarnings: { $sum: '$pricing.driverEarnings' } } }
     ]),
-    BuyForMeOrder.aggregate([{ $group: { _id: '$preferredStore', count: { $sum: 1 } } }, { $match: { _id: { $ne: '' } } }, { $sort: { count: -1 } }, { $limit: 5 }]),
-    BuyForMeOrder.aggregate([{ $match: { driverId: { $ne: null } } }, { $group: { _id: '$driverId', count: { $sum: 1 }, earnings: { $sum: '$pricing.driverEarnings' } } }, { $sort: { count: -1 } }, { $limit: 5 }]),
-    BuyForMeRefund.aggregate([{ $match: { status: 'COMPLETED' } }, { $group: { _id: null, total: { $sum: '$amount' } } }])
+    BuyForMeOrder.aggregate([match, { $group: { _id: '$preferredStore', count: { $sum: 1 } } }, { $match: { _id: { $ne: '' } } }, { $sort: { count: -1 } }, { $limit: 5 }]),
+    BuyForMeOrder.aggregate([match, { $match: { driverId: { $ne: null }, status: 'COMPLETED', settlementVersion: 1 } }, { $group: { _id: '$driverId', count: { $sum: 1 }, earnings: { $sum: '$pricing.driverEarnings' } } }, { $sort: { count: -1 } }, { $limit: 5 }]),
+    Transfer.aggregate([{ $match: { ...filter, type: 'REFUND', status: 'COMPLETED' } }, { $group: { _id: null, total: { $sum: '$amount' } } }])
   ]);
   const statusCounts = Object.fromEntries(byStatus.map((entry) => [entry._id, entry.count]));
   return {
@@ -788,40 +895,87 @@ export const getAdminBuyForMeStats = async () => {
   };
 };
 
-export const assignBuyForMeDriver = async ({ orderId, driverId, actorId }) => {
+export const assignBuyForMeDriver = async ({ orderId, driverId, actorId, user }) => {
   if (!mongoose.isValidObjectId(driverId)) throw createHttpError('Livreur invalide.');
-  const driver = await DeliveryGuy.findById(driverId).select('_id userId fullName name buyForMeOptIn').lean();
-  if (!driver) throw createHttpError('Livreur introuvable.', 404);
-  if (driver.buyForMeOptIn !== true) {
-    throw createHttpError('Ce livreur n’a pas accepté les missions « Acheter pour moi ».', 409);
-  }
+  const filter = await shoppingAdminFilter(user);
+  const target = await BuyForMeOrder.findOne({ _id: orderId, ...filter }).lean();
+  if (!target) throw createHttpError('Demande introuvable.', 404);
+  const driver = await eligibleShoppingDriver(driverId);
+  if (shoppingId(target.countryId) !== shoppingId(driver.countryId)) throw createHttpError('Ce livreur appartient à un autre pays.', 403);
   const order = await BuyForMeOrder.findOneAndUpdate(
-    { _id: orderId, status: 'SEARCHING_DRIVER', driverId: null },
-    { $set: { driverId, status: 'DRIVER_ASSIGNED', currentStage: 'ACCEPTED', assignmentAcceptedAt: new Date() }, $push: { timeline: { type: 'DRIVER_ASSIGNED_BY_ADMIN', by: actorId, at: new Date(), meta: { driverId } } } },
+    { _id: orderId, ...filter, status: 'SEARCHING_DRIVER', driverId: null, disputeOpen: { $ne: true } },
+    { $inc: { __v: 1 }, $set: { driverId, status: 'DRIVER_ASSIGNED', currentStage: 'ACCEPTED', assignmentAcceptedAt: new Date() }, $push: { timeline: { type: 'DRIVER_ASSIGNED_BY_ADMIN', by: actorId, at: new Date(), meta: { driverId } } } },
     { new: true, runValidators: true }
   );
   if (!order) throw createHttpError('Cette demande ne peut plus être assignée.', 409);
-  await notify({ userId: driver.userId, actorId, title: 'Nouvelle mission d’achat', message: 'Une demande Acheter Pour Moi vous a été assignée.', orderId });
+  await notify({ userId: driver.userId, actorId, title: 'Nouvelle mission d’achat', message: 'Une demande Acheter Pour Moi vous a été assignée.', orderId, audience: 'courier' });
   await notify({ userId: order.customerId, actorId, title: 'Livreur assigné', message: 'Un livreur a été assigné à votre demande.', orderId });
   return (await hydrateOrder(BuyForMeOrder.findById(orderId))).toObject();
 };
 
-export const adminCancelBuyForMeOrder = async ({ orderId, actorId, reason = '' }) => {
-  const order = await BuyForMeOrder.findById(orderId);
+export const adminCancelBuyForMeOrder = async ({ orderId, actorId, user, reason = '' }) => {
+  const filter = await shoppingAdminFilter(user);
+  const order = await withCommerceOperation(`shopping:${orderId}`, async session => {
+  const order = await BuyForMeOrder.findOne({ _id: orderId, ...filter }).session(session);
   if (!order) throw createHttpError('Demande introuvable.', 404);
+  if (order.status === 'CANCELED') return order;
   if (TERMINAL_STATUSES.includes(order.status)) throw createHttpError('Cette demande est déjà clôturée.', 409);
+  if (order.additionalPayment?.status === 'PENDING') throw createHttpError('Vérifiez le paiement en cours avant d’annuler.', 409);
+  if (!stringValue(reason, 300)) throw createHttpError('Indiquez le motif de l’annulation et du remboursement intégral.');
   order.status = 'CANCELED';
   order.currentStage = 'FAILED';
   order.cancelledAt = new Date();
   order.cancelledBy = actorId;
+  order.additionalPayment.status = 'DECLINED';
+  order.additionalPayment.required = false;
+  order.disputeOpen = false;
+  await reserveShoppingRefund({ order, amount: order.payment.totalPaid - Number(order.refundDue || 0), reason: 'CANCELLATION', session });
+  await BuyForMeDispute.updateMany({ orderId, status: { $in: ['OPEN', 'IN_REVIEW'] } }, { $set: {
+    status: 'RESOLVED', resolution: stringValue(reason, 1000), refundAmount: order.refundDue, resolvedBy: actorId, resolvedAt: new Date()
+  } }, { session });
   appendTimeline(order, 'SHOPPING_ORDER_CANCELED_BY_ADMIN', actorId, { reason: stringValue(reason, 300) });
-  await order.save();
+  await order.save({ session });
+  return order;
+  });
   await notify({ userId: order.customerId, actorId, title: 'Demande annulée', message: reason ? `Votre demande a été annulée : ${reason}` : 'Votre demande a été annulée.', orderId });
   if (order.driverId) {
     const driver = await getDriverUserId(order.driverId);
-    await notify({ userId: driver.userId, actorId, title: 'Mission annulée', message: 'Cette mission d’achat a été annulée par un administrateur.', orderId });
+    await notify({ userId: driver.userId, actorId, title: 'Mission annulée', message: 'Cette mission d’achat a été annulée par un administrateur.', orderId, audience: 'courier' });
   }
-  return (await hydrateOrder(BuyForMeOrder.findById(orderId))).toObject();
+  await processShoppingTransfers({ orderId });
+  return getBuyForMeOrderForCustomer({ orderId, customerId: order.customerId });
+};
+
+export const listShoppingDisputes = async ({ user, countryId }) => {
+  const filter = await shoppingAdminFilter(user, countryId);
+  return BuyForMeDispute.find({ ...filter, status: { $in: ['OPEN', 'IN_REVIEW'] } }).populate('customerId', 'name').populate('orderId', 'status payment refundDue').sort({ createdAt: 1 }).limit(100).lean();
+};
+
+export const resolveShoppingDispute = async ({ disputeId, user, status, resolution }) => {
+  const filter = await shoppingAdminFilter(user);
+  const dispute = await BuyForMeDispute.findOne({ _id: disputeId, ...filter }).lean();
+  if (!dispute) throw shoppingError('Litige introuvable.', 404);
+  if (!['IN_REVIEW', 'RESOLVED', 'REJECTED'].includes(status)) throw shoppingError('Décision invalide.');
+  if (status !== 'IN_REVIEW' && !stringValue(resolution, 1000)) throw shoppingError('Expliquez la décision.');
+  await withCommerceOperation(`shopping:${dispute.orderId}`, async session => {
+    const current = await BuyForMeDispute.findById(disputeId).session(session);
+    if (!['OPEN', 'IN_REVIEW'].includes(current.status)) throw shoppingError('Ce litige est déjà clôturé.', 409);
+    const order = await BuyForMeOrder.findOne({ _id: current.orderId, ...filter }).session(session);
+    if (!order) throw shoppingError('Demande introuvable.', 404);
+    current.status = status; current.resolution = stringValue(resolution, 1000);
+    if (status !== 'IN_REVIEW') {
+      current.resolvedBy = user._id || user.id; current.resolvedAt = new Date(); order.disputeOpen = false;
+    }
+    appendTimeline(order, 'DISPUTE_UPDATED', user._id || user.id, { status, resolution: current.resolution });
+    await current.save({ session }); await order.save({ session });
+  });
+  await notify({ userId: dispute.customerId, actorId: user._id || user.id, title: 'Litige mis à jour', message: status === 'IN_REVIEW' ? 'Votre demande est en cours d’examen.' : resolution, orderId: dispute.orderId });
+  const order = await BuyForMeOrder.findById(dispute.orderId).lean();
+  if (order.driverId) {
+    const driver = await getDriverUserId(order.driverId);
+    await notify({ userId: driver.userId, title: 'Litige mis à jour', message: status === 'IN_REVIEW' ? 'La mission reste suspendue.' : 'Le litige est clôturé. Consultez la mission.', orderId: order._id, audience: 'courier' });
+  }
+  return BuyForMeDispute.findById(disputeId).lean();
 };
 
 export { STORE_TYPES, BALANCE_PREFERENCES };

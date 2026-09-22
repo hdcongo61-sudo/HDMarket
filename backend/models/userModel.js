@@ -124,7 +124,7 @@ const userSchema = new mongoose.Schema(
     communeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Commune', default: null, index: true },
     city: { type: String, default: 'Brazzaville', trim: true },
     commune: { type: String, default: '', trim: true },
-    gender: { type: String, enum: ['homme', 'femme'], default: 'homme' },
+    gender: { type: String, enum: ['homme', 'femme', ''], default: '' },
     preferredLanguage: { type: String, default: 'fr', trim: true },
     preferredCurrency: { type: String, default: 'XAF', trim: true, uppercase: true },
     preferredCity: { type: String, default: '', trim: true },
@@ -134,6 +134,7 @@ const userSchema = new mongoose.Schema(
       accepted: { type: Boolean, default: false },
       termsVersion: { type: String, trim: true, default: '' },
       privacyVersion: { type: String, trim: true, default: '' },
+      jurisdiction: { type: String, trim: true, default: '' },
       acceptedAt: { type: Date, default: null },
       source: { type: String, trim: true, default: '' }
     },

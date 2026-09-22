@@ -15,6 +15,7 @@ frontend/android/app/src/main/assets/public/
 
 # Backend runtime data
 backend/uploads/
+backend/private-uploads/
 
 # Logs and OS/editor noise
 *.log

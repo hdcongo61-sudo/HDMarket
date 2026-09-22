@@ -26,7 +26,8 @@ import {
   verifyPawaPayContentDigest,
   verifyPawaPaySignature
 } from '../controllers/pawapayController.js';
-import { getPawaPayConfig } from '../services/pawapayService.js';
+import { rejectLegacyPaymentWhenPawaPayOnly } from '../middlewares/pawaPayOnlyMiddleware.js';
+import { requireCountryContext } from '../middlewares/countryMiddleware.js';
 import { getPawaPayConfigCheckHandler } from '../controllers/pawapayController.js';
 import {
   listSellerPayoutsAdmin,
@@ -39,15 +40,6 @@ import {
 } from '../controllers/listingFeePaymentController.js';
 
 const router = express.Router();
-
-const rejectLegacyPaymentWhenPawaPayOnly = (req, res, next) => {
-  if (!getPawaPayConfig().exclusiveMode) return next();
-  if (Number(req.body?.amount || 0) === 0) return next();
-  return res.status(403).json({
-    code: 'PAWAPAY_ONLY',
-    message: 'Les paiements manuels et les identifiants de transaction sont désactivés. Utilisez PawaPay.'
-  });
-};
 
 // Public provider callbacks. PawaPay does not send an HDMarket user token.
 // Keep these routes above all authenticated payment routes.
@@ -137,7 +129,7 @@ router.post(
 );
 
 // Payment verification - accessible by admin OR users with canVerifyPayments permission
-router.get('/admin', protect, requirePaymentVerification, listPaymentsAdmin);
+router.get('/admin', protect, requirePaymentVerification, requireCountryContext, listPaymentsAdmin);
 router.put(
   '/admin/:id/verify',
   protect,

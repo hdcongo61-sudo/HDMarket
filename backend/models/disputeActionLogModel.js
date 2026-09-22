@@ -14,6 +14,7 @@ const disputeActionLogSchema = new mongoose.Schema(
         'AUTO_ESCALATED',
         'UNDER_REVIEW_SET',
         'ADMIN_RESOLVED',
+        'REFUND_RETRIED',
         'DEADLINE_REMINDER_SENT'
       ],
       required: true

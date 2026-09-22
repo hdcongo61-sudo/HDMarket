@@ -1602,20 +1602,14 @@ export default function Profile() {
       showToast(message, { variant: 'error' });
       return;
     }
-    if (!form.city || !form.gender) {
-      const message = 'Veuillez sélectionner votre ville et votre genre.';
+    if (form.accountType === 'shop' && !form.city) {
+      const message = 'Veuillez sélectionner la ville de votre boutique.';
       setError(message);
       showToast(message, { variant: 'error' });
       return;
     }
-    if (availableCommunes.length > 0 && !form.commune) {
+    if (form.accountType === 'shop' && availableCommunes.length > 0 && !form.commune) {
       const message = 'Veuillez sélectionner votre commune.';
-      setError(message);
-      showToast(message, { variant: 'error' });
-      return;
-    }
-    if (!form.address.trim()) {
-      const message = 'Veuillez renseigner votre adresse complète.';
       setError(message);
       showToast(message, { variant: 'error' });
       return;
@@ -1652,11 +1646,10 @@ export default function Profile() {
         profileImagePreview && !profileImageFile ? profileImagePreview : ''
       );
       payload.append('accountType', form.accountType);
-      payload.append('city', form.city);
-      payload.append('commune', form.commune || '');
-      payload.append('cityId', selectedCityId);
-      payload.append('communeId', selectedCommuneId);
-      payload.append('gender', form.gender);
+      payload.append('city', form.city || '');
+      payload.append('commune', form.city ? form.commune || '' : '');
+      payload.append('cityId', form.city ? selectedCityId : '');
+      payload.append('communeId', form.city ? selectedCommuneId : '');
       payload.append('address', form.address.trim());
       if (form.accountType === 'shop') {
         payload.append('shopName', form.shopName);
@@ -2034,7 +2027,7 @@ export default function Profile() {
                   <div className="relative">
                     <input
                       className="w-full px-4 py-3 pl-11 bg-gray-100 border border-gray-200 rounded-xl text-gray-500"
-                      value="République du Congo"
+                      value={user?.country || 'République du Congo'}
                       readOnly
                       disabled
                     />
@@ -2045,7 +2038,7 @@ export default function Profile() {
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                     <MapPinIcon className="w-4 h-4 text-neutral-700" />
-                    <span>Ville *</span>
+                    <span>{form.accountType === 'shop' ? 'Ville de la boutique *' : 'Ville (facultatif)'}</span>
                   </label>
                   <div className="relative">
                     <select
@@ -2054,7 +2047,7 @@ export default function Profile() {
                       value={form.city}
                       onChange={onChange}
                       disabled={loading}
-                      required
+                      required={form.accountType === 'shop'}
                     >
                       <option value="">Choisissez votre ville</option>
                       {cityOptions.map((city) => (
@@ -2079,7 +2072,7 @@ export default function Profile() {
                       value={form.commune || ''}
                       onChange={onChange}
                       disabled={loading || !form.city || availableCommunes.length === 0}
-                      required={availableCommunes.length > 0}
+                      required={form.accountType === 'shop' && availableCommunes.length > 0}
                     >
                       <option value="">
                         {availableCommunes.length > 0
@@ -2099,7 +2092,7 @@ export default function Profile() {
                 <div className="space-y-2 md:col-span-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                     <MapPinIcon className="w-4 h-4 text-neutral-700" />
-                    <span>Adresse complète *</span>
+                    <span>Adresse de livraison (facultatif)</span>
                   </label>
                   <div className="relative">
                     <textarea
@@ -2110,7 +2103,6 @@ export default function Profile() {
                       onChange={onChange}
                       disabled={loading}
                       placeholder="Quartier, rue, numéro de parcelle..."
-                      required
                     />
                     <MapPinIcon className="absolute left-4 top-4 w-4 h-4 text-gray-400" />
                   </div>
@@ -2150,38 +2142,7 @@ export default function Profile() {
                   </div>
                 )}
 
-                <div className="space-y-2 md:col-span-2">
-                  <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <UsersIcon className="w-4 h-4 text-neutral-700" />
-                    Genre *
-                    <span className="text-[11px] text-gray-500">Non modifiable</span>
-                  </span>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { value: 'homme', label: 'Homme' },
-                      { value: 'femme', label: 'Femme' }
-                    ].map((option) => (
-                      <label
-                        key={option.value}
-                        className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-colors ${
-                          form.gender === option.value
-                            ? 'border-neutral-500 bg-neutral-50 text-neutral-700'
-                            : 'border-gray-200 bg-gray-50 text-gray-600'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="gender"
-                          value={option.value}
-                          checked={form.gender === option.value}
-                          className="sr-only"
-                          disabled
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
+                <p className="text-sm leading-6 text-gray-600 md:col-span-2">Renseignez uniquement les informations utiles à votre compte. L’adresse et la position GPS restent facultatives ici ; elles peuvent être demandées pour une livraison. <Link to="/confidentialite#mes-droits" className="font-bold text-[#9a3412] underline">Gérer mes données personnelles</Link></p>
 
                   {/* Type de compte */}
                   <div className="space-y-2">

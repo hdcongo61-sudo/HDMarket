@@ -17,10 +17,11 @@ export const createComplaint = asyncHandler(async (req, res) => {
     originalName: file.originalname,
     mimetype: file.mimetype,
     size: file.size,
-    path: `uploads/complaints/${file.filename}`
+    path: `api/private-attachments/complaints/${file.filename}`
   }));
 
   const complaint = await Complaint.create({
+    countryId: req.user.countryId || null,
     user: req.user.id,
     subject,
     message,

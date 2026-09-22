@@ -5,7 +5,8 @@ import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import PawaPayButton from '../components/PawaPayButton';
-import GlassHeader from '../components/orders/GlassHeader';
+import { useCountry } from '../context/CountryContext';
+import { shoppingDraftFrom } from '../utils/shoppingDraft';
 import AddressHistoryChips from '../components/AddressHistoryChips';
 import { readAddressHistory, saveAddressToHistory } from '../utils/addressHistory';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
@@ -79,19 +80,19 @@ function LocationCard({ title, subtitle, value, onChange, onAutofill, cities, co
         </div>
       ) : null}
       <div className="grid grid-cols-2 gap-2">
-        <select value={value.cityId} onChange={(event) => onChange({ ...value, cityId: event.target.value, communeId: '' })} className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2 text-sm font-semibold text-gray-800 outline-none focus:border-[#FF5000]">
+        <select aria-label={`${title} : ville`} value={value.cityId} onChange={(event) => onChange({ ...value, cityId: event.target.value, communeId: '' })} className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2 text-sm font-semibold text-gray-800 outline-none focus:border-[#FF5000]">
           <option value="">Ville</option>
           {cities.map((city) => <option key={city._id} value={city._id}>{city.name}</option>)}
         </select>
-        <select value={value.communeId} onChange={(event) => onChange({ ...value, communeId: event.target.value })} disabled={!value.cityId} className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2 text-sm font-semibold text-gray-800 outline-none focus:border-[#FF5000] disabled:opacity-50">
+        <select aria-label={`${title} : commune`} value={value.communeId} onChange={(event) => onChange({ ...value, communeId: event.target.value })} disabled={!value.cityId} className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2 text-sm font-semibold text-gray-800 outline-none focus:border-[#FF5000] disabled:opacity-50">
           <option value="">Commune</option>
           {localCommunes.map((commune) => <option key={commune._id} value={commune._id}>{commune.name}</option>)}
         </select>
       </div>
-      <input value={value.address} onChange={(event) => onChange({ ...value, address: event.target.value })} placeholder="Adresse précise, quartier, repère…" className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]" />
+      <input aria-label={`${title} : adresse`} value={value.address} onChange={(event) => onChange({ ...value, address: event.target.value })} placeholder="Adresse précise, quartier, repère…" className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]" />
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <input value={value.contactName} onChange={(event) => onChange({ ...value, contactName: event.target.value })} placeholder="Nom du contact" className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]" />
-        <input value={value.contactPhone} onChange={(event) => onChange({ ...value, contactPhone: event.target.value })} placeholder="Téléphone" type="tel" className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]" />
+        <input aria-label={`${title} : contact`} value={value.contactName} onChange={(event) => onChange({ ...value, contactName: event.target.value })} placeholder="Nom du contact" className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]" />
+        <input aria-label={`${title} : téléphone`} value={value.contactPhone} onChange={(event) => onChange({ ...value, contactPhone: event.target.value })} placeholder="Téléphone" type="tel" className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]" />
       </div>
     </section>
   );
@@ -101,17 +102,31 @@ export default function BuyForMe() {
   const { user } = useContext(AuthContext);
   const location = useLocation();
   const { cities = [], communes = [] } = useAppSettings();
-  const [enabled, setEnabled] = useState(true);
+  const { country } = useCountry();
+  const [step, setStep] = useState(0);
+  const [listName, setListName] = useState('');
+  const [listSaving, setListSaving] = useState(false);
+  const [listSaved, setListSaved] = useState(false);
+  const [listError, setListError] = useState('');
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceError, setSourceError] = useState('');
+  const [sourceNotice, setSourceNotice] = useState('');
+  const [availabilityLoading, setAvailabilityLoading] = useState(true);
+  const titleRef = useRef(null);
+  const [enabled, setEnabled] = useState(false);
   const [supportedStoreTypes, setSupportedStoreTypes] = useState(STORE_TYPES.map(([key]) => key));
-  const [storeType, setStoreType] = useState('SUPERMARKET');
+  const [storeType, setStoreType] = useState(() => {
+    const requested = new URLSearchParams(location.search).get('store');
+    return STORE_TYPES.some(([key]) => key === requested) ? requested : 'SUPERMARKET';
+  });
   const [preferredStore, setPreferredStore] = useState('');
   const [pickup, setPickup] = useState(emptyLocation);
   const [dropoff, setDropoff] = useState(emptyLocation);
   const [items, setItems] = useState([emptyItem()]);
-  const [authorizationMode, setAuthorizationMode] = useState('ITEM_ESTIMATES');
+  const [authorizationMode, setAuthorizationMode] = useState('SHOPPING_BUDGET');
   const [shoppingBudget, setShoppingBudget] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
-  const [balancePreference, setBalancePreference] = useState('WALLET_REFUND');
+  const [balancePreference, setBalancePreference] = useState('ORIGINAL_PAYMENT');
   const [quote, setQuote] = useState(null);
   const [quoteError, setQuoteError] = useState('');
   const [quoting, setQuoting] = useState(false);
@@ -123,12 +138,35 @@ export default function BuyForMe() {
     previewUrlsRef.current.clear();
   }, []);
 
+  useEffect(() => { titleRef.current?.focus(); }, [step]);
+
   useEffect(() => {
-    api.get('/buy-for-me/capabilities').then(({ data }) => {
+    if (!user) return;
+    const params = new URLSearchParams(location.search);
+    const listId = params.get('list'), orderId = params.get('reorder');
+    if (!listId && !orderId) return;
+    let alive = true; setSourceLoading(true); setSourceError('');
+    api.get(listId ? `/buy-for-me/lists/${encodeURIComponent(listId)}` : `/buy-for-me/mine/${encodeURIComponent(orderId)}`, { skipCache: true })
+      .then(({ data }) => {
+        if (!alive) return;
+        const draft = shoppingDraftFrom(data);
+        setStoreType(draft.storeType); setPreferredStore(draft.preferredStore); setAuthorizationMode(draft.authorizationMode); setShoppingBudget(draft.shoppingBudget);
+        setItems(draft.items.length ? draft.items.map(item => ({ ...emptyItem(), ...item })) : [emptyItem()]);
+        setSourceNotice('Liste reprise. Vérifiez les articles et les estimations : le prix sera recalculé avant paiement.');
+      }).catch(error => { if (alive) setSourceError(getApiErrorMessage(error, 'Cette liste ne peut pas être reprise.')); })
+      .finally(() => { if (alive) setSourceLoading(false); });
+    return () => { alive = false; };
+  }, [location.search, user, country?.id, country?._id]);
+
+  useEffect(() => {
+    let alive = true; setAvailabilityLoading(true); setEnabled(false);
+    api.get('/buy-for-me/capabilities', { skipCache: true }).then(({ data }) => {
+      if (!alive) return;
       setEnabled(Boolean(data?.enabled));
       if (Array.isArray(data?.storeTypes) && data.storeTypes.length) setSupportedStoreTypes(data.storeTypes);
-    }).catch(() => setEnabled(true));
-  }, []);
+    }).catch(() => { if (alive) setEnabled(false); }).finally(() => { if (alive) setAvailabilityLoading(false); });
+    return () => { alive = false; };
+  }, [country?.id, country?._id]);
 
   const pickupPayload = useMemo(() => buildLocationPayload(pickup, cities, communes), [pickup, cities, communes]);
   const dropoffPayload = useMemo(() => buildLocationPayload(dropoff, cities, communes), [dropoff, cities, communes]);
@@ -164,19 +202,22 @@ export default function BuyForMe() {
   const authorizedShoppingValue = authorizationMode === 'SHOPPING_BUDGET' ? Math.round(Number(shoppingBudget)) : estimatedShoppingValue;
   const itemsAreComplete = cleanItems.length === items.length;
   const readyForQuote = dropoff.address.trim() && authorizedShoppingValue > 0 && itemsAreComplete && storeType;
+  const quoteInput = JSON.stringify({ countryId: country?.id || country?._id, storeType, pickup: pickupPayload, dropoff: dropoffPayload, items: cleanItems, authorizationMode, shoppingBudget: authorizedShoppingValue });
+  const [quotedInput, setQuotedInput] = useState('');
 
   useEffect(() => {
-    if (!readyForQuote) { setQuote(null); setQuoteError(''); return undefined; }
+    if (!readyForQuote || !enabled) { setQuote(null); setQuoteError(''); setQuoting(false); return undefined; }
     let cancelled = false;
+    setQuote(null);
     setQuoting(true);
     const timer = setTimeout(() => {
       api.post('/buy-for-me/estimate', { storeType, pickup: pickupPayload, dropoff: dropoffPayload, items: cleanItems, authorizationMode, shoppingBudget: authorizedShoppingValue })
-        .then(({ data }) => { if (!cancelled) { setQuote(data); setQuoteError(''); } })
-        .catch((error) => { if (!cancelled) { setQuote(null); setQuoteError(getApiErrorMessage(error, 'Prix à débattre indisponible.')); } })
+        .then(({ data }) => { if (!cancelled) { setQuote(data); setQuotedInput(quoteInput); setQuoteError(''); } })
+        .catch((error) => { if (!cancelled) { setQuote(null); setQuoteError(getApiErrorMessage(error, 'Estimation indisponible. Réessayez en vérifiant l’adresse et le budget.')); } })
         .finally(() => { if (!cancelled) setQuoting(false); });
     }, 450);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [authorizationMode, authorizedShoppingValue, cleanItems, dropoffPayload, pickupPayload, readyForQuote, storeType]);
+  }, [authorizationMode, authorizedShoppingValue, cleanItems, dropoffPayload, pickupPayload, readyForQuote, storeType, quoteInput, enabled]);
 
   const updateItem = (index, patch) => setItems((previous) => previous.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
   const updateItemByClientId = (clientId, patch) => setItems((previous) => previous.map((item) => item.clientId === clientId ? { ...item, ...patch } : item));
@@ -226,13 +267,15 @@ export default function BuyForMe() {
     updateItem(index, { imageUrl: '', imagePreview: '', imageError: '' });
   };
   const imageUploadInProgress = items.some((item) => item.imageUploading);
-  const canPay = Boolean(user && quote?.total && cleanItems.length && itemsAreComplete && dropoff.address.trim() && !imageUploadInProgress);
+  const canPay = Boolean(enabled && user && quote?.total && quotedInput === quoteInput && !quoting && cleanItems.length && itemsAreComplete && dropoff.address.trim() && !imageUploadInProgress);
+
+  useEffect(() => { setListSaved(false); }, [storeType, preferredStore, authorizationMode, authorizedShoppingValue, cleanItems]);
 
   const beforePay = () => {
     if (imageUploadInProgress) return 'Attendez la fin de l’envoi des images.';
     if (!canPay) return authorizationMode === 'SHOPPING_BUDGET'
-      ? 'Complétez le nom et la quantité de chaque article, indiquez le budget autorisé, puis attendez le prix à débattre.'
-      : 'Complétez le nom, la quantité et le prix estimé de chaque article, puis attendez le prix à débattre.';
+      ? 'Complétez le nom et la quantité de chaque article, indiquez le budget autorisé, puis attendez l’estimation.'
+      : 'Complétez le nom, la quantité et le prix estimé de chaque article, puis attendez l’estimation.';
     if (pickup.address.trim()) saveAddressToHistory(pickup);
     setAddressHistory(saveAddressToHistory(dropoff));
     return {
@@ -252,35 +295,45 @@ export default function BuyForMe() {
   };
 
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
-  if (!enabled) return <div className="mx-auto max-w-lg px-4 py-16 text-center text-sm text-gray-500">Le service Acheter Pour Moi est temporairement indisponible.</div>;
+  if (availabilityLoading || sourceLoading) return <p role="status" className="shop-muted py-12">Préparation de votre liste…</p>;
+  if (!enabled) return <div className="shop-card"><h1>Nous revenons bientôt.</h1><p className="shop-muted mt-3">Les nouvelles demandes sont momentanément indisponibles.</p><Link to="/buy-for-me/orders" className="shop-link mt-3">Retrouver mes achats en cours</Link></div>;
+
+  const canContinue = step === 0 ? itemsAreComplete && authorizedShoppingValue > 0 && supportedStoreTypes.includes(storeType) && !imageUploadInProgress : Boolean(dropoff.address.trim());
+  const saveList = async () => {
+    setListSaving(true); setListError('');
+    try { await api.post('/buy-for-me/lists', { ...shoppingDraftFrom({ storeType, preferredStore, authorizationMode, shoppingBudget: authorizedShoppingValue, items: cleanItems }), name: listName }); setListSaved(true); }
+    catch (error) { setListError(getApiErrorMessage(error, 'Impossible d’enregistrer la liste.')); }
+    finally { setListSaving(false); }
+  };
 
   return (
-    <div className="min-h-screen bg-[#F6F6F6] pb-36">
-      <GlassHeader title="Acheter Pour Moi" subtitle="Un livreur fait les achats et vous livre" backTo="/" right={<Link to="/buy-for-me/orders" className="text-xs font-black text-[#FF5000]">Mes demandes</Link>} />
-      <div className="mx-auto max-w-lg space-y-3 px-4 py-4">
-        <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#FF5000] to-[#FF3D00] p-4 text-white shadow-sm">
-          <div className="flex items-start gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/15"><ShoppingBagIcon className="h-[22px] w-[22px]" /></span><div><p className="text-base font-black">Vous choisissez, on achète.</p><p className="mt-1 text-xs font-medium leading-5 text-white/85">Indiquez les prix estimés, ou fixez un budget si vous ne les connaissez pas. Le livreur ne dépasse jamais le montant autorisé sans votre accord.</p></div></div>
-        </section>
+    <div>
+      <nav className="shop-steps" aria-label="Étapes de la demande">{['Ma liste', 'Livraison', 'Vérification'].map((label, index) => <button key={label} type="button" disabled={index > step} aria-current={step === index ? 'step' : undefined} onClick={() => setStep(index)}><span>{index + 1}</span>{label}</button>)}</nav>
+      <div className="mb-6"><p className="shop-eyebrow">Étape {step + 1} sur 3</p><h1 ref={titleRef} tabIndex={-1} className="mt-2">{['Qu’est-ce qu’on vous achète ?', 'Où vous retrouver ?', 'Tout est prêt ?'][step]}</h1><p className="shop-muted mt-2">{['Ajoutez vos articles et choisissez votre budget. Un magasin par demande.', 'Une adresse précise et un repère aident votre livreur.', 'Vérifiez votre liste, les frais et le total avant de payer.'][step]}</p></div>
+      {sourceError ? <p role="alert" className="shop-error mb-4">{sourceError} <Link to="/buy-for-me/new" className="underline">Créer une nouvelle liste</Link></p> : null}
+      {sourceNotice ? <p role="status" className="shop-note mb-4">{sourceNotice}</p> : null}
+      <div className="shop-form-grid"><div className="space-y-4">
+        {step === 0 ? <>
+
 
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <h2 className="text-sm font-black text-gray-900">Comment autoriser les achats ?</h2>
           <p className="mt-1 text-xs text-gray-500">Vous ne connaissez pas les prix ? Choisissez l’option budget: le livreur reste dans le montant indiqué.</p>
-          <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setAuthorizationMode('ITEM_ESTIMATES')} className={`rounded-xl border p-3 text-left text-xs font-black ${authorizationMode === 'ITEM_ESTIMATES' ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-600'}`}>Prix par article<span className="mt-1 block text-[10px] font-medium">Vous connaissez les prix.</span></button><button type="button" onClick={() => setAuthorizationMode('SHOPPING_BUDGET')} className={`rounded-xl border p-3 text-left text-xs font-black ${authorizationMode === 'SHOPPING_BUDGET' ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-600'}`}>Budget d’achats<span className="mt-1 block text-[10px] font-medium">Vous ne connaissez pas les prix.</span></button></div>
+          <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" aria-pressed={authorizationMode === 'ITEM_ESTIMATES'} onClick={() => setAuthorizationMode('ITEM_ESTIMATES')} className={`rounded-xl border p-3 text-left text-xs font-black ${authorizationMode === 'ITEM_ESTIMATES' ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-600'}`}>Prix par article<span className="mt-1 block text-[10px] font-medium">Vous connaissez les prix.</span></button><button type="button" aria-pressed={authorizationMode === 'SHOPPING_BUDGET'} onClick={() => setAuthorizationMode('SHOPPING_BUDGET')} className={`rounded-xl border p-3 text-left text-xs font-black ${authorizationMode === 'SHOPPING_BUDGET' ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-600'}`}>Budget d’achats<span className="mt-1 block text-[10px] font-medium">Vous ne connaissez pas les prix.</span></button></div>
         </section>
 
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><BuildingStorefrontIcon className="text-[#FF5000] h-4 w-4" /> Magasin souhaité</h2>
-          <div className="grid grid-cols-2 gap-2">
-            {STORE_TYPES.filter(([key]) => supportedStoreTypes.includes(key)).map(([key, label]) => <button key={key} type="button" onClick={() => setStoreType(key)} className={`min-h-11 rounded-xl border px-2 text-xs font-bold ${storeType === key ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-500'}`}>{label}</button>)}
-          </div>
-          <input value={preferredStore} onChange={(event) => setPreferredStore(event.target.value)} placeholder="Magasin préféré (ou « n’importe quel magasin proche »)" className="mt-3 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]" />
+          <label className="shop-label" htmlFor="shopping-store-type">Type de magasin</label>
+          <select id="shopping-store-type" className="shop-field" value={storeType} onChange={event => setStoreType(event.target.value)}>{STORE_TYPES.filter(([key]) => supportedStoreTypes.includes(key)).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
+          <input aria-label="Magasin préféré" value={preferredStore} onChange={(event) => setPreferredStore(event.target.value)} placeholder="Magasin préféré (ou « n’importe quel magasin proche »)" className="mt-3 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]" />
         </section>
 
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-black text-gray-900"><CubeIcon className="text-[#FF5000] h-4 w-4" /> Liste d’achats</h2><button type="button" onClick={() => setItems((previous) => [...previous, emptyItem()])} className="inline-flex items-center gap-1 text-xs font-black text-[#FF5000]"><PlusIcon className="h-3.5 w-3.5" /> Ajouter</button></div>
+          <div className="mb-3 flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-black text-gray-900"><CubeIcon className="text-[#FF5000] h-4 w-4" /> Liste d’achats</h2><button type="button" disabled={items.length >= 30} onClick={() => setItems((previous) => [...previous, emptyItem()])} className="inline-flex items-center gap-1 text-xs font-black text-[#FF5000]"><PlusIcon className="h-3.5 w-3.5" /> Ajouter</button></div>
           <div className="space-y-2">
             {items.map((item, index) => (
-              <div key={index} className="rounded-xl border border-gray-100 bg-gray-50 p-2.5">
+              <div key={item.clientId} className="rounded-xl border border-gray-100 bg-gray-50 p-2.5">
                 <div className="flex items-center gap-2">
                   <label className="min-w-0 flex-1">
                     <span className="mb-1 block text-[10px] font-bold text-gray-500">Produit {index + 1}</span>
@@ -293,7 +346,7 @@ export default function BuyForMe() {
                   </label>
                   <button type="button" onClick={() => removeItem(index)} className="mt-4 grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-transparent text-gray-400 hover:border-red-100 hover:bg-white hover:text-red-500" aria-label={`Retirer le produit ${index + 1}`}><MinusIcon className="h-[15px] w-[15px]" /></button>
                 </div>
-                <div className={`mt-2 grid gap-2 ${authorizationMode === 'ITEM_ESTIMATES' ? 'grid-cols-[72px_minmax(0,1fr)]' : 'grid-cols-1'}`}>
+                <div className={`mt-2 grid gap-2 grid-cols-[72px_minmax(0,1fr)]`}>
                   <label>
                     <span className="mb-1 block text-center text-[10px] font-bold text-gray-500">Qté</span>
                     <input value={item.quantity} onChange={(event) => updateItem(index, { quantity: event.target.value })} placeholder="1" type="number" min="0.001" step="0.001" inputMode="decimal" className="min-h-10 w-full rounded-lg border border-gray-200 bg-white px-1.5 text-center text-sm font-black outline-none focus:border-[#FF5000]" />
@@ -307,6 +360,7 @@ export default function BuyForMe() {
                   <span className="font-bold text-orange-800">Total estimé</span>
                   <span className="font-black text-[#FF3D00]">{formatCurrency(getItemEstimatedTotal(item))}</span>
                 </div> : null}
+                <details className="mt-3"><summary className="text-xs font-bold cursor-pointer text-gray-600">Ajouter une précision ou une photo</summary>
                 <label className="mt-2 block">
                   <span className="mb-1 block text-[10px] font-bold text-gray-500">Précision facultative</span>
                   <input value={item.note} onChange={(event) => updateItem(index, { note: event.target.value })} placeholder="Marque, taille, préférence…" className="min-h-10 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-xs outline-none focus:border-[#FF5000]" />
@@ -329,35 +383,42 @@ export default function BuyForMe() {
                     </label>
                   )}
                   {item.imageError ? <p className="mt-1.5 text-[10px] font-bold text-red-600">{item.imageError}</p> : null}
-                </div>
+                </div></details>
               </div>
             ))}
           </div>
         </section>
 
-        {authorizationMode === 'SHOPPING_BUDGET' ? <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><label className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><CurrencyDollarIcon className="text-[#FF5000] h-4 w-4" /> Budget d’achats autorisé</label><input type="number" min="1" value={shoppingBudget} onChange={(event) => setShoppingBudget(event.target.value)} placeholder="Ex. 25 000" className="min-h-12 w-full rounded-xl border border-gray-200 bg-white px-3 text-lg font-black text-gray-900 outline-none focus:border-[#FF5000]" /><p className="mt-2 text-[11px] font-medium text-gray-500">Utilisez cette option si vous ne connaissez pas les prix. Le livreur ne dépassera pas ce budget sans votre accord.</p></section> : <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><div className="flex items-center justify-between gap-3"><div><p className="flex items-center gap-2 text-sm font-black text-gray-900"><CurrencyDollarIcon className="text-[#FF5000] h-4 w-4" /> Valeur estimée des achats</p><p className="mt-1 text-[11px] font-medium text-gray-600">Calculée automatiquement à partir de chaque article.</p></div><p className="text-lg font-black text-[#FF3D00]">{formatCurrency(estimatedShoppingValue)}</p></div><p className="mt-3 text-[11px] font-medium text-gray-500">Ce montant autorise les achats. S’il est dépassé, les achats sont suspendus jusqu’à votre choix ou paiement complémentaire.</p></section>}
+        {authorizationMode === 'SHOPPING_BUDGET' ? <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><label htmlFor="shopping-budget" className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><CurrencyDollarIcon className="text-[#FF5000] h-4 w-4" /> Budget d’achats autorisé</label><input id="shopping-budget" type="number" min="1" value={shoppingBudget} onChange={(event) => setShoppingBudget(event.target.value)} placeholder="Ex. 25 000" className="min-h-12 w-full rounded-xl border border-gray-200 bg-white px-3 text-lg font-black text-gray-900 outline-none focus:border-[#FF5000]" /><p className="mt-2 text-[11px] font-medium text-gray-500">Utilisez cette option si vous ne connaissez pas les prix. Le livreur ne dépassera pas ce budget sans votre accord.</p></section> : <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><div className="flex items-center justify-between gap-3"><div><p className="flex items-center gap-2 text-sm font-black text-gray-900"><CurrencyDollarIcon className="text-[#FF5000] h-4 w-4" /> Valeur estimée des achats</p><p className="mt-1 text-[11px] font-medium text-gray-600">Calculée automatiquement à partir de chaque article.</p></div><p className="text-lg font-black text-[#FF3D00]">{formatCurrency(estimatedShoppingValue)}</p></div><p className="mt-3 text-[11px] font-medium text-gray-500">Ce montant autorise les achats. S’il est dépassé, les achats sont suspendus jusqu’à votre choix ou paiement complémentaire.</p></section>}
 
+        <details className="shop-card"><summary className="text-sm font-bold cursor-pointer">Enregistrer cette liste pour plus tard</summary><p className="shop-muted mt-2">Seuls les articles et le budget sont conservés. Le prix sera recalculé à chaque achat.</p>{listSaved ? <p role="status" className="shop-link">Liste enregistrée dans Mes listes.</p> : <div className="mt-3"><label className="shop-label" htmlFor="shopping-list-name">Nom de la liste</label><input id="shopping-list-name" className="shop-field" value={listName} onChange={event => setListName(event.target.value)} maxLength={80} placeholder="Ex. Mes courses de la semaine" /><button type="button" disabled={listSaving || !listName.trim() || !itemsAreComplete} onClick={saveList} className="shop-button shop-button--secondary mt-3">{listSaving ? 'Enregistrement…' : 'Enregistrer la liste'}</button></div>}{listError ? <p role="alert" className="shop-error mt-2">{listError}</p> : null}</details>
+        </> : null}
+        {step === 1 ? <>
         <LocationCard title="Adresse du magasin" subtitle="Indiquez-la seulement si vous avez un magasin précis en tête" value={pickup} onChange={setPickup} onAutofill={canAutofillAddress ? () => setPickup({ ...savedAddress }) : null} cities={cities} communes={communes} optional addressHistory={addressHistory} onPickHistory={(item) => setPickup({ cityId: item.cityId || '', communeId: item.communeId || '', address: item.address || '', contactName: item.contactName || '', contactPhone: item.contactPhone || '' })} />
         <LocationCard title="Adresse de livraison" subtitle="Où nous vous remettons les achats" value={dropoff} onChange={setDropoff} onAutofill={canAutofillAddress ? () => setDropoff({ ...savedAddress }) : null} cities={cities} communes={communes} addressHistory={addressHistory} onPickHistory={(item) => setDropoff({ cityId: item.cityId || '', communeId: item.communeId || '', address: item.address || '', contactName: item.contactName || '', contactPhone: item.contactPhone || '' })} />
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><label className="text-sm font-black text-gray-900">Instructions particulières</label><textarea value={specialInstructions} onChange={(event) => setSpecialInstructions(event.target.value)} rows={3} placeholder="Ex. Vérifier la date d’expiration, sans piment, prendre le moins cher…" className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:border-[#FF5000]" /></section>
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><label htmlFor="shopping-instructions" className="text-sm font-black text-gray-900">Instructions particulières</label><textarea id="shopping-instructions" value={specialInstructions} onChange={(event) => setSpecialInstructions(event.target.value)} rows={3} placeholder="Ex. Vérifier la date d’expiration, sans piment, prendre le moins cher…" className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:border-[#FF5000]" /></section>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><h2 className="text-sm font-black text-gray-900">S’il reste de l’argent</h2><p className="mt-1 text-xs text-gray-500">Votre choix est appliqué après la livraison, selon le reçu du magasin.</p><div className="mt-3 space-y-2">{[['WALLET_REFUND', 'Remboursement sur votre portefeuille HDMarket'], ['DRIVER_TIP', 'Donner le solde au livreur (pourboire)'], ['PLATFORM_DONATION', 'Faire don du solde à HDMarket']].map(([key, label]) => <label key={key} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-xs font-bold ${balancePreference === key ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-600'}`}><input type="radio" checked={balancePreference === key} onChange={() => setBalancePreference(key)} />{label}</label>)}</div></section>
+        </> : null}
+        {step === 2 ? <>
+        <section className="shop-card"><div className="shop-row"><h2>Votre liste</h2><button className="shop-link" onClick={() => setStep(0)}>Modifier les articles</button></div><p className="shop-muted">{preferredStore || 'Magasin au choix du livreur'}</p><ul className="mt-4 space-y-3">{cleanItems.map((item, index) => <li key={index} className="shop-row text-sm"><span>{item.name} <strong>× {item.quantity}</strong></span>{authorizationMode === 'ITEM_ESTIMATES' ? <span>{formatCurrency(item.estimatedTotal)}</span> : null}</li>)}</ul></section>
+        <section className="shop-card"><div className="shop-row"><h2>Livraison</h2><button className="shop-link" onClick={() => setStep(1)}>Modifier l’adresse</button></div><p className="mt-3 text-sm">{dropoff.address}</p><p className="shop-muted">{[dropoffPayload.cityName, dropoffPayload.communeName, dropoff.contactName, dropoff.contactPhone].filter(Boolean).join(' · ')}</p>{specialInstructions ? <p className="shop-note mt-3">{specialInstructions}</p> : null}</section>
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><h2 className="text-sm font-black text-gray-900">S’il reste de l’argent</h2><p className="mt-1 text-xs text-gray-500">Votre choix est appliqué après la livraison, selon le reçu du magasin.</p><div className="mt-3 space-y-2">{[['ORIGINAL_PAYMENT', 'Remboursement sur le compte Mobile Money ayant payé'], ['DRIVER_TIP', 'Donner le solde au livreur (pourboire)'], ['PLATFORM_DONATION', 'Faire don du solde à HDMarket']].map(([key, label]) => <label key={key} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-xs font-bold ${balancePreference === key ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-600'}`}><input type="radio" checked={balancePreference === key} onChange={() => setBalancePreference(key)} />{label}</label>)}</div></section>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><div className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><ReceiptPercentIcon className="text-[#FF5000] h-4 w-4" /> Détail avant paiement</div>{quote?.breakdown?.map((line) => <div key={line.key} className="mb-2 flex items-center justify-between text-sm text-gray-600"><span>{line.label}</span><span className="font-bold text-gray-900">{formatCurrency(line.amount)}</span></div>)}{quoteError ? <p className="mt-2 text-xs font-bold text-red-600">{quoteError}</p> : null}</section>
-
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3"><p className="flex items-center gap-2 text-xs font-bold text-emerald-800"><TruckIcon className="h-[15px] w-[15px]" /> Paiement sécurisé avant le début des achats</p><p className="mt-1 text-[11px] text-emerald-700">La valeur estimée de vos articles est réservée. Vous recevez le reçu du magasin et suivez chaque étape.</p></div>
-
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-100 bg-white px-4 py-3 [padding-bottom:calc(env(safe-area-inset-bottom)+0.75rem)]">
-          <div className="mx-auto max-w-lg">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-bold text-gray-500">Total à payer</span>
-              <p className="text-lg font-black text-[#FF3D00]">{quoting ? '…' : quote ? formatCurrency(quote.total) : '—'}</p>
-            </div>
-            <PawaPayButton amount={quote?.total} purpose="BUY_FOR_ME_FUNDING" returnPath="/buy-for-me/orders" label="Payer et trouver un livreur" onBeforeStart={beforePay} />
-          </div>
-        </div>
+        <p className="shop-note"><TruckIcon className="inline mr-2" />Paiement Mobile Money avant les achats. Vous recevrez le reçu du magasin. Tout dépassement nécessite votre accord.</p>
+        </> : null}
       </div>
+      <aside className="shop-card shop-summary">
+        <p className="shop-eyebrow">Votre demande</p><h2 className="mt-2">Un budget clair.</h2>
+        <dl className="mt-4"><div><dt>Articles dans la liste</dt><dd>{cleanItems.length}</dd></div><div><dt>{authorizationMode === 'SHOPPING_BUDGET' ? 'Budget des achats' : 'Achats estimés'}</dt><dd>{authorizedShoppingValue > 0 ? formatCurrency(authorizedShoppingValue) : 'À compléter'}</dd></div>{quote?.breakdown?.filter(line => !['estimatedShoppingValue', 'shoppingBudget'].includes(line.key)).map(line => <div key={line.key}><dt>{line.label}</dt><dd>{formatCurrency(line.amount)}</dd></div>)}</dl>
+        <div className="shop-total"><span>Total à payer</span><strong>{quoting ? 'Calcul…' : quote && quotedInput === quoteInput ? formatCurrency(quote.total) : '—'}</strong></div>
+        <p className="shop-muted mt-3">{step === 0 ? 'Les frais seront calculés après votre adresse de livraison.' : quoting ? 'Calcul des frais pour votre adresse…' : 'Aucun paiement avant votre validation à la dernière étape.'}</p>
+        {quoteError ? <p role="alert" className="shop-error mt-3">{quoteError}</p> : null}
+        <div className="shop-form-actions">{step > 0 ? <button type="button" className="shop-button shop-button--secondary" onClick={() => setStep(value => value - 1)}>Retour</button> : null}
+        {step < 2 ? <button type="button" disabled={!canContinue} onClick={() => setStep(value => value + 1)} className="shop-button">{step === 0 ? 'Choisir la livraison' : 'Vérifier ma demande'} <span aria-hidden="true">→</span></button> : <PawaPayButton className="shopping-pay" disabled={!canPay} amount={quote?.total} purpose="BUY_FOR_ME_FUNDING" returnPath="/buy-for-me/orders" label="Payer et trouver un livreur" onBeforeStart={beforePay} />}
+        </div>
+        {!canContinue && step < 2 ? <p role="status" className="shop-muted mt-3">{step === 0 ? 'Complétez chaque article et le budget pour continuer.' : 'Indiquez votre adresse de livraison pour continuer.'}</p> : null}
+      </aside></div>
     </div>
   );
 }

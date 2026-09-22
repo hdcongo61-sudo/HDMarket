@@ -2,6 +2,7 @@ import asyncHandler from 'express-async-handler';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import Product from '../models/productModel.js';
+import { recordCountedProductView } from '../services/productDailyViewService.js';
 import Category from '../models/categoryModel.js';
 import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
@@ -20,6 +21,7 @@ import { getListingCommissionRate } from '../services/listingCommissionService.j
 import { createNotification } from '../utils/notificationService.js';
 import { clearProductDraft } from '../services/productDraftReminderService.js';
 import { invalidateProductCache } from '../utils/cache.js';
+import { assertInstallmentFeature } from '../services/installmentPaymentService.js';
 import {
   uploadToCloudinary,
   getCloudinaryFolder,
@@ -51,6 +53,10 @@ import {
   normalizeProductAttributes,
   normalizeProductPhysical
 } from '../utils/productAttributes.js';
+import {
+  buildPublicDisplayPriceExpression,
+  getLowestProductPrice
+} from '../utils/productDisplayPrice.js';
 import {
   normalizeImageDescriptions,
   removeDescriptionsForImages
@@ -535,10 +541,15 @@ const withCategoryCompatibility = (input) => {
   const isLegacyCategory = !base.categoryId && !base.subcategoryId;
   const wholesaleTiers = normalizeWholesaleTiers(base.wholesaleTiers);
   const wholesaleEnabled = Boolean(base.wholesaleEnabled) && wholesaleTiers.length > 0;
+  const displayPrice = getLowestProductPrice({
+    productAttributes: base.attributes,
+    basePrice: base.price
+  });
   return {
     ...base,
     attributes: normalizeProductAttributes(base.attributes),
     physical: normalizeProductPhysical(base.physical),
+    displayPrice,
     categoryName,
     subcategoryName,
     isLegacyCategory,
@@ -995,7 +1006,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     productAttributes: normalizedAttributes,
     basePrice: finalPrice
   });
-  const resolvedCondition = (condition || 'used').toString().toLowerCase();
+  const resolvedCondition = (condition || 'new').toString().toLowerCase();
   const safeCondition = resolvedCondition === 'new' ? 'new' : 'used';
   const seller =
     (await User.findById(req.user.id).select('city country countryId shopVerified accountType restrictions')) || null;
@@ -1055,6 +1066,9 @@ export const createProduct = asyncHandler(async (req, res) => {
   });
   if (!installmentConfig.valid) {
     return res.status(400).json({ message: installmentConfig.message });
+  }
+  if (installmentConfig.normalized.installmentEnabled) {
+    await assertInstallmentFeature(req.user, ownerCountryId);
   }
   const hasWholesalePayload = wholesaleEnabled !== undefined || wholesaleTiers !== undefined;
   const requestedWholesaleEnabled = normalizeBoolean(wholesaleEnabled, false);
@@ -1142,6 +1156,10 @@ export const createProduct = asyncHandler(async (req, res) => {
     return res.status(400).json({
       message: `Vous pouvez télécharger jusqu'à ${maxProductImages} photos par annonce.`
     });
+  }
+
+  if (!imageFiles.length) {
+    return res.status(400).json({ message: 'Ajoutez au moins une photo avant de publier le produit.' });
   }
 
   if (videoFiles.length > 1) {
@@ -1460,12 +1478,30 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     }
   }
 
-  // Price range filter
-  if (minPrice !== undefined || maxPrice !== undefined) {
-    filter.price = {};
-    if (minPrice !== undefined) filter.price.$gte = Number(minPrice);
-    if (maxPrice !== undefined) filter.price.$lte = Number(maxPrice);
+  // Price range filtering uses the same visible price as the cards: the
+  // lowest photo-linked option price, or the product price when no linked
+  // option has its own price. The range is applied after that value is
+  // computed in the aggregation pipeline below.
+  const priceBounds = {};
+  if (minPrice !== undefined) {
+    const value = Number(minPrice);
+    if (Number.isFinite(value)) priceBounds.$gte = value;
   }
+  if (maxPrice !== undefined) {
+    const value = Number(maxPrice);
+    if (Number.isFinite(value)) priceBounds.$lte = value;
+  }
+  const hasPriceBounds = Object.keys(priceBounds).length > 0;
+  const displayPriceExpression = buildPublicDisplayPriceExpression();
+  const displayPriceMatch = hasPriceBounds
+    ? {
+        $expr: {
+          $and: Object.entries(priceBounds).map(([operator, value]) => ({
+            [operator]: [displayPriceExpression, value]
+          }))
+        }
+      }
+    : null;
 
   // Discount filter
   if (hasDiscount === 'true') {
@@ -1520,8 +1556,8 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   const sortOptions = {
     new: { createdAt: -1 },
     newest: { createdAt: -1 },
-    price_asc: { price: 1 },
-    price_desc: { price: -1 },
+    price_asc: { displayPrice: 1 },
+    price_desc: { displayPrice: -1 },
     discount: { discount: -1, createdAt: -1 },
     popular: { salesCount: -1, favoritesCount: -1, createdAt: -1 }
   };
@@ -1538,6 +1574,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   const baseActiveFilter = applyBlockedUsersToFilter(filter, blockedSellerIds);
   const activeFilter = await withVerifiedPublicProductFilter(baseActiveFilter);
   const shouldApplyLocationPriority = locationPriorityEnabled && Boolean(userCity);
+  const needsComputedDisplayPrice = hasPriceBounds || sort === 'price_asc' || sort === 'price_desc';
   const baseSort = { boosted: -1, boostScore: -1 };
   
   // If filtering by shopVerified, we need to filter after populate
@@ -1550,6 +1587,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   const cursorCapable =
     !shouldApplyLocationPriority &&
     !needsPostFilter &&
+    !needsComputedDisplayPrice &&
     (sort === 'new' || sort === 'newest');
   const canUseCursor = Boolean(decodedCursor) && cursorCapable;
   const prefetchLimit = needsPostFilter ? pageSize * 2 : pageSize + (canUseCursor ? 1 : 0);
@@ -1560,9 +1598,9 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     const now = new Date();
     const locationSortBy =
       sort === 'price_asc'
-        ? { price: 1, validationDate: -1, createdAt: -1 }
+        ? { displayPrice: 1, validationDate: -1, createdAt: -1 }
         : sort === 'price_desc'
-        ? { price: -1, validationDate: -1, createdAt: -1 }
+        ? { displayPrice: -1, validationDate: -1, createdAt: -1 }
         : sort === 'discount'
         ? { discount: -1, validationDate: -1, createdAt: -1 }
         : sort === 'popular'
@@ -1571,6 +1609,8 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
 
     const [aggregated] = await Product.aggregate([
       { $match: activeFilter },
+      { $addFields: { displayPrice: displayPriceExpression } },
+      ...(displayPriceMatch ? [{ $match: displayPriceMatch }] : []),
       {
         $addFields: {
           isCurrentlyBoosted: {
@@ -1638,14 +1678,37 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
         ]
       });
     }
-    [itemsRaw, totalBeforeFilter] = await Promise.all([
-      Product.find(findFilter)
-        .sort({ ...baseSort, ...(sortOptions[sort] || sortOptions.new), _id: -1 })
-        .skip(canUseCursor ? 0 : skip)
-        .limit(prefetchLimit)
-        .lean(),
-      canUseCursor ? Promise.resolve(null) : Product.countDocuments(activeFilter)
-    ]);
+    if (needsComputedDisplayPrice) {
+      const aggregationMatch = [
+        { $match: findFilter },
+        { $addFields: { displayPrice: displayPriceExpression } },
+        ...(displayPriceMatch ? [{ $match: displayPriceMatch }] : [])
+      ];
+      const aggregateSort = { ...baseSort, ...(sortOptions[sort] || sortOptions.new), _id: -1 };
+      const [aggregatedItems, countResult] = await Promise.all([
+        Product.aggregate([
+          ...aggregationMatch,
+          { $sort: aggregateSort },
+          { $skip: skip },
+          { $limit: prefetchLimit }
+        ]),
+        Product.aggregate([
+          ...aggregationMatch,
+          { $count: 'total' }
+        ])
+      ]);
+      itemsRaw = aggregatedItems;
+      totalBeforeFilter = Number(countResult?.[0]?.total || 0);
+    } else {
+      [itemsRaw, totalBeforeFilter] = await Promise.all([
+        Product.find(findFilter)
+          .sort({ ...baseSort, ...(sortOptions[sort] || sortOptions.new), _id: -1 })
+          .skip(canUseCursor ? 0 : skip)
+          .limit(prefetchLimit)
+          .lean(),
+        canUseCursor ? Promise.resolve(null) : Product.countDocuments(activeFilter)
+      ]);
+    }
 
     // Post-process to ensure currently boosted products (within date range) appear first
     // This ensures products outside their boost date range don't appear before non-boosted products
@@ -1675,10 +1738,10 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
       // For non-boosted or expired boosts, maintain the original sort order
       // by comparing the sort fields
       if (sort === 'price_asc') {
-        return (a.price || 0) - (b.price || 0);
+        return (a.displayPrice || a.price || 0) - (b.displayPrice || b.price || 0);
       }
       if (sort === 'price_desc') {
-        return (b.price || 0) - (a.price || 0);
+        return (b.displayPrice || b.price || 0) - (a.displayPrice || a.price || 0);
       }
       if (sort === 'popular') {
         const aScore = (a.salesCount || 0) * 2 + (a.favoritesCount || 0);
@@ -2496,7 +2559,7 @@ export const registerPublicProductView = asyncHandler(async (req, res) => {
     status: 'approved'
   };
   const product = await Product.findOne(query).select(
-    '_id payment listingFeeSettled viewsCount uniqueViewsCount lastViewedAt'
+    '_id user payment listingFeeSettled viewsCount uniqueViewsCount lastViewedAt'
   );
   const listingFeeSettled = await isListingFeeSettledForProduct(product);
   if (!product || !listingFeeSettled) {
@@ -2534,6 +2597,9 @@ export const registerPublicProductView = asyncHandler(async (req, res) => {
     }
   );
 
+  await recordCountedProductView(product).catch((error) => {
+    console.error('[product-views] Daily measurement could not be saved:', error.message);
+  });
   return res.status(201).json({
     counted: true,
     duplicate: false,
@@ -3035,6 +3101,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
     });
     if (!installmentConfig.valid) {
       return res.status(400).json({ message: installmentConfig.message });
+    }
+    if (installmentConfig.normalized.installmentEnabled && !product.installmentEnabled) {
+      await assertInstallmentFeature(req.user, product.countryId);
     }
     Object.assign(product, installmentConfig.normalized);
     if (installmentConfig.normalized.installmentEnabled) {

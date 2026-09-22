@@ -1,0 +1,27 @@
+import React, { useContext, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRightIcon, BuildingStorefrontIcon, CheckIcon, ClipboardDocumentListIcon, HomeModernIcon, ShoppingBagIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline';
+import api from '../services/api';
+import AuthContext from '../context/AuthContext';
+import { useCountry } from '../context/CountryContext';
+import ShoppingOrderCard from '../components/shopping/ShoppingOrderCard';
+
+const categories = [['LOCAL_MARKET', 'Marché & produits frais', ShoppingBagIcon], ['SUPERMARKET', 'Courses du quotidien', BuildingStorefrontIcon], ['HARDWARE', 'Bricolage & dépannage', WrenchScrewdriverIcon], ['OTHER', 'Autres achats', HomeModernIcon]];
+
+export default function BuyForMeHome() {
+  const { user } = useContext(AuthContext), { country } = useCountry();
+  const [availability, setAvailability] = useState(null), [orders, setOrders] = useState(null), [error, setError] = useState(false), [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    let alive = true; setAvailability(null); setOrders(null); setError(false);
+    api.get('/buy-for-me/capabilities', { skipCache: true }).then(({ data }) => { if (alive) setAvailability(data); }).catch(() => { if (alive) setAvailability({ enabled: false }); });
+    if (user) api.get('/buy-for-me/mine', { params: { scope: 'active', limit: 3 }, skipCache: true }).then(({ data }) => { if (alive) setOrders(data); }).catch(() => { if (alive) setError(true); });
+    return () => { alive = false; };
+  }, [user, country?.id, country?._id, refresh]);
+  const enabled = availability?.enabled;
+  return <div className="shop-stack">
+    <section className="shop-hero"><div><p className="shop-eyebrow">Vos courses, du temps pour vous</p><h1>Votre liste.<br /><em>On s’occupe du reste.</em></h1><p className="shop-muted">Un livreur achète ce dont vous avez besoin et vous le remet. Vous choisissez le budget, vous gardez le contrôle.</p><div className="shop-hero-actions">{enabled ? <Link to="/buy-for-me/new" className="shop-button">Préparer mes achats <ArrowRightIcon /></Link> : <p role="status" className="shop-note">{availability ? 'Les nouvelles demandes sont momentanément indisponibles. Le suivi de vos achats reste accessible.' : 'Vérification de la disponibilité…'}</p>}<Link to={user ? '/buy-for-me/orders' : '/login'} state={!user ? { from: { pathname: '/buy-for-me' } } : undefined} className="shop-button shop-button--secondary">{user ? 'Suivre mes achats' : 'Se connecter'}</Link></div></div><div className="shop-illustration" aria-hidden="true"><div className="shop-paper"><strong>Ma liste de courses</strong>{['Riz parfumé', 'Fruits de saison', 'Produits de maison'].map(item => <p key={item}><CheckIcon />{item}</p>)}<div className="mt-5 border-t border-gray-100 pt-3 text-[10px] font-bold text-gray-500">Votre budget, respecté.</div></div><span className="shop-paper-bag"><ShoppingBagIcon /></span></div></section>
+    {enabled ? <section><div className="shop-row mb-3"><h2>De quoi avez-vous besoin ?</h2></div><div className="shop-categories">{categories.filter(([key]) => !availability.storeTypes || availability.storeTypes.includes(key)).map(([key, label, Icon]) => <Link key={key} to={`/buy-for-me/new?store=${key}`} className="shop-category"><span><Icon /></span>{label}</Link>)}</div></section> : null}
+    <div className="shop-two-columns"><section className="shop-stack"><div className="shop-row"><h2>Vos achats en cours {orders?.counts?.active ? `(${orders.counts.active})` : ''}</h2><Link to="/buy-for-me/orders" className="shop-link">Tout voir <ArrowRightIcon /></Link></div>{error ? <div role="alert" className="shop-error">Le suivi n’a pas pu être chargé. <button onClick={() => setRefresh(value => value + 1)} className="underline font-bold">Réessayer</button></div> : !user ? <div className="shop-card"><p className="shop-muted">Connectez-vous pour retrouver vos demandes et vos listes enregistrées.</p></div> : !orders ? <p role="status" className="shop-muted">Chargement de vos achats…</p> : orders.items?.length ? orders.items.map(order => <ShoppingOrderCard key={order._id} order={order} />) : <div className="shop-empty"><ShoppingBagIcon /><h2>Votre prochaine course commence ici.</h2><p className="shop-muted mt-2">Du marché à la maison, préparez une liste en quelques étapes.</p></div>}<Link to="/buy-for-me/lists" className="shop-card shop-row"><div><p className="shop-eyebrow">Moins de saisie la prochaine fois</p><h2 className="mt-2">Retrouvez vos listes habituelles</h2><p className="shop-muted mt-1">Enregistrez vos essentiels, puis adaptez les quantités.</p></div><ClipboardDocumentListIcon /></Link></section>
+    <aside className="shop-card"><h2>Simple, du début à la fin.</h2><ol className="shop-how">{[['Préparez votre liste', 'Noms, quantités et budget. Les photos sont facultatives.'], ['Vérifiez avant de payer', 'Les achats et les frais sont détaillés avant le paiement Mobile Money.'], ['Gardez la main', 'Un article manque ? Vous décidez. Un reçu accompagne vos achats.']].map(([title, description], i) => <li key={title}><span>{i + 1}</span><div><strong>{title}</strong><p className="shop-muted">{description}</p></div></li>)}</ol><p className="shop-note mt-6">Par défaut, le solde non dépensé est remboursé sur le compte Mobile Money ayant payé, après confirmation.</p></aside></div>
+  </div>;
+}

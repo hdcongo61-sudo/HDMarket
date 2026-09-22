@@ -1,4 +1,5 @@
 import express from 'express';
+import { requireCountryContext } from '../middlewares/countryMiddleware.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { requireAnyPermission, requireRole } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
@@ -31,6 +32,8 @@ import {
   getUserOrder,
   userUpdateOrderStatus,
   userUpdateOrderAddress,
+  previewOrderAddress,
+  sellerRecordCashCollection,
   userSkipCancellationWindow,
   sellerListOrders,
   sellerOrdersSummary,
@@ -117,18 +120,20 @@ router.use('/admin', adminRouter);
 
 router.post(
   '/installment/checkout',
+  requireCountryContext,
   idempotencyMiddleware(),
   validate(schemas.installmentCheckout),
   checkoutInstallmentOrder
 );
 router.post(
   '/checkout',
+  requireCountryContext,
   idempotencyMiddleware(),
   validate(schemas.orderCheckout),
   userCheckoutOrder
 );
 // "Ask a friend to pay" (sponsored payment)
-router.get('/sponsor/resolve', resolveSponsorPayer);
+router.get('/sponsor/resolve', requireCountryContext, resolveSponsorPayer);
 router.get('/sponsor/incoming', listIncomingSponsorships);
 router.get('/sponsor/sent', listSentSponsorships);
 router.post(
@@ -206,6 +211,7 @@ router.get(
   validate(schemas.idParam, 'params'),
   sellerGetOrder
 );
+router.post('/seller/:id/cash-collection', validate(schemas.idParam, 'params'), idempotencyMiddleware(), sellerRecordCashCollection);
 router.patch(
   '/seller/:id/delivery-fee',
   validate(schemas.idParam, 'params'),
@@ -258,6 +264,7 @@ router.patch(
   validate(schemas.orderStatusUpdate),
   userUpdateOrderStatus
 );
+router.post('/:id/address-preview', validate(schemas.idParam, 'params'), validate(schemas.orderAddressUpdate), previewOrderAddress);
 router.patch(
   '/:id/address',
   validate(schemas.idParam, 'params'),

@@ -5,6 +5,7 @@ import { validate, schemas } from '../middlewares/validate.js';
 import { upload } from '../utils/upload.js';
 import { complaintUpload } from '../utils/complaintUpload.js';
 import { cacheMiddleware } from '../utils/cache.js';
+import { attachCountryContext } from '../middlewares/countryMiddleware.js';
 import {
   getProfile,
   clearMyCacheOnLogout,
@@ -199,9 +200,9 @@ router.post(
   validate(schemas.reportPreviewImageCreate),
   createPreviewImageReport
 );
-router.post('/shops/:id/follow', validate(schemas.idParam, 'params'), followShop);
-router.delete('/shops/:id/follow', validate(schemas.idParam, 'params'), unfollowShop);
-router.get('/shops/following', getFollowingShops);
+router.post('/shops/:id/follow', attachCountryContext, validate(schemas.idParam, 'params'), followShop);
+router.delete('/shops/:id/follow', attachCountryContext, validate(schemas.idParam, 'params'), unfollowShop);
+router.get('/shops/following', attachCountryContext, getFollowingShops);
 router.post('/product-views/:id', validate(schemas.identifierParam, 'params'), addProductView);
 router.get('/product-views', getProductViews);
 router.post('/search-history', addSearchHistory);

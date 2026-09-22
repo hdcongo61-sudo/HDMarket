@@ -116,10 +116,11 @@ export const getOptimisticCartLinePricing = (product = {}, quantity = 1, selecte
   };
 };
 
-export const recalculateCart = (cart = {}) => {
+export const recalculateCart = (cart = {}, { preservePricing = false } = {}) => {
   const items = (Array.isArray(cart?.items) ? cart.items : [])
     .filter((item) => item?.product)
     .map((item) => {
+      if (preservePricing && Number.isFinite(item.unitPrice) && Number.isFinite(item.lineTotal)) return item;
       const pricing = getOptimisticCartLinePricing(item.product, item.quantity, item.selectedAttributes);
       return {
         ...item,

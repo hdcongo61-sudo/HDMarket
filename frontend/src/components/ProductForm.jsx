@@ -177,7 +177,8 @@ export default function ProductForm(props) {
     onCancel
   } = props;
   const isEditing = Boolean(productId);
-  const { runtime, app } = useAppSettings();
+  const { runtime, app, isFeatureEnabled } = useAppSettings();
+  const installmentsEnabled = isFeatureEnabled('enable_installments', { defaultValue: true });
   const { commissionRatePercent, commissionRateLabel } = useCommissionRate();
   const { categoryGroups, getCategoryMeta } = useCategories();
   const [form, setForm] = useState(createEmptyProductForm);
@@ -1672,7 +1673,10 @@ export default function ProductForm(props) {
     setWholesaleError('');
     setWarrantyError('');
 
-    const missingFields = getMissingProductFormFields(form);
+    const missingFields = getMissingProductFormFields(form, {
+      requireImage: !isEditing,
+      hasImages: totalImageCount > 0
+    });
     if (missingFields.length) {
       const nextErrors = missingFields.reduce((errors, field) => ({
         ...errors,
@@ -2986,7 +2990,7 @@ export default function ProductForm(props) {
               </div>
               {renderSwitchButton({
                 checked: Boolean(form.installmentEnabled),
-                disabled: !isBoutiqueOwner,
+                disabled: !isBoutiqueOwner || (!installmentsEnabled && !form.installmentEnabled),
                 label: 'Activer le paiement par tranche',
                 onChange: setInstallmentEnabled
               })}
@@ -2998,6 +3002,8 @@ export default function ProductForm(props) {
                 Réservé aux comptes convertis en boutique.
               </p>
             )}
+
+            {!installmentsEnabled && <p className="text-xs text-gray-600">Le paiement par tranche est suspendu pour les nouveaux achats. Les échéanciers existants restent disponibles.</p>}
 
             {form.installmentEnabled && (
               <div className="space-y-3">
@@ -4318,10 +4324,21 @@ export default function ProductForm(props) {
                       _id: 'preview',
                       title: form.title || 'Titre du produit',
                       description: form.description || 'Description du produit',
-                      price: form.price || 0,
+                      price: (() => {
+                        const basePrice = Number(form.price || 0);
+                        const discount = Number(form.discount || 0);
+                        return discount > 0 && discount < 100
+                          ? Number((basePrice * (1 - discount / 100)).toFixed(2))
+                          : basePrice;
+                      })(),
+                      priceBeforeDiscount: Number(form.discount || 0) > 0 ? Number(form.price || 0) : undefined,
                       category: form.category || '',
                       condition: form.condition || 'new',
                       discount: form.discount || 0,
+                      attributes: normalizeProductAttributes([
+                        ...(buildImageVariantAttribute() ? [buildImageVariantAttribute()] : []),
+                        ...(Array.isArray(form.attributes) ? form.attributes : [])
+                      ]),
                       warrantyEnabled: Boolean(form.warrantyEnabled),
                       warrantyPeriodValue: form.warrantyPeriodValue || null,
                       warrantyPeriodUnit: form.warrantyPeriodUnit || 'months',

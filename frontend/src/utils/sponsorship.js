@@ -39,5 +39,12 @@ export const SPONSORSHIP_STATUS = {
   }
 };
 
-export const getSponsorshipStatusMeta = (status) =>
-  SPONSORSHIP_STATUS[status] || SPONSORSHIP_STATUS.pending;
+export const getSponsorshipStatusMeta = (status, remainingAmount = 0) => {
+  const meta = SPONSORSHIP_STATUS[status] || SPONSORSHIP_STATUS.pending;
+  if (['accepted', 'self_paid'].includes(status) && Number(remainingAmount) > 0) {
+    return { ...meta, label: 'Acompte confirmé',
+      title: status === 'accepted' ? 'Acompte payé par un proche' : 'Acompte payé par vous-même',
+      hint: 'La commande est confirmée. Le solde reste à régler à la livraison ou au retrait.' };
+  }
+  return meta;
+};

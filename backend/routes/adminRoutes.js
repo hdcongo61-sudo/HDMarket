@@ -1,7 +1,7 @@
 import express from 'express';
 import Joi from 'joi';
 import { protect } from '../middlewares/authMiddleware.js';
-import { requireRole, requireFeedbackAccess, requirePaymentVerification, requireBoostManagement, requireComplaintAccess, requireDeliveryAccess } from '../middlewares/roleMiddleware.js';
+import { requireRole, requireAnyPermission, requireFeedbackAccess, requirePaymentVerification, requireBoostManagement, requireComplaintAccess, requireDeliveryAccess } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { cacheMiddleware } from '../utils/cache.js';
 import { upload } from '../utils/upload.js';
@@ -679,10 +679,10 @@ router.post('/promo-codes', adminMutationIdempotency, createAdminPromoCode);
 router.patch('/promo-codes/:id', validate(schemas.idParam, 'params'), adminMutationIdempotency, updateAdminPromoCode);
 router.patch('/promo-codes/:id/toggle', validate(schemas.idParam, 'params'), adminMutationIdempotency, toggleAdminPromoCode);
 // Shop conversion requests - admin only
-router.get('/shop-conversion-requests', protect, requireRole(['admin']), getAllShopConversionRequests);
-router.get('/shop-conversion-requests/:id', protect, requireRole(['admin']), validate(schemas.idParam, 'params'), getShopConversionRequest);
-router.patch('/shop-conversion-requests/:id/approve', protect, requireRole(['admin']), validate(schemas.idParam, 'params'), adminMutationIdempotency, approveShopConversionRequest);
-router.patch('/shop-conversion-requests/:id/reject', protect, requireRole(['admin']), validate(schemas.idParam, 'params'), adminMutationIdempotency, rejectShopConversionRequest);
+router.get('/shop-conversion-requests', protect, requireAnyPermission(['manage_sellers']), getAllShopConversionRequests);
+router.get('/shop-conversion-requests/:id', protect, requireAnyPermission(['manage_sellers']), validate(schemas.idParam, 'params'), getShopConversionRequest);
+router.patch('/shop-conversion-requests/:id/approve', protect, requireAnyPermission(['manage_sellers']), validate(schemas.idParam, 'params'), adminMutationIdempotency, approveShopConversionRequest);
+router.patch('/shop-conversion-requests/:id/reject', protect, requireAnyPermission(['manage_sellers']), validate(schemas.idParam, 'params'), adminMutationIdempotency, rejectShopConversionRequest);
 // Network settings - admin only
 router.get('/networks', protect, requireRole(['admin']), getAllNetworks);
 router.post('/networks', protect, requireRole(['admin']), adminMutationIdempotency, createNetwork);

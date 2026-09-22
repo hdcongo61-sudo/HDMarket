@@ -1,11 +1,10 @@
 import ProductMonitoring from './components/ProductMonitoring';
-import React, { lazy, Suspense, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useContext, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import api, { abortPendingRequests } from './services/api';
 import Navbar from './components/Navbar';
 import SplashScreen from './components/SplashScreen';
-import BootSplash from './components/BootSplash';
 import AppLoader from './components/AppLoader';
 import RoutePageSkeleton from './components/RoutePageSkeleton';
 import NetworkStatusBanner from './components/NetworkStatusBanner';
@@ -46,6 +45,9 @@ const Referrals = lazy(() => import('./pages/Referrals'));
 const RequestDelivery = lazy(() => import('./pages/RequestDelivery'));
 const BuyForMe = lazy(() => import('./pages/BuyForMe'));
 const BuyForMeOrders = lazy(() => import('./pages/BuyForMeOrders'));
+const BuyForMeHome = lazy(() => import('./pages/BuyForMeHome'));
+const BuyForMeLists = lazy(() => import('./pages/BuyForMeLists'));
+const ShoppingLayout = lazy(() => import('./components/shopping/ShoppingLayout'));
 const BuyForMeOrderDetail = lazy(() => import('./pages/BuyForMeOrderDetail'));
 const MyParcelRequests = lazy(() => import('./pages/MyParcelRequests'));
 const ParcelRequestDetail = lazy(() => import('./pages/ParcelRequestDetail'));
@@ -367,36 +369,8 @@ function SellerOrdersEntryRedirect() {
 
 const isShopProfileRoute = (path) => /^\/shop\/[^/]+$/.test(path || '');
 
-// Animated launch splash (BootSplash) preferences, configured independently per
-// platform and cached locally so a disabled splash never flashes on the next
-// launch before the config fetch resolves.
-const BOOT_SPLASH_PREF_KEY = 'hd_boot_splash_pref';
-// Matches useIsMobile's default breakpoint so the synchronous (pre-render)
-// platform choice is consistent with the rest of the app.
-const isMobileViewport = () => {
-  try {
-    return window.matchMedia('(max-width: 767px)').matches;
-  } catch {
-    return false;
-  }
-};
-const readBootSplashPref = () => {
-  const fallback = { enabled: true, durationMs: 2400 };
-  try {
-    const raw = JSON.parse(window.localStorage.getItem(BOOT_SPLASH_PREF_KEY) || '{}');
-    const platform = isMobileViewport() ? raw.mobile : raw.desktop;
-    if (!platform) return fallback;
-    const durationMs = Number(platform.durationMs);
-    return {
-      enabled: platform.enabled !== false,
-      durationMs: durationMs > 0 ? durationMs : 2400
-    };
-  } catch {
-    return fallback;
-  }
-};
-
 function AppContent() {
+  const reduceMotion = useReducedMotion();
   const location = useLocation();
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -412,13 +386,7 @@ function AppContent() {
   const { logoSrc: appBrandLogo } = useAppBrandLogo();
   const [splashConfig, setSplashConfig] = useState(null);
   const [splashDismissed, setSplashDismissed] = useState(false);
-  const bootSplashPrefRef = useRef(readBootSplashPref());
-  const [showBootSplash, setShowBootSplash] = useState(bootSplashPrefRef.current.enabled);
-  const [bootLoading, setBootLoading] = useState(true);
-  const [routeLoading, setRouteLoading] = useState(false);
   const [loaderTimedOut, setLoaderTimedOut] = useState(false);
-  const firstRouteRef = useRef(true);
-  const previousPathRef = useRef(pathname);
   const isShopRoute = isShopProfileRoute(pathname);
   const showShopProfileLoader = isShopRoute && shopLoad?.isShopProfileLoading;
 
@@ -446,33 +414,12 @@ function AppContent() {
   ]);
 
   useEffect(() => {
-    // Fetched once on mount (not just on '/') so the launch-splash toggle applies
-    // on every route. The promo splash still only shows on '/' (see showSplash).
+    // Promotional splash settings apply only to the home page.
     const loadSplashSettings = () => api
       .get('/settings/splash', { skipCache: true, headers: { 'x-skip-cache': '1' } })
       .then((res) => {
         const data = res.data || null;
         setSplashConfig(data);
-        if (data) {
-          const toMs = (s) => Math.round((Number(s) || 2.4) * 1000);
-          const pref = {
-            desktop: {
-              enabled: data.bootSplashDesktopEnabled !== false,
-              durationMs: toMs(data.bootSplashDesktopDurationSeconds)
-            },
-            mobile: {
-              enabled: data.bootSplashMobileEnabled !== false,
-              durationMs: toMs(data.bootSplashMobileDurationSeconds)
-            }
-          };
-          try {
-            window.localStorage.setItem(BOOT_SPLASH_PREF_KEY, JSON.stringify(pref));
-          } catch {
-            /* ignore quota/availability errors */
-          }
-          const current = isMobileViewport() ? pref.mobile : pref.desktop;
-          if (!current.enabled) setShowBootSplash(false);
-        }
       })
       .catch(() => setSplashConfig(null));
     loadSplashSettings();
@@ -518,36 +465,14 @@ function AppContent() {
     };
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setBootLoading(false), 120);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useLayoutEffect(() => {
-    if (firstRouteRef.current) {
-      firstRouteRef.current = false;
-      previousPathRef.current = pathname;
-      return;
-    }
-    previousPathRef.current = pathname;
-    setRouteLoading(true);
-    const timer = setTimeout(() => setRouteLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, [pathname]);
-
   const showSplash =
     pathname === '/' &&
     splashConfig?.splashEnabled !== false &&
     splashConfig?.splashImage &&
     !splashDismissed;
 
-  // The admin promo splash takes precedence over the branded launch splash, so
-  // the two never stack into a double splash.
-  useEffect(() => {
-    if (showSplash) setShowBootSplash(false);
-  }, [showSplash]);
-
-  const showLoader = !showSplash && (bootLoading || routeLoading || showShopProfileLoader);
+  // Only actual pending work may block browsing; never wait for a brand animation.
+  const showLoader = !showSplash && showShopProfileLoader;
   const chatEnabled = isFeatureEnabled('enable_chat', { defaultValue: true });
   const buyForMeFeatureEnabled = isFeatureEnabled('enable_buy_for_me', { defaultValue: true });
   const boostEnabled = isFeatureEnabled('enable_boost', { defaultValue: true });
@@ -706,13 +631,6 @@ function AppContent() {
 
   return (
     <>
-      {showBootSplash ? (
-        <BootSplash
-          logoSrc={appBrandLogo}
-          minDuration={bootSplashPrefRef.current.durationMs}
-          onDone={() => setShowBootSplash(false)}
-        />
-      ) : (
         <AppLoader
           visible={showLoader}
           logoSrc={showShopProfileLoader ? shopLoad?.shopLogo : appBrandLogo}
@@ -723,7 +641,7 @@ function AppContent() {
             if (typeof window !== 'undefined') window.location.reload();
           }}
         />
-      )}
+      <a href="#main-content" className="skip-to-content">Aller au contenu</a>
       <PendingActionHandler />
       <Suspense fallback={null}>
         <PushNotificationsManager />
@@ -737,11 +655,13 @@ function AppContent() {
       ) : null}
       <NetworkStatusBanner />
       <main
+        id="main-content"
+        tabIndex={-1}
         className={!routeHierarchy.showGlobalNav
           // .main-content reserves bottom padding for the mobile tab bar —
           // the auth shell (login/register/forgot/reset) never shows one, so
           // that padding just left dead scrollable space under a short form.
-          ? `app-main-shell min-h-[100dvh] p-0 no-ios-callout${routeHierarchy.shell === 'auth' ? '' : ' main-content'}`
+          ? `app-main-shell min-h-[100dvh] p-0 no-ios-callout${['auth', 'shopping'].includes(routeHierarchy.shell) ? '' : ' main-content'}`
           // Mobile top bar is now two rows (logo/actions + full-width search,
           // see Navbar.jsx) — measured height ~121px vs the old single-row
           // 4rem (64px), so content must clear the taller fixed nav or its
@@ -751,10 +671,10 @@ function AppContent() {
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={pageTransitionKey}
-            initial={{ opacity: 0, y: 8 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            exit={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -6 }}
+            transition={{ duration: reduceMotion ? 0 : 0.22, ease: 'easeOut' }}
           >
         <Suspense
           fallback={<RoutePageSkeleton />}
@@ -796,9 +716,13 @@ function AppContent() {
           <Route path="/parcels/new" element={<RequestDelivery />} />
           <Route path="/parcels/:id" element={<ParcelRequestDetail />} />
           <Route path="/parcels" element={<MyParcelRequests />} />
-          <Route path="/buy-for-me" element={buyForMeFeatureEnabled ? <BuyForMe /> : <Navigate to="/" replace />} />
-          <Route path="/buy-for-me/orders" element={buyForMeFeatureEnabled ? <BuyForMeOrders /> : <Navigate to="/" replace />} />
-          <Route path="/buy-for-me/:id" element={buyForMeFeatureEnabled ? <BuyForMeOrderDetail /> : <Navigate to="/" replace />} />
+          <Route path="/buy-for-me" element={<ShoppingLayout />}>
+            <Route index element={<BuyForMeHome />} />
+            <Route path="new" element={buyForMeFeatureEnabled ? <BuyForMe /> : <Navigate to="/buy-for-me" replace />} />
+            <Route path="orders" element={<BuyForMeOrders />} />
+            <Route path="lists" element={<BuyForMeLists />} />
+            <Route path=":id" element={<BuyForMeOrderDetail />} />
+          </Route>
           <Route
             path="/delivery/apply"
             element={
@@ -826,6 +750,7 @@ function AppContent() {
           <Route path="/mentions-legales" element={<LegalPage type="mentions-legales" />} />
           <Route path="/retours-remboursements" element={<LegalPage type="retours-remboursements" />} />
           <Route path="/cookies" element={<LegalPage type="cookies" />} />
+          <Route path="/accessibilite" element={<LegalPage type="accessibilite" />} />
           <Route
             path="/courier/dashboard"
             element={
@@ -990,11 +915,7 @@ function AppContent() {
           />
           <Route
             path="/cart"
-            element={
-              <ProtectedRoute>
-                <Cart />
-              </ProtectedRoute>
-            }
+            element={<Cart />}
           />
           <Route
             path="/my"
@@ -1541,7 +1462,7 @@ function AppContent() {
           <ChatBox />
         </Suspense>
       ) : null}
-      {pathname.startsWith('/buy-for-me') ? (
+      {pathname.startsWith('/buy-for-me') && pathname !== '/buy-for-me/new' ? (
         <FeatureFeedbackWidget featureName="enable_buy_for_me" />
       ) : null}
     </>

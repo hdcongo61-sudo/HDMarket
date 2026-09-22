@@ -235,6 +235,23 @@ export const assertSellerStatusTransition = ({ order, nextStatus }) => {
     throwTransitionError('Statut invalide.');
   }
 
+  const transitions = {
+    pending: ['confirmed', 'cancelled'], paid: ['confirmed', 'cancelled'],
+    confirmed: ['ready_for_delivery', 'ready_for_pickup', 'cancelled'],
+    ready_for_delivery: ['delivering', 'out_for_delivery', 'cancelled'],
+    ready_for_pickup: ['picked_up_confirmed', 'cancelled'],
+    delivering: ['delivered', 'cancelled'], out_for_delivery: ['delivered', 'cancelled']
+  };
+  if (order.disputeOpened || ['pending', 'processed'].includes(order.refundStatus) ||
+    ['ON_HOLD', 'REFUNDED', 'RELEASED'].includes(order.escrowStatus) ||
+    !transitions[currentStatus]?.includes(status)) {
+    throwTransitionError('Cette transition n’est pas disponible pour l’état actuel de la commande.', null, 409);
+  }
+  if ((status === 'ready_for_pickup' && !isPickupOrder(order)) ||
+    (status === 'confirmed' && order.paymentSource === 'pawapay' && !(Number(order.paidAmount) > 0))) {
+    throwTransitionError('Mode de réception ou paiement incompatible.', null, 409);
+  }
+
   if (status === 'delivery_proof_submitted' || status === 'confirmed_by_client') {
     throwTransitionError('Utilisez le workflow de preuve de livraison pour ce statut.');
   }
@@ -290,6 +307,12 @@ export const assertSellerCanSubmitDeliveryProof = ({ order, deliveryProofResubmi
   const pickupOrder = isPickupOrder(order);
   const platformDeliveryOrder = isPlatformDeliveryOrder(order);
 
+  if (order.disputeOpened || ['pending', 'processed'].includes(order.refundStatus) ||
+    ['ON_HOLD', 'REFUNDED', 'RELEASED'].includes(order.escrowStatus)) throwTransitionError('Cette commande ne peut pas être livrée.', null, 409);
+  if (!order.cancellationWindowSkippedAt && Date.now() - new Date(order.createdAt).getTime() < CANCELLATION_WINDOW_MS) {
+    throwTransitionError('Le délai d’annulation du client est encore actif.', 'CANCELLATION_WINDOW_ACTIVE', 403);
+  }
+
   if (status === 'cancelled') {
     throwTransitionError('Impossible de soumettre une preuve pour une commande annulée.');
   }
@@ -318,11 +341,8 @@ export const assertSellerCanSubmitDeliveryProof = ({ order, deliveryProofResubmi
     toStatus(order?.paymentType) !== 'installment' &&
     !(
       pickupOrder
-        ? ['paid', 'confirmed', 'ready_for_pickup', 'delivery_proof_submitted', 'picked_up_confirmed']
+        ? ['ready_for_pickup', 'delivery_proof_submitted']
         : [
-            'paid',
-            'confirmed',
-            'ready_for_delivery',
             'delivering',
             'out_for_delivery',
             'delivery_proof_submitted'

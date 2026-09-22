@@ -8,8 +8,9 @@ import {
 const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
 
 export const isDeliveryFeeLocked = (order = {}) =>
-  Boolean(order?.deliveryFeeLocked) &&
-  String(order?.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT';
+  Boolean(order?.deliveryFeeLocked) ||
+  String(order?.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT' ||
+  String(order?.deliveryFeeSource || '') === 'FULL_PAYMENT_WAIVER';
 
 export const assertDeliveryFeeEditable = (order = {}) => {
   if (isDeliveryFeeLocked(order)) {
@@ -81,6 +82,9 @@ export const applyDeliveryFeeToOrder = ({
   }
 
   assertDeliveryFeeEditable(order);
+  if (order.paymentType === 'installment') {
+    throw Object.assign(new Error('Les frais de livraison sont fixés dans le devis du paiement par tranche.'), { statusCode: 409, code: 'INSTALLMENT_QUOTE_LOCKED' });
+  }
 
   const previousFee = roundMoney(Number(order.deliveryFeeTotal || 0));
   const targetFee = roundMoney(Math.max(0, Number(nextFee || 0)));

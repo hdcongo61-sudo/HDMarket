@@ -1,5 +1,6 @@
 import { searchIntentPath } from '../utils/aiSearchIntent';
 import SearchMediaControls from './search/SearchMediaControls';
+import useServiceAvailability from '../hooks/useServiceAvailability';
 import React, { useContext, useState, useEffect, useCallback, useRef } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
@@ -117,12 +118,11 @@ export default function Navbar({ hideMobileTabBar = false }) {
   const sellingEnabled = isTruthyFlag(getRuntimeValue('enable_selling', true));
   const shopConversionEnabled = isTruthyFlag(getRuntimeValue('enable_shop_conversion', true));
   const referralProgramEnabled = isTruthyFlag(getRuntimeValue('enable_referral_program', false));
-  const parcelDeliveryEnabled = isTruthyFlag(getRuntimeValue('enable_parcel_delivery', true));
+  const { buyForMeEnabled, parcelDeliveryEnabled } = useServiceAvailability();
   // Admin-controlled search upgrades (Runtime settings → search category).
   const voiceSearchEnabled = isTruthyFlag(getRuntimeValue('enable_voice_search', false));
   const imageSearchEnabled = isTruthyFlag(getRuntimeValue('enable_image_search', false));
   const [imageSearchOpen, setImageSearchOpen] = useState(false);
-  const [buyForMeEnabled, setBuyForMeEnabled] = useState(false);
   const { cart } = useContext(CartContext);
   const { favorites } = useContext(FavoriteContext);
   const cartCount = cart?.totals?.quantity || 0;
@@ -690,25 +690,6 @@ export default function Navbar({ hideMobileTabBar = false }) {
     });
   }, [buildDefaultSearchTemplates]);
 
-  // Buy For Me's on/off switch lives in its own BuyForMeConfig document, not
-  // the runtimeSettingsCatalog flags getRuntimeValue reads — same capability
-  // check HomeIcon.jsx uses for its promo banner, so the nav entry never
-  // advertises the feature while it's disabled.
-  useEffect(() => {
-    let active = true;
-    api
-      .get('/buy-for-me/capabilities')
-      .then(({ data }) => {
-        if (active) setBuyForMeEnabled(Boolean(data?.enabled));
-      })
-      .catch(() => {
-        if (active) setBuyForMeEnabled(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
   // Load custom navigation items from localStorage
   useEffect(() => {
     try {
@@ -743,6 +724,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
     { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: SparklesIcon, badge: null, visible: aiRecommendationsEnabled, order: 14 },
     { id: 'referrals', label: t('nav.referrals', 'Parrainage'), path: '/referrals', icon: GiftIcon, badge: null, visible: user ? referralProgramEnabled : false, order: 14.5 },
     { id: 'buy-for-me', label: t('nav.buyForMe', 'Acheter pour moi'), path: '/buy-for-me', icon: ShoppingBagIcon, badge: null, visible: user ? buyForMeEnabled : false, order: 14.6 },
+    { id: 'my-buy-for-me', label: t('nav.myBuyForMe', 'Mes achats délégués'), path: '/buy-for-me/orders', icon: ClipboardDocumentListIcon, badge: null, visible: Boolean(user), order: 14.65 },
     { id: 'parcels', label: t('nav.parcels', 'Envoyer un colis'), path: '/parcels/new', icon: BoltIcon, badge: null, visible: user ? parcelDeliveryEnabled : false, order: 14.7 },
     { id: 'my-parcels', label: t('nav.myParcels', 'Mes colis'), path: '/parcels', icon: TruckIcon, badge: null, visible: user ? parcelDeliveryEnabled : false, order: 14.8 },
     { id: 'plans', label: t('nav.plans', 'Plans & tarifs'), path: '/plans', icon: ReceiptPercentIcon, badge: null, visible: true, order: 15 }

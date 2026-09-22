@@ -34,8 +34,9 @@ export const getRouteHierarchy = (value = '/') => {
   const isSeller = pathname === '/seller' || pathname.startsWith('/seller/');
   const isAuth = AUTH_PATHS.has(pathname);
   const isCheckout = CHECKOUT_PATHS.has(pathname);
+  const isShopping = pathname === '/buy-for-me' || pathname.startsWith('/buy-for-me/');
   const isVideoFeed = pathname === '/videos' || pathname.startsWith('/videos/');
-  const ownsChrome = isCourier || isAdmin || isSeller || isAuth || isCheckout;
+  const ownsChrome = isCourier || isAdmin || isSeller || isAuth || isCheckout || isShopping;
 
   let shell = 'commerce';
   if (isCourier) shell = 'delivery';
@@ -43,6 +44,7 @@ export const getRouteHierarchy = (value = '/') => {
   else if (isSeller) shell = 'seller';
   else if (isAuth) shell = 'auth';
   else if (isCheckout) shell = 'checkout';
+  else if (isShopping) shell = 'shopping';
 
   return {
     pathname,

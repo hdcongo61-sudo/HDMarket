@@ -447,6 +447,15 @@ export default function PaymentForm({ product, onSubmitted }) {
           </div>
         </div>
 
+        {isReconciliation && (
+          <PawaPayButton
+            amount={Math.max(10, Math.ceil(commissionDue))}
+            purpose="LISTING_FEE_FUNDING"
+            productId={product._id}
+            returnPath={typeof window !== 'undefined' ? window.location.pathname : '/my'}
+            label="Reprendre la vérification PawaPay"
+          />
+        )}
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Détails de la transaction</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -615,11 +624,13 @@ export default function PaymentForm({ product, onSubmitted }) {
           </div>
         </div>
 
-        {hasCommissionDue && !isReconciliation && (
+        {hasCommissionDue && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
             <p className="text-sm font-black text-emerald-900">Payer avec PawaPay</p>
             <p className="mb-3 mt-1 text-xs font-semibold leading-5 text-emerald-800">
-              Paiement sécurisé par MTN MoMo ou Airtel Money. L’annonce sera validée automatiquement.
+              {isReconciliation
+                ? 'Payez uniquement la différence avec PawaPay. Le nouveau prix sera publié après confirmation.'
+                : 'Paiement sécurisé par MTN MoMo ou Airtel Money. L’annonce sera validée automatiquement.'}
             </p>
             <PawaPayButton
               amount={Math.max(10, Math.ceil(commissionDue))}
@@ -650,7 +661,7 @@ export default function PaymentForm({ product, onSubmitted }) {
           </div>
         )}
 
-        {(isReconciliation || !hasCommissionDue) && <form onSubmit={submit} className="space-y-4">
+        {!hasCommissionDue && <form onSubmit={submit} className="space-y-4">
           {hasCommissionDue && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3">

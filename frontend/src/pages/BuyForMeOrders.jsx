@@ -1,48 +1,27 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { ChevronRightIcon, PlusIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
-import api from '../services/api';
+import { PlusIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
+import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
-import GlassHeader from '../components/orders/GlassHeader';
-import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
-
-const STATUS = {
-  PENDING_PAYMENT: ['Paiement en attente', 'bg-amber-50 text-amber-700'],
-  SEARCHING_DRIVER: ['Recherche d’un livreur', 'bg-amber-50 text-amber-700'],
-  DRIVER_ASSIGNED: ['Livreur assigné', 'bg-blue-50 text-blue-700'],
-  SHOPPING: ['Achats en cours', 'bg-blue-50 text-blue-700'],
-  WAITING_CUSTOMER_APPROVAL: ['Votre validation est requise', 'bg-orange-50 text-[#c54d00]'],
-  RECEIPT_UPLOADED: ['Reçu ajouté', 'bg-violet-50 text-violet-700'],
-  DELIVERING: ['En livraison', 'bg-blue-50 text-blue-700'],
-  DELIVERED: ['À confirmer', 'bg-emerald-50 text-emerald-700'],
-  COMPLETED: ['Terminée', 'bg-emerald-50 text-emerald-700'],
-  CANCELED: ['Annulée', 'bg-gray-100 text-gray-600'],
-  FAILED: ['Échouée', 'bg-red-50 text-red-700']
-};
+import { useAppSettings } from '../context/AppSettingsContext';
+import ShoppingOrderCard from '../components/shopping/ShoppingOrderCard';
 
 export default function BuyForMeOrders() {
-  const { user } = useContext(AuthContext);
+  const { user } = useContext(AuthContext), { isFeatureEnabled } = useAppSettings();
   const location = useLocation();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-
+  const [scope, setScope] = useState('active'), [page, setPage] = useState(1), [refresh, setRefresh] = useState(0);
+  const [result, setResult] = useState({ items: [], counts: {}, totalPages: 1 }), [loading, setLoading] = useState(true), [error, setError] = useState('');
   useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    api.get('/buy-for-me/mine').then(({ data }) => setOrders(Array.isArray(data?.items) ? data.items : [])).catch(() => setOrders([])).finally(() => setLoading(false));
-  }, [user]);
-
+    if (!user) return;
+    let alive = true; setLoading(true); setError('');
+    api.get('/buy-for-me/mine', { params: { scope, page, limit: 12 }, skipCache: true }).then(({ data }) => { if (alive) setResult(data); })
+      .catch(err => { if (alive) setError(getApiErrorMessage(err, 'Impossible de charger vos achats.')); }).finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [user, scope, page, refresh]);
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
-  return (
-    <div className="min-h-screen bg-[#faf8f5] pb-20">
-      <GlassHeader title="Mes achats délégués" subtitle="Suivez chaque demande Acheter Pour Moi" backTo="/" right={<Link to="/buy-for-me" className="grid h-9 w-9 place-items-center rounded-full bg-[#e85d00] text-white" aria-label="Nouvelle demande"><PlusIcon className="h-4 w-4" /></Link>} />
-      <div className="mx-auto max-w-lg space-y-2.5 px-4 py-4">
-        {loading ? <p className="py-10 text-center text-sm text-gray-400">Chargement…</p> : null}
-        {!loading && orders.length === 0 ? <section className="rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm"><ShoppingBagIcon className="mx-auto h-9 w-9 text-gray-300" /><p className="mt-3 text-sm text-gray-500">Aucune demande pour le moment.</p><Link to="/buy-for-me" className="mt-4 inline-flex min-h-11 items-center rounded-full bg-[#e85d00] px-4 text-sm font-black text-white">Faire mes achats</Link></section> : null}
-        {orders.map((order) => {
-          const [label, className] = STATUS[order.status] || STATUS.SEARCHING_DRIVER;
-          return <Link key={order._id} to={`/buy-for-me/${order._id}`} className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-3.5 shadow-sm"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#e85d00]"><ShoppingBagIcon className="h-[19px] w-[19px]" /></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-gray-900">{order.preferredStore || 'Achats à la demande'}</p><p className="mt-0.5 truncate text-xs text-gray-500">{order.items?.map((item) => item.name).filter(Boolean).join(', ') || 'Liste d’achats'}</p><p className="mt-1 text-[10px] font-semibold text-gray-400">{order.authorizationMode === 'SHOPPING_BUDGET' || order.pricing?.authorizationMode === 'SHOPPING_BUDGET' ? 'Budget autorisé' : 'Estimation'} : {formatCurrency(order.estimatedShoppingValue || order.pricing?.estimatedShoppingValue || order.pricing?.shoppingBudget || order.maxShoppingBudget)} · {new Date(order.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p></div><div className="shrink-0 text-right"><span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-black ${className}`}>{label}</span><p className="mt-1 text-sm font-black text-neutral-950">{formatCurrency(order.payment?.totalPaid || order.pricing?.total)}</p></div><ChevronRightIcon className="shrink-0 text-gray-300 h-[17px] w-[17px]" /></Link>;
-        })}
-      </div>
-    </div>
-  );
+  return <div className="shop-stack"><div className="shop-row"><div><p className="shop-eyebrow">Tout votre suivi, au même endroit</p><h1 className="mt-2">Mes achats</h1></div>{isFeatureEnabled('enable_buy_for_me', { defaultValue: false }) ? <Link to="/buy-for-me/new" className="shop-button" aria-label="Nouvelle demande"><PlusIcon /><span>Nouveaux achats</span></Link> : null}</div>
+    <div className="shop-tabs" aria-label="Filtrer les achats">{[['active', 'En cours'], ['history', 'Historique']].map(([value, label]) => <button key={value} aria-pressed={scope === value} onClick={() => { setScope(value); setPage(1); }}>{label} {result.counts?.[value] !== undefined ? '(' + result.counts[value] + ')' : ''}</button>)}</div>
+    {error ? <div role="alert" className="shop-error">{error} <button className="underline" onClick={() => setRefresh(value => value + 1)}>Réessayer</button></div> : loading ? <p role="status" className="shop-muted">Chargement de vos achats…</p> : result.items?.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{result.items.map(order => <ShoppingOrderCard key={order._id} order={order} />)}</div> : <div className="shop-empty"><ShoppingBagIcon /><h2>{scope === 'active' ? 'Aucun achat en cours.' : 'Votre historique commence ici.'}</h2><p className="shop-muted mt-2">{scope === 'active' ? 'Vos demandes en cours et les décisions attendues apparaîtront ici.' : 'Vos achats terminés et annulés resteront disponibles avec leurs reçus.'}</p><Link to="/buy-for-me" className="shop-link mt-3">Retour à l’accueil du service</Link></div>}
+    {!error && result.totalPages > 1 ? <div className="shop-row"><button className="shop-button shop-button--secondary" disabled={loading || page === 1} onClick={() => setPage(value => value - 1)}>Précédent</button><span className="shop-muted">Page {page} / {result.totalPages}</span><button className="shop-button shop-button--secondary" disabled={loading || page >= result.totalPages} onClick={() => setPage(value => value + 1)}>Suivant</button></div> : null}
+  </div>;
 }

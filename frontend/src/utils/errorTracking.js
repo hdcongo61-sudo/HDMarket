@@ -1,14 +1,18 @@
 /* global __HDMARKET_BUILD_ID__ */
 import * as Sentry from '@sentry/react';
+import { hasDiagnosticsConsent, subscribePrivacyPreference } from '../services/privacyPreferences';
+import { monitoringPage } from '../services/productMonitoring';
 
-// Opt-in: does nothing unless VITE_SENTRY_DSN is set at build time (no
-// account/DSN required to ship this). Sentry's default browser integrations
+// Opt-in: requires a configured DSN and the user's separate diagnostic consent.
+// Sentry's default browser integrations
 // already cover window 'error'/'unhandledrejection'; what's added manually here
 // is the 'hdmarket:ui-error' event GlobalErrorBoundary dispatches on every
-// caught render error, plus the 'hdmarket:api-error'/'hdmarket:query-error'
+// caught render error, plus the 'hdmarket:api-error'
 // events, which Sentry has no way to know about on its own.
 const dsn = import.meta.env.VITE_SENTRY_DSN || '';
 export const errorTrackingEnabled = Boolean(dsn);
+let initialized = false;
+let subscribed = false;
 
 // Must match the release name vite.config.js passes to @sentry/vite-plugin, or
 // uploaded sourcemaps won't be applied and stack traces stay minified.
@@ -16,47 +20,30 @@ const release =
   import.meta.env.VITE_SENTRY_RELEASE ||
   (typeof __HDMARKET_BUILD_ID__ === 'string' ? __HDMARKET_BUILD_ID__ : '');
 
-// Query/body keys whose values must never reach a third party. Mirrors
-// SENSITIVE_FIELDS in backend/middlewares/globalErrorHandler.js.
-const SENSITIVE_KEYS = [
-  'password',
-  'token',
-  'authorization',
-  'cookie',
-  'refreshtoken',
-  'accesstoken',
-  'jwt',
-  'secret',
-  'apikey',
-  'otp',
-  'verificationcode',
-  'transactioncode'
-];
-
-const isSensitiveKey = (key = '') => {
-  const lower = String(key).toLowerCase();
-  return SENSITIVE_KEYS.some((field) => lower.includes(field));
+// Group application routes to avoid transmitting private IDs and query strings.
+const scrubUrl = (value) => {
+  try {
+    const url = new URL(String(value || ''), window.location.origin);
+    return `${url.origin}${monitoringPage(url.pathname)}`;
+  } catch { return ''; }
 };
 
-// Strips secrets out of query strings before a URL is sent to Sentry. Password
-// reset and payment-verification links carry tokens as query params.
-const scrubUrl = (value) => {
-  const raw = String(value || '');
-  if (!raw.includes('?')) return raw;
-  const [base, query] = raw.split('?');
-  try {
-    const params = new URLSearchParams(query);
-    let touched = false;
-    for (const key of [...params.keys()]) {
-      if (isSensitiveKey(key)) {
-        params.set(key, '[REDACTED]');
-        touched = true;
-      }
-    }
-    return touched ? `${base}?${params.toString()}` : raw;
-  } catch {
-    return base;
-  }
+export const sanitizeDiagnosticEvent = (event) => {
+  if (!hasDiagnosticsConsent()) return null;
+  // Breadcrumbs can contain DOM text, console arguments and full API URLs.
+  const safe = { ...event, user: undefined, breadcrumbs: undefined, extra: undefined,
+    message: event.message ? 'Application diagnostic' : undefined,
+    transaction: event.transaction ? monitoringPage(event.transaction) : undefined
+  };
+  safe.request = event.request?.url ? { url: scrubUrl(event.request.url) } : undefined;
+  safe.contexts = Object.fromEntries(Object.entries(event.contexts || {}).filter(([key]) => ['browser', 'os', 'device', 'react'].includes(key)));
+  if (safe.exception?.values) safe.exception = { ...safe.exception, values: safe.exception.values.map(value => ({
+    ...value, value: 'Application error',
+    stacktrace: value.stacktrace ? { ...value.stacktrace, frames: value.stacktrace.frames?.map(frame => ({
+      ...frame, vars: undefined, filename: frame.filename?.split(/[?#]/)[0], abs_path: frame.abs_path?.split(/[?#]/)[0]
+    })) } : undefined
+  })) };
+  return safe;
 };
 
 // Noise that is not actionable: user connectivity, browser extensions, and
@@ -75,6 +62,19 @@ const IGNORED_ERRORS = [
 
 export const initErrorTracking = () => {
   if (!errorTrackingEnabled || typeof window === 'undefined') return;
+  if (!subscribed) {
+    subscribed = true;
+    subscribePrivacyPreference(() => {
+      if (hasDiagnosticsConsent()) initErrorTracking();
+      else if (initialized) {
+        Sentry.getClient().getOptions().enabled = false;
+        Sentry.setUser(null);
+      }
+    });
+  }
+  if (!hasDiagnosticsConsent()) return;
+  if (initialized) { Sentry.getClient().getOptions().enabled = true; return; }
+  initialized = true;
 
   Sentry.init({
     dsn,
@@ -85,31 +85,22 @@ export const initErrorTracking = () => {
     tracesSampleRate: 0,
     // Never attach IP addresses or cookies to an event.
     sendDefaultPii: false,
+    autoSessionTracking: false,
+    integrations: defaults => defaults.filter(integration => !['Breadcrumbs', 'BrowserSession', 'SessionTiming'].includes(integration.name)),
+    // Check at transport time too, so a queued envelope cannot leave after withdrawal.
+    transport: options => {
+      const transport = Sentry.makeFetchTransport(options);
+      return { ...transport, send: envelope => hasDiagnosticsConsent() ? transport.send(envelope) : Promise.resolve({}) };
+    },
     ignoreErrors: IGNORED_ERRORS,
-    beforeSend(event) {
-      if (event.request?.url) {
-        event.request.url = scrubUrl(event.request.url);
-      }
-      // Sentry does not send cookies with sendDefaultPii off, but headers can
-      // still arrive via manually attached context.
-      if (event.request?.headers) {
-        for (const key of Object.keys(event.request.headers)) {
-          if (isSensitiveKey(key)) event.request.headers[key] = '[REDACTED]';
-        }
-      }
-      if (Array.isArray(event.breadcrumbs)) {
-        event.breadcrumbs = event.breadcrumbs.map((crumb) =>
-          crumb?.data?.url ? { ...crumb, data: { ...crumb.data, url: scrubUrl(crumb.data.url) } } : crumb
-        );
-      }
-      return event;
-    }
+    beforeSend: sanitizeDiagnosticEvent
   });
 
   // Render errors caught by GlobalErrorBoundary. The boundary passes the
   // original stack, which is reattached to a real Error so Sentry groups by the
   // failing component instead of by this file.
   window.addEventListener('hdmarket:ui-error', (event) => {
+    if (!hasDiagnosticsConsent()) return;
     const detail = event?.detail || {};
     const error = new Error(String(detail.message || 'UI_ERROR'));
     error.name = 'UiRenderError';
@@ -124,6 +115,7 @@ export const initErrorTracking = () => {
   // expected to happen occasionally and are useful as trend data, so they go in
   // as messages rather than exceptions to avoid drowning out real bugs.
   window.addEventListener('hdmarket:api-error', (event) => {
+    if (!hasDiagnosticsConsent()) return;
     const detail = event?.detail || {};
     const status = Number(detail.status || 0);
     // Client-side validation failures and auth expiry are normal operation.
@@ -136,14 +128,7 @@ export const initErrorTracking = () => {
   });
 };
 
-// Attaches the signed-in user so an error report shows how many distinct people
-// hit it. Deliberately id-only: name, email, and phone are PII and are not sent.
-export const setErrorTrackingUser = (user) => {
-  if (!errorTrackingEnabled) return;
-  if (!user?.id) {
-    Sentry.setUser(null);
-    return;
-  }
-  Sentry.setUser({ id: String(user.id) });
-  Sentry.setTag('user.role', String(user.role || 'user'));
+// Retain the AuthContext hook without attaching account identity to diagnostics.
+export const setErrorTrackingUser = () => {
+  if (initialized) Sentry.setUser(null);
 };

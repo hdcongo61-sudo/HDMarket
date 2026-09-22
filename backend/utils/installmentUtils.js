@@ -134,8 +134,11 @@ export const generateInstallmentSchedule = ({
     return [];
   }
 
-  const steps = Math.max(1, Math.ceil(duration / 30));
-  const roundedRemaining = Math.round(remaining * 100);
+  const roundedRemaining = Math.round(remaining);
+  // XAF has no fractional units. Merge small installments so every provider
+  // payment is at least 10 FCFA, while conserving the exact remaining total.
+  if (roundedRemaining < 10) return [];
+  const steps = Math.max(1, Math.min(Math.ceil(duration / 30), Math.floor(roundedRemaining / 10)));
   const baseStep = Math.floor(roundedRemaining / steps);
   const schedule = [];
 
@@ -146,7 +149,7 @@ export const generateInstallmentSchedule = ({
     const dueOffsetDays = Math.max(1, Math.round(((index + 1) * duration) / steps));
     schedule.push({
       dueDate: addDays(firstPaymentDate, dueOffsetDays),
-      amount: Number((stepAmountCents / 100).toFixed(2)),
+      amount: stepAmountCents,
       status: 'pending',
       penaltyAmount: 0
     });

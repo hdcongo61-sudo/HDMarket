@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 const shopConversionRequestSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    currency: { type: String, default: 'XAF', uppercase: true, trim: true },
     shopName: { type: String, required: true, trim: true },
     shopAddress: { type: String, required: true, trim: true },
     shopLogo: { type: String, default: '' },
@@ -15,6 +17,7 @@ const shopConversionRequestSchema = new mongoose.Schema(
     },
     paymentProof: { type: String, default: '' },
     paymentAmount: { type: Number, required: true, default: 50000 },
+    feeSnapshot: { type: Number, required: true, default: 50000 },
     paymentMethod: {
       type: String,
       // mobile_money remains readable for historical requests; all new requests
@@ -41,7 +44,22 @@ const shopConversionRequestSchema = new mongoose.Schema(
     },
     processedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     processedAt: { type: Date, default: null },
-    rejectionReason: { type: String, trim: true, default: '' }
+    rejectionReason: { type: String, trim: true, default: '' },
+    refundId: { type: String, default: '', trim: true, index: true },
+    refundStatus: {
+      type: String,
+      enum: ['', 'pending', 'processing', 'completed', 'failed', 'needs_attention'],
+      default: ''
+    },
+    refundFailureReason: { type: String, default: '', trim: true },
+    verificationDocumentsPublicIds: {
+      shopPaper: { type: String, default: '' },
+      shopInvoice: { type: String, default: '' },
+      insidePhoto: { type: String, default: '' },
+      outsidePhoto: { type: String, default: '' }
+    },
+    shopLogoPublicId: { type: String, default: '' },
+    documentsCleanedAt: { type: Date, default: null }
   },
   { timestamps: true }
 );

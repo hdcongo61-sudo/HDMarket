@@ -1,12 +1,9 @@
-import { fileURLToPath } from 'url';
-import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
+import crypto from 'node:crypto';
+import { privateUploadDirectory } from './privateAttachments.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const BASE_UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
-const DISPUTE_DIR = path.join(BASE_UPLOAD_DIR, 'disputes');
+const DISPUTE_DIR = privateUploadDirectory('disputes');
 
 const ensureDisputeDir = () => {
   if (!fs.existsSync(DISPUTE_DIR)) {
@@ -28,7 +25,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const safeName = sanitizeFileName(file.originalname);
-    cb(null, `${Date.now()}-${safeName}`);
+    cb(null, `${crypto.randomUUID()}-${safeName}`);
   }
 });
 

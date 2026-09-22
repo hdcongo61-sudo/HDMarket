@@ -4,6 +4,7 @@ import { ArrowUpRightIcon, EnvelopeIcon, MapPinIcon, PhoneIcon, ShieldCheckIcon,
 import { useNetworks } from '../hooks/useNetworks';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
 import { useAppSettings } from '../context/AppSettingsContext';
+import useServiceAvailability from '../hooks/useServiceAvailability';
 
 const linkClassName =
   'group inline-flex min-h-9 items-center gap-2 text-sm font-semibold text-neutral-300 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hd-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950';
@@ -30,6 +31,7 @@ const normalizeExternalUrl = (value = '') => {
 };
 
 export default function Footer() {
+  const { buyForMeEnabled, parcelDeliveryEnabled } = useServiceAvailability();
   const year = new Date().getFullYear();
   const { t, app, isFeatureEnabled } = useAppSettings();
   const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
@@ -64,17 +66,20 @@ export default function Footer() {
     { to: '/discover', label: t('nav.discover', 'Découvrir') },
     ...(productVideosEnabled ? [{ to: '/videos', label: t('nav.videos', 'Vidéos') }] : []),
     { to: '/shops/verified', label: t('nav.verifiedShops', 'Boutiques vérifiées') },
-    { to: '/buy-for-me', label: t('footer.buyForMe', 'Acheter pour moi') },
-    { to: '/parcels/new', label: t('footer.sendParcel', 'Envoyer un colis') },
+    ...(buyForMeEnabled ? [{ to: '/buy-for-me', label: t('footer.buyForMe', 'Acheter pour moi') }] : []),
+    ...(parcelDeliveryEnabled ? [{ to: '/parcels/new', label: t('footer.sendParcel', 'Envoyer un colis') }] : []),
     { to: '/delivery/apply', label: t('footer.courierApplication', 'Devenir livreur') },
     { to: '/a-propos', label: t('nav.about', 'À propos') }
   ];
 
   const legalLinks = [
     { to: '/conditions-utilisation', label: 'Conditions d’utilisation' },
+    { to: '/conditions-vente', label: 'Conditions de vente' },
     { to: '/confidentialite', label: 'Confidentialité' },
+    { to: '/cookies', label: 'Cookies et confidentialité' },
     { to: '/retours-remboursements', label: 'Retours et remboursements' },
-    { to: '/mentions-legales', label: 'Mentions légales' }
+    { to: '/mentions-legales', label: 'Mentions légales' },
+    { to: '/accessibilite', label: 'Accessibilité' }
   ];
 
   return (

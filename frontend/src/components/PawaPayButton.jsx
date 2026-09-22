@@ -1,9 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowPathIcon, ArrowUpRightIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { getPawaPayRequestError } from '../utils/pawapayErrors';
-import { createIdempotencyKey } from '../utils/idempotency';
+import { getPawaPayAttempt, updatePawaPayAttempt, clearPawaPayAttempt } from '../utils/pawapayAttempt';
+import AuthContext from '../context/AuthContext';
+import { useCountry } from '../context/CountryContext';
 import { emitSettingsRefresh } from '../utils/settingsRefresh';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import {
@@ -22,13 +24,16 @@ export default function PawaPayButton({
   label = 'Payer avec PawaPay',
   onBeforeStart = null,
   onResult = null,
+  disabled = false,
   className = ''
 }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [errorHint, setErrorHint] = useState('');
-  const idempotencyKeyRef = useRef(createIdempotencyKey('pawapay-checkout'));
+  const { user } = useContext(AuthContext);
+  const { country } = useCountry();
+  const attemptRef = useRef(null);
   const paymentWindowRef = useRef(null);
   const expectedCheckoutIdRef = useRef('');
   const normalizedAmount = Math.round(Number(amount || 0));
@@ -46,6 +51,7 @@ export default function PawaPayButton({
     }
     paymentWindowRef.current = null;
     expectedCheckoutIdRef.current = '';
+    if (result.status === 'completed' || result.retryAllowed) clearPawaPayAttempt(attemptRef.current);
     setLoading(false);
 
     if (onResult) { onResult(result); return; }
@@ -69,6 +75,7 @@ export default function PawaPayButton({
   }, [loading]);
 
   const startCheckout = async () => {
+    if (disabled) return;
     if (loading || normalizedAmount < 10) {
       setError('Le montant minimum est de 10 FCFA.');
       setErrorHint('Modifiez le montant puis réessayez.');
@@ -80,12 +87,6 @@ export default function PawaPayButton({
     setErrorHint('');
     const paymentWindow = openPawaPayCheckoutWindow();
     paymentWindowRef.current = paymentWindow;
-    if (!paymentWindow) {
-      setError('La fenêtre de paiement PawaPay a été bloquée.');
-      setErrorHint('Autorisez les fenêtres contextuelles pour HDMarket, puis réessayez.');
-      setLoading(false);
-      return;
-    }
     try {
       let checkoutOverrides = {};
       if (onBeforeStart) {
@@ -106,9 +107,7 @@ export default function PawaPayButton({
           checkoutOverrides = validation;
         }
       }
-      const { data } = await api.post(
-        '/payments/pawapay/checkouts',
-        {
+      const payload = {
           amount: normalizedAmount,
           purpose,
           ...(productId ? { productId } : {}),
@@ -116,24 +115,21 @@ export default function PawaPayButton({
           ...(actionContext ? { actionContext } : {}),
           returnPath,
           ...checkoutOverrides
-        },
-        { headers: { 'Idempotency-Key': idempotencyKeyRef.current } }
+        };
+      attemptRef.current = await getPawaPayAttempt(`${user?._id || user?.id}:${country?.id || country?._id}`, payload);
+      const { data } = await api.post(
+        '/payments/pawapay/checkouts', payload,
+        { headers: { 'Idempotency-Key': attemptRef.current.idempotencyKey } }
       );
       expectedCheckoutIdRef.current = String(data?.checkoutId || '').trim();
+      updatePawaPayAttempt(attemptRef.current, expectedCheckoutIdRef.current);
       const paymentUrl = data?.pending ? data?.verificationUrl : data?.redirectUrl;
-      if (data?.pending && data?.verificationUrl) {
-        if (paymentWindow.closed) {
-          expectedCheckoutIdRef.current = '';
-          setError('La fenêtre de paiement PawaPay a été fermée.');
-          setErrorHint('Réessayez lorsque vous êtes prêt à terminer le paiement.');
-          setLoading(false);
-          return;
-        }
-        paymentWindow.opener = null;
-        paymentWindow.location.assign(data.verificationUrl);
+      if (!paymentUrl) throw new Error('Adresse de paiement indisponible.');
+      if (!paymentWindow) {
+        // Mobile browsers can block popups. Use the same checkout in this tab.
+        window.location.assign(paymentUrl);
         return;
       }
-      if (!paymentUrl) throw new Error('Adresse de paiement indisponible.');
       if (paymentWindow.closed) {
         expectedCheckoutIdRef.current = '';
         setError('La fenêtre de paiement PawaPay a été fermée.');
@@ -160,11 +156,11 @@ export default function PawaPayButton({
       );
       setError(presentation.message);
       setErrorHint(presentation.hint);
-      // A provider response is definitive and a later retry needs a new checkout.
-      // If the network response was lost, reuse the same key so the backend can
-      // replay the original result instead of creating a second payment.
-      if (requestError?.response && presentation.action !== 'CHECK_STATUS') {
-        idempotencyKeyRef.current = createIdempotencyKey('pawapay-checkout');
+      // Validation failures can start over. A transport/server failure may hide
+      // a committed checkout, so retries must retain the original key.
+      const status = Number(requestError?.response?.status || 0);
+      if (status >= 400 && status < 500 && ![408, 409, 429].includes(status) && presentation.action !== 'CHECK_STATUS') {
+        clearPawaPayAttempt(attemptRef.current);
       }
       setLoading(false);
     }
@@ -175,11 +171,11 @@ export default function PawaPayButton({
       <button
         type="button"
         onClick={startCheckout}
-        disabled={loading || normalizedAmount < 10}
+        disabled={disabled || loading || normalizedAmount < 10}
         className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0b6b4f] px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#07563f] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
       >
         {loading ? <ArrowPathIcon className="animate-spin h-[18px] w-[18px]" /> : <ShieldCheckIcon className="h-[18px] w-[18px]" />}
-        <span>{loading ? 'Ouverture du paiement…' : `${label} · ${formatPriceWithStoredSettings(normalizedAmount)}`}</span>
+        <span>{loading ? 'Ouverture du paiement…' : disabled ? label : `${label} · ${formatPriceWithStoredSettings(normalizedAmount)}`}</span>
         {!loading && <ArrowUpRightIcon className="h-4 w-4" />}
       </button>
       {error ? (

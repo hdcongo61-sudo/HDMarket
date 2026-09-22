@@ -20,7 +20,7 @@ describe('getRouteHierarchy', () => {
     });
   });
 
-  it.each(['/shop/store-id', '/buy-for-me', '/parcels/new', '/my/annonce/item-id']) (
+  it.each(['/shop/store-id', '/parcels/new', '/my/annonce/item-id']) (
     'reserves mobile actions for contextual page %s',
     (pathname) => {
       const hierarchy = getRouteHierarchy(pathname);
@@ -34,6 +34,11 @@ describe('getRouteHierarchy', () => {
     ['/orders/checkout', 'checkout'],
     ['/admin/orders', 'admin'],
     ['/seller/orders', 'seller'],
+    ['/buy-for-me', 'shopping'],
+    ['/buy-for-me/new', 'shopping'],
+    ['/buy-for-me/lists', 'shopping'],
+    ['/buy-for-me/orders', 'shopping'],
+    ['/buy-for-me/123', 'shopping'],
     ['/delivery/dashboard', 'delivery']
   ])('gives %s an isolated %s shell', (pathname, shell) => {
     expect(getRouteHierarchy(pathname)).toMatchObject({

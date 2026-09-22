@@ -1,6 +1,9 @@
 import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
-import { persistDeliveryProofFile } from '../utils/deliveryProofStorage.js';
+import User from '../models/userModel.js';
+import Order from '../models/buyForMeOrderModel.js';
+import Transfer from '../models/buyForMeTransferModel.js';
+import { persistShoppingMedia } from './buyForMeMediaController.js';
 import { resolveCourierContext } from './courierDeliveryController.js';
 import {
   acceptBuyForMeJob,
@@ -14,6 +17,7 @@ import {
 } from '../services/buyForMeService.js';
 
 const sendServiceError = (res, error) => {
+  if (error?.name === 'VersionError') return res.status(409).json({ message: 'La mission a changé. Actualisez avant de réessayer.' });
   const statusCode = Number(error?.statusCode || 500);
   if (statusCode < 500) return res.status(statusCode).json({ message: error.message });
   throw error;
@@ -32,7 +36,7 @@ const resolveBuyForMeCourierContext = async (req) => {
 export const listCourierBuyForMeJobs = asyncHandler(async (req, res) => {
   const { deliveryGuy, previewMode } = await resolveBuyForMeCourierContext(req);
   if (previewMode) return res.json({ items: [], total: 0, page: 1, totalPages: 1 });
-  return res.json(await listDriverBuyForMeJobs({ driverId: deliveryGuy._id, scope: req.query?.scope, page: req.query?.page, limit: req.query?.limit }));
+  return res.json(await listDriverBuyForMeJobs({ driverId: deliveryGuy._id, scope: req.query?.scope, page: req.query?.page, limit: req.query?.limit, orderId: req.query?.orderId }));
 });
 
 export const acceptCourierBuyForMeJob = asyncHandler(async (req, res) => {
@@ -96,9 +100,12 @@ export const uploadCourierBuyForMeReceipt = asyncHandler(async (req, res) => {
   const receiptFile = Array.isArray(req.files?.receipt) ? req.files.receipt[0] : null;
   if (!receiptFile) return res.status(400).json({ message: 'Ajoutez la photo du reçu.' });
   try {
-    const receiptImageUrl = await persistDeliveryProofFile(receiptFile, { category: 'buy-for-me-receipt' });
+    const order = await Order.findOne({ _id: req.params.id, driverId: deliveryGuy._id, countryId: deliveryGuy.countryId, status: 'SHOPPING', disputeOpen: { $ne: true } });
+    if (!order) return res.status(409).json({ message: 'Cette mission ne peut pas recevoir de reçu.' });
+    const store = file => persistShoppingMedia({ file, orderId: order._id, uploadedBy: req.user.id || req.user._id });
+    const receiptImageUrl = await store(receiptFile);
     const photos = Array.isArray(req.files?.productPhotos) ? req.files.productPhotos : [];
-    const productPhotoUrls = await Promise.all(photos.map((file) => persistDeliveryProofFile(file, { category: 'buy-for-me-product' })));
+    const productPhotoUrls = await Promise.all(photos.map(store));
     return res.json({ item: await uploadBuyForMeReceipt({
       orderId: req.params.id,
       driverId: deliveryGuy._id,
@@ -112,6 +119,13 @@ export const uploadCourierBuyForMeReceipt = asyncHandler(async (req, res) => {
   } catch (error) {
     return sendServiceError(res, error);
   }
+});
+
+export const getCourierShoppingTransfers = asyncHandler(async (req, res) => {
+  const { deliveryGuy } = await resolveBuyForMeCourierContext(req);
+  const items = await Transfer.find({ userId: deliveryGuy.userId, countryId: deliveryGuy.countryId, type: 'PAYOUT' }).select('orderId amount currency status failureReason completedAt').sort({ createdAt: -1 }).limit(100).lean();
+  const user = await User.findById(deliveryGuy.userId).select('payoutAccount phone phoneVerified').lean();
+  return res.json({ items, payoutAccount: user?.payoutAccount || {}, phone: user?.phone, phoneVerified: user?.phoneVerified });
 });
 
 export const startCourierBuyForMeDelivery = asyncHandler(async (req, res) => {
