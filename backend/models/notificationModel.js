@@ -232,6 +232,9 @@ const notificationSchema = new mongoose.Schema(
       min: 1
     },
     delivery: {
+      id: { type: String, default: '' },
+      lockId: { type: String, default: '' },
+      lockUntil: { type: Date, default: null },
       queueJobId: { type: String, default: '' },
       queueAttempts: { type: Number, default: 0 },
       lastAttemptAt: { type: Date, default: null },
@@ -241,9 +244,12 @@ const notificationSchema = new mongoose.Schema(
       pushFallbackWebOnline: { type: Boolean, default: false },
       pushFallbackReason: { type: String, default: '' },
       pushError: { type: String, default: '' },
+      inAppDelivered: { type: Boolean, default: false },
+      suppressedByPreference: { type: Boolean, default: false },
+      suppressedAt: { type: Date, default: null },
       status: {
         type: String,
-        enum: ['pending', 'queued', 'delivered', 'failed'],
+        enum: ['pending', 'queued', 'delivered', 'failed', 'suppressed'],
         default: 'pending'
       }
     },

@@ -1,13 +1,14 @@
 const escapeRegex = (value = '') =>
   String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-export const buildBroadcastRecipientFilter = ({ target = 'all', gender = 'all', city = '' } = {}) => {
+export const buildBroadcastRecipientFilter = ({ target = 'all', gender = 'all', city = '', countryId = '' } = {}) => {
   const filter = {
     role: { $in: ['user', 'manager'] },
     isActive: { $ne: false },
     isBlocked: { $ne: true },
     'notificationPreferences.admin_broadcast': { $ne: false }
   };
+  if (countryId) filter.countryId = countryId;
   if (target === 'person' || target === 'shop') filter.accountType = target;
   if (gender === 'homme' || gender === 'femme') filter.gender = gender;
 

@@ -285,6 +285,7 @@ router.post(
     target: Joi.string().valid('all', 'person', 'shop').default('all'),
     gender: Joi.string().valid('all', 'homme', 'femme').default('all'),
     city: Joi.string().trim().max(100).allow('').default(''),
+    countryId: Joi.string().hex().length(24).allow('').default(''),
     shopId: Joi.string().hex().length(24).allow('').default(''),
     actionLabel: Joi.string().trim().max(80).allow('').default(''),
     dryRun: Joi.boolean().default(false)

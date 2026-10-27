@@ -1,4 +1,8 @@
 import Notification from '../models/notificationModel.js';
+import { randomUUID } from 'node:crypto';
+import { shouldRespectUserPreference, userAllowsNotificationType } from './notificationPreferences.js';
+import { syncUnreadCount } from './notificationUnreadCounter.js';
+import { invalidateUserCache } from './cache.js';
 import Order from '../models/orderModel.js';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
@@ -155,40 +159,6 @@ const ORDER_CONTEXT_NOTIFICATION_TYPES = new Set([
   'installment_completed',
   'installment_product_suspended'
 ]);
-
-const NOTIFICATION_PREFERENCE_ALIASES = Object.freeze({
-  order_placed: ['order_created'],
-  order_accepted: ['order_created'],
-  order_rejected: ['order_cancelled'],
-  order_completed: ['order_delivered'],
-  product_approved: ['product_approval'],
-  product_rejected: ['product_rejection'],
-  payment_validated: ['payment_pending'],
-  payment_proof_submitted: ['payment_pending'],
-  delivery_assigned: ['delivery_request_assigned'],
-  delivery_in_progress: ['delivery_request_in_progress'],
-  delivery_completed: ['delivery_request_delivered'],
-  order_delivery_fee_updated: ['order_address_updated']
-});
-
-const userAllowsNotificationType = (user, type) => {
-  if (!user || !type) return true;
-  const prefs = user.notificationPreferences || {};
-  const aliases = NOTIFICATION_PREFERENCE_ALIASES[type] || [];
-  for (const key of aliases) {
-    if (prefs[key] === false) return false;
-  }
-  if (typeof prefs[type] === 'boolean') return prefs[type];
-  for (const key of aliases) {
-    if (typeof prefs[key] === 'boolean') return prefs[key];
-  }
-  return true;
-};
-
-const shouldRespectUserPreference = ({ actionRequired = false, audience = 'USER' } = {}) => {
-  if (actionRequired) return false;
-  return String(audience || 'USER').trim().toUpperCase() === 'USER';
-};
 
 const sanitizePriority = (priority) => {
   const normalized = String(priority || '').toUpperCase();
@@ -384,6 +354,7 @@ const findGroupedNotification = async ({ userId, type, groupingKey }) => {
     type,
     groupingKey,
     readAt: null,
+    deletedAt: null,
     createdAt: { $gte: since }
   }).sort({ createdAt: -1 });
 };
@@ -411,27 +382,27 @@ const enqueueOrFallback = async ({
   priority,
   pushEnabled,
   socketEnabled,
-  incrementUnread,
   delayMs = 0
 }) => {
   const payload = {
     notificationId: String(notification._id),
+    deliveryId: notification.delivery?.id || '',
     userId: String(userId),
     priority,
     pushEnabled: Boolean(pushEnabled),
     socketEnabled: Boolean(socketEnabled),
-    incrementUnread: Boolean(incrementUnread),
     delayMs: Math.max(0, Number(delayMs || 0))
   };
 
-  const job = await enqueueNotificationJob(payload);
+  // Redis/BullMQ is an optimization. If it is unavailable (or rejects a job),
+  // deliver synchronously instead of silently dropping the notification.
+  const job = await enqueueNotificationJob(payload).catch(() => null);
   if (job) {
-    notification.delivery = {
-      ...(notification.delivery || {}),
-      queueJobId: String(job.id || ''),
-      status: 'queued'
-    };
-    await notification.save();
+    // A fast worker may already have delivered it. Do not overwrite its state.
+    await Notification.updateOne(
+      { _id: notification._id, 'delivery.id': payload.deliveryId, 'delivery.status': 'pending' },
+      { $set: { 'delivery.queueJobId': String(job.id || ''), 'delivery.status': 'queued' } }
+    );
     return notification;
   }
 
@@ -468,7 +439,8 @@ export const createNotification = async ({
   message = '',
   actionLabel = '',
   snapshot = {},
-  dedupeKey = ''
+  dedupeKey = '',
+  countryId = null
 }) => {
   if (!userId || !actorId || !type) return null;
   if (!allowSelf && String(userId) === String(actorId)) return null;
@@ -524,15 +496,18 @@ export const createNotification = async ({
           dedupeKey
         });
 
-    if (shouldRespectUserPreference({ actionRequired: resolvedActionRequired, audience: resolvedAudience })) {
-      const recipient = await User.findById(userId)
-        .select('notificationPreferences')
-        .lean()
-        .catch(() => null);
-      if (recipient && !userAllowsNotificationType(recipient, type)) {
-        return null;
-      }
+    const recipient = await User.findById(userId)
+      .select('notificationPreferences countryId')
+      .lean()
+      .catch(() => null);
+    if (
+      shouldRespectUserPreference({ actionRequired: resolvedActionRequired, audience: resolvedAudience }) &&
+      recipient &&
+      !userAllowsNotificationType(recipient, type)
+    ) {
+      return null;
     }
+    const resolvedCountryId = countryId || recipient?.countryId || null;
 
     let effectivePushEnabled = Boolean(pushEnabled);
     let effectiveSocketEnabled = Boolean(socketEnabled);
@@ -621,8 +596,9 @@ export const createNotification = async ({
       notification.validationType = resolvedValidationType;
       notification.dedupeKey = resolvedDedupeKey || notification.dedupeKey || '';
       notification.expiresAt = normalizedExpiresAt;
+      if (resolvedCountryId) notification.countryId = resolvedCountryId;
       notification.delivery = {
-        ...(notification.delivery || {}),
+        id: randomUUID(),
         status: 'pending'
       };
       await notification.save();
@@ -651,7 +627,8 @@ export const createNotification = async ({
         entityId: resolvedEntityId,
         validationType: resolvedValidationType,
         expiresAt: normalizedExpiresAt,
-        delivery: { status: 'pending' }
+        countryId: resolvedCountryId,
+        delivery: { id: randomUUID(), status: 'pending' }
       };
       if (productId) doc.product = productId;
       if (shopId) doc.shop = shopId;
@@ -661,6 +638,8 @@ export const createNotification = async ({
         if (Number(error?.code) === 11000 && resolvedDedupeKey) {
           notification = await Notification.findOne({ user: userId, dedupeKey: resolvedDedupeKey });
           reusedDedupeExisting = Boolean(notification);
+          // The concurrent creator owns delivery of this event.
+          if (notification) return notification;
         }
         if (!notification) throw error;
       }
@@ -691,16 +670,18 @@ export const createNotification = async ({
       }
     }
 
-    // Fire-and-forget queue delivery — never block notification creation on Redis
+    // Creation/reopening changes the inbox before push delivery takes place.
+    await syncUnreadCount(userId).catch(() => {});
+    await invalidateUserCache(userId, ['notifications']).catch(() => {});
+    // Never block the business operation on an external delivery provider.
     enqueueOrFallback({
       notification,
       userId,
       priority: notification.priority || resolvedPriority,
       pushEnabled: effectivePushEnabled,
       socketEnabled: effectiveSocketEnabled,
-      incrementUnread: !Boolean(notification?.metadata?.grouped) && !reusedDedupeExisting,
       delayMs
-    }).catch(() => {});
+    }).catch(error => console.error('[notifications] delivery failed', String(notification._id), error?.message));
 
     if (Boolean(notification.actionRequired) && String(notification.actionStatus || '').toUpperCase() === 'PENDING') {
       await createAuditLogEntry({

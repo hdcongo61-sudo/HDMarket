@@ -110,7 +110,8 @@ export const previewNotificationCampaignAudience = asyncHandler(async (req, res)
   } catch {
     return res.status(400).json({ message: 'Paramètre audience invalide.' });
   }
-  const count = await previewAudienceCount(sanitizeAudience(audience));
+  const { countryId } = await resolveAdminCountryScope(req, { defaultToDefaultCountry: true });
+  const count = await previewAudienceCount(sanitizeAudience(audience), { countryId });
   res.json({ estimatedRecipients: count });
 });
 

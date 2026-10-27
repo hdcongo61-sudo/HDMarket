@@ -162,16 +162,7 @@ router.post('/profile/email', verificationCodeRateLimiter, validate(schemas.prof
 router.post('/profile/email/verify', validate(schemas.profileEmailVerify), verifyProfileEmail);
 router.post('/profile/phone/send-code', verificationCodeRateLimiter, sendMyPhoneVerificationCode);
 router.post('/profile/phone/verify', validate(schemas.profilePhoneVerify), verifyMyPhoneCode);
-router.get(
-  '/notifications',
-  cacheMiddleware({
-    domain: 'notifications',
-    scope: 'user',
-    ttl: 45000,
-    skipCache: (req) => String(req.headers['x-skip-cache'] || '').trim() === '1'
-  }),
-  getNotifications
-);
+router.get('/notifications', getNotifications);
 router.get('/notifications/stream', streamNotifications);
 router.patch('/notifications/read', markNotificationsRead);
 router.patch('/notifications/:id/state', validate(schemas.idParam, 'params'), updateNotificationState);

@@ -1,11 +1,10 @@
 import Notification from '../models/notificationModel.js';
+import { randomUUID } from 'node:crypto';
+import { shouldRespectUserPreference, userAllowsNotificationType } from './notificationPreferences.js';
 import User from '../models/userModel.js';
 import { emitNotification } from './notificationEmitter.js';
 import { sendPushNotification } from './pushService.js';
-import {
-  incrementUnreadCount,
-  syncUnreadCount
-} from './notificationUnreadCounter.js';
+import { syncUnreadCount } from './notificationUnreadCounter.js';
 import { emitSocketNotification } from '../sockets/notificationSocket.js';
 import { invalidateUserCache } from './cache.js';
 import { getRuntimeConfig } from '../services/configService.js';
@@ -61,34 +60,6 @@ const resolveDeliveryChannels = ({
   return { viaSocket, viaPush };
 };
 
-const NOTIFICATION_PREFERENCE_ALIASES = Object.freeze({
-  order_placed: ['order_created'],
-  order_accepted: ['order_created'],
-  order_rejected: ['order_cancelled'],
-  product_approved: ['product_approval'],
-  product_rejected: ['product_rejection'],
-  payment_validated: ['payment_pending'],
-  payment_proof_submitted: ['payment_pending'],
-  delivery_assigned: ['delivery_request_assigned'],
-  delivery_in_progress: ['delivery_request_in_progress'],
-  delivery_completed: ['delivery_request_delivered'],
-  order_delivery_fee_updated: ['order_address_updated']
-});
-
-const userAllowsNotificationType = (user, type) => {
-  if (!user || !type) return true;
-  const prefs = user.notificationPreferences || {};
-  const aliases = NOTIFICATION_PREFERENCE_ALIASES[type] || [];
-  for (const key of aliases) {
-    if (prefs[key] === false) return false;
-  }
-  if (typeof prefs[type] === 'boolean') return prefs[type];
-  for (const key of aliases) {
-    if (typeof prefs[key] === 'boolean') return prefs[key];
-  }
-  return true;
-};
-
 const loadNotificationForDelivery = async (notificationId) => {
   return Notification.findById(notificationId).populate([
     { path: 'actor', select: 'name' },
@@ -99,40 +70,66 @@ const loadNotificationForDelivery = async (notificationId) => {
 
 export const dispatchNotificationPayload = async ({
   notificationId,
+  deliveryId = '',
   userId,
   priority = 'NORMAL',
   pushEnabled = true,
   socketEnabled = true,
-  incrementUnread = true,
   queueJobId = ''
 }) => {
   const notification = await loadNotificationForDelivery(notificationId);
   if (!notification) return { delivered: false, reason: 'notification_not_found' };
-
-  const targetUserId = String(userId || notification.user || '');
+  const targetUserId = String(notification.user || '');
+  if (userId && String(userId) !== targetUserId) return { delivered: false, reason: 'recipient_mismatch' };
+  if (deliveryId !== String(notification.delivery?.id || '')) return { delivered: false, reason: 'stale_delivery' };
+  if (notification.delivery?.status === 'delivered') return { delivered: true, reason: 'already_delivered' };
+  const now = new Date();
+  if (notification.deletedAt || (notification.expiresAt && notification.expiresAt <= now) ||
+      (notification.snoozedUntil && notification.snoozedUntil > now)) {
+    return { delivered: false, reason: 'notification_hidden' };
+  }
+  const deliveryFilter = {
+    _id: notificationId,
+    ...(deliveryId ? { 'delivery.id': deliveryId } : { 'delivery.id': { $in: ['', null] } })
+  };
   const recipientUser = await User.findById(targetUserId)
     .select('notificationPreferences')
     .lean()
     .catch(() => null);
-  if (recipientUser && !userAllowsNotificationType(recipientUser, notification.type)) {
-    notification.delivery = {
-      ...(notification.delivery || {}),
-      status: 'suppressed',
-      suppressedByPreference: true,
-      suppressedAt: new Date()
-    };
-    await notification.save().catch(() => {});
+  if (
+    recipientUser &&
+    shouldRespectUserPreference(notification) &&
+    !userAllowsNotificationType(recipientUser, notification.type)
+  ) {
+    await Notification.updateOne(deliveryFilter, { $set: {
+      'delivery.status': 'suppressed',
+      'delivery.suppressedByPreference': true,
+      'delivery.suppressedAt': now
+    } });
+    await syncUnreadCount(targetUserId);
+    await invalidateUserCache(targetUserId, ['notifications']).catch(() => {});
     return { delivered: false, reason: 'suppressed_by_preference' };
   }
+  // Serialize duplicate queue/fallback attempts for this event. A new grouped
+  // event receives a new delivery id, so old workers cannot overwrite it.
+  const lockId = randomUUID();
+  const claimed = await Notification.findOneAndUpdate({
+    ...deliveryFilter,
+    'delivery.status': { $ne: 'delivered' },
+    $or: [{ 'delivery.lockUntil': null }, { 'delivery.lockUntil': { $lte: now } }]
+  }, { $set: { 'delivery.lockId': lockId, 'delivery.lockUntil': new Date(now.getTime() + 60_000) } }, { new: true });
+  if (!claimed) throw new Error('notification_delivery_busy');
+  const ownedFilter = { ...deliveryFilter, 'delivery.lockId': lockId };
+  try {
   const presence = await getUserPresenceContext(targetUserId);
   const online = Boolean(presence?.online);
   const allowPushWhenOnlineFallback = Boolean(
     online && presence?.hasDesktopSession && !presence?.hasMobileSession
   );
   const [pushEnabledGlobal, pushWhenOnline, pushForPriorityHighOnly] = await Promise.all([
-    getRuntimeConfig('push_enabled', { fallback: true }),
-    getRuntimeConfig('push_when_online', { fallback: false }),
-    getRuntimeConfig('push_for_priority_high_only', { fallback: false })
+    getRuntimeConfig('push_enabled', { countryId: notification.countryId, fallback: true }),
+    getRuntimeConfig('push_when_online', { countryId: notification.countryId, fallback: false }),
+    getRuntimeConfig('push_for_priority_high_only', { countryId: notification.countryId, fallback: false })
   ]);
   const channels = resolveDeliveryChannels({
     priority,
@@ -145,9 +142,7 @@ export const dispatchNotificationPayload = async ({
     channels: notification?.channels || ['IN_APP', 'PUSH']
   });
 
-  if (incrementUnread) {
-    await incrementUnreadCount(targetUserId, 1).catch(() => syncUnreadCount(targetUserId));
-  }
+  await syncUnreadCount(targetUserId);
 
   const refreshPayload = {
     type: 'refresh',
@@ -162,19 +157,22 @@ export const dispatchNotificationPayload = async ({
     ? notification.channels.map((item) => String(item || '').toUpperCase()).includes('IN_APP')
     : true;
 
-  if (inAppEnabled) {
+  if (inAppEnabled && !claimed.delivery?.inAppDelivered) {
+    // Persist before push: a push retry must not emit the in-app event again.
+    const updated = await Notification.updateOne(ownedFilter, { $set: {
+      'delivery.inAppDelivered': true,
+      'delivery.socketDelivered': Boolean(channels.viaSocket)
+    } });
+    if (!updated.matchedCount) return { delivered: false, reason: 'stale_delivery' };
     emitNotification(targetUserId, refreshPayload);
-  }
-
-  if (channels.viaSocket) {
-    emitSocketNotification(targetUserId, refreshPayload);
+    if (channels.viaSocket) emitSocketNotification(targetUserId, refreshPayload);
   }
 
   await invalidateUserCache(targetUserId, ['notifications']).catch(() => {});
 
-  let pushSent = false;
+  let pushSent = Boolean(claimed.delivery?.pushDelivered);
   let pushError = '';
-  if (channels.viaPush) {
+  if (channels.viaPush && !pushSent) {
     try {
       const actorName = notification?.actor?.name || 'Quelqu’un';
       const productTitle = notification?.product?.title || '';
@@ -192,20 +190,19 @@ export const dispatchNotificationPayload = async ({
   }
   const webOnlineFallbackUsed = Boolean(allowPushWhenOnlineFallback && channels.viaPush);
 
-  notification.delivery = {
-    ...(notification.delivery || {}),
-    queueJobId: queueJobId || notification.delivery?.queueJobId || '',
-    queueAttempts: Number(notification.delivery?.queueAttempts || 0) + 1,
-    lastAttemptAt: new Date(),
-    deliveredAt: new Date(),
-    socketDelivered: Boolean(channels.viaSocket),
-    pushDelivered: Boolean(pushSent),
-    pushFallbackWebOnline: webOnlineFallbackUsed,
-    pushFallbackReason: webOnlineFallbackUsed ? 'web_online_without_mobile_session' : '',
-    pushError: pushError || '',
-    status: pushError ? 'failed' : 'delivered'
-  };
-  await notification.save();
+  await Notification.updateOne(ownedFilter, {
+    $set: {
+      'delivery.queueJobId': queueJobId || claimed.delivery?.queueJobId || '',
+      'delivery.lastAttemptAt': new Date(),
+      'delivery.deliveredAt': pushError ? null : new Date(),
+      'delivery.pushDelivered': pushSent,
+      'delivery.pushFallbackWebOnline': webOnlineFallbackUsed,
+      'delivery.pushFallbackReason': webOnlineFallbackUsed ? 'web_online_without_mobile_session' : '',
+      'delivery.pushError': pushError,
+      'delivery.status': pushError ? 'failed' : 'delivered'
+    },
+    $inc: { 'delivery.queueAttempts': 1 }
+  });
 
   return {
     delivered: !pushError,
@@ -214,4 +211,7 @@ export const dispatchNotificationPayload = async ({
     channels,
     pushError
   };
+  } finally {
+    await Notification.updateOne(ownedFilter, { $set: { 'delivery.lockId': '', 'delivery.lockUntil': null } });
+  }
 };

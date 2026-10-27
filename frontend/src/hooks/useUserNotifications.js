@@ -84,10 +84,8 @@ const buildInitialState = () => ({
   preferences: buildDefaultPreferences()
 });
 
-// A notification cannot become unread again. Realtime refreshes can finish after
-// a mark-as-read mutation and briefly return the older database/cache snapshot.
-// Preserve read state already observed by this client while accepting every
-// other field from the newest server response.
+// Preserve local read state for stale responses, but allow a new grouped or
+// deduplicated event (a later receivedAt) to reopen the same notification.
 export const mergeNotificationSnapshot = (previousState, serverState) => {
   const previousAlerts = Array.isArray(previousState?.alerts) ? previousState.alerts : [];
   const serverAlerts = Array.isArray(serverState?.alerts) ? serverState.alerts : [];
@@ -100,6 +98,9 @@ export const mergeNotificationSnapshot = (previousState, serverState) => {
   const alerts = serverAlerts.map((alert) => {
     const locallyRead = locallyReadById.get(String(alert?._id || ''));
     if (!locallyRead || alert?.isNew === false) return alert;
+    const previousEventAt = new Date(locallyRead.receivedAt || locallyRead.createdAt || 0).getTime();
+    const incomingEventAt = new Date(alert.receivedAt || alert.createdAt || 0).getTime();
+    if (incomingEventAt > previousEventAt) return alert;
     staleUnreadCount += 1;
     return {
       ...alert,

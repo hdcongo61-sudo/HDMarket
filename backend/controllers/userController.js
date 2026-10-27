@@ -22,10 +22,9 @@ import { findShopNameConflict, normalizeShopName } from '../utils/shopNameUtils.
 import { capitalizeName } from '../utils/nameFormatting.js';
 import {
   getUnreadCount,
-  decrementUnreadCount,
-  resetUnreadCount,
   syncUnreadCount
 } from '../utils/notificationUnreadCounter.js';
+import { buildVisibleNotificationFilter, buildUnreadNotificationFilter } from '../utils/notificationVisibility.js';
 import {
   uploadToCloudinary,
   getCloudinaryFolder,
@@ -1934,11 +1933,7 @@ const resolveNotificationTitle = (notification, fallback = 'Notification') => {
 
 export const getNotifications = asyncHandler(async (req, res) => {
   const [notifications, userDoc] = await Promise.all([
-    Notification.find({
-      user: req.user.id,
-      deletedAt: null,
-      $or: [{ snoozedUntil: null }, { snoozedUntil: { $lte: new Date() } }]
-    })
+    Notification.find(buildVisibleNotificationFilter(req.user.id))
       .sort({ pinnedAt: -1, receivedAt: -1, createdAt: -1 })
       .limit(50)
       .select(
@@ -2461,19 +2456,15 @@ export const markNotificationsRead = asyncHandler(async (req, res) => {
 
   if (Array.isArray(notificationIds) && notificationIds.length) {
     const result = await Notification.updateMany(
-      { _id: { $in: notificationIds }, user: req.user.id, readAt: null },
+      { ...buildUnreadNotificationFilter(req.user.id, now), _id: { $in: notificationIds } },
       { $set: { readAt: now } }
     );
-    if (Number(result.modifiedCount || 0) > 0) {
-      await decrementUnreadCount(req.user.id, Number(result.modifiedCount || 0)).catch(() =>
-        syncUnreadCount(req.user.id)
-      );
-    }
+    await syncUnreadCount(req.user.id);
     await invalidateUserCache(req.user.id, ['notifications']);
     return res.json({ success: true, updated: result.modifiedCount });
   }
 
-  await Notification.updateMany({ user: req.user.id, readAt: null }, { $set: { readAt: now } });
+  await Notification.updateMany(buildUnreadNotificationFilter(req.user.id, now), { $set: { readAt: now } });
 
   const user = await User.findById(req.user.id);
   if (user) {
@@ -2481,7 +2472,7 @@ export const markNotificationsRead = asyncHandler(async (req, res) => {
     await user.save();
   }
 
-  await resetUnreadCount(req.user.id).catch(() => syncUnreadCount(req.user.id));
+  await syncUnreadCount(req.user.id);
   await invalidateUserCache(req.user.id, ['notifications']);
   res.json({ success: true, readAt: now });
 });
@@ -2528,9 +2519,7 @@ export const deleteNotification = asyncHandler(async (req, res) => {
   if (!deleted) {
     return res.status(404).json({ message: 'Notification introuvable.' });
   }
-  if (!deleted.readAt) {
-    await decrementUnreadCount(req.user.id, 1).catch(() => syncUnreadCount(req.user.id));
-  }
+  await syncUnreadCount(req.user.id);
   await invalidateUserCache(req.user.id, ['notifications']);
   res.json({ success: true });
 });
@@ -2551,6 +2540,7 @@ export const updateNotificationState = asyncHandler(async (req, res) => {
     notification.snoozedUntil = until;
   } else return res.status(400).json({ message: 'Action invalide.' });
   await notification.save();
+  await syncUnreadCount(req.user.id);
   await invalidateUserCache(req.user.id, ['notifications']);
   res.json({ success: true, pinnedAt: notification.pinnedAt, snoozedUntil: notification.snoozedUntil });
 });
@@ -2559,9 +2549,8 @@ export const bulkDeleteNotifications = asyncHandler(async (req, res) => {
   const ids = Array.isArray(req.body?.notificationIds) ? req.body.notificationIds : [];
   const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id)).slice(0, 100);
   if (!validIds.length) return res.status(400).json({ message: 'Sélection vide.' });
-  const unread = await Notification.countDocuments({ _id: { $in: validIds }, user: req.user.id, readAt: null });
   const result = await Notification.updateMany({ _id: { $in: validIds }, user: req.user.id, deletedAt: null }, { $set: { deletedAt: new Date() } });
-  if (unread > 0) await decrementUnreadCount(req.user.id, unread).catch(() => syncUnreadCount(req.user.id));
+  await syncUnreadCount(req.user.id);
   await invalidateUserCache(req.user.id, ['notifications']);
   res.json({ success: true, deleted: result.modifiedCount });
 });
@@ -2595,7 +2584,7 @@ export const trackNotificationClick = asyncHandler(async (req, res) => {
   }
   await notification.save();
   if (wasUnread) {
-    await decrementUnreadCount(req.user.id, 1).catch(() => syncUnreadCount(req.user.id));
+    await syncUnreadCount(req.user.id);
     await invalidateUserCache(req.user.id, ['notifications']);
   }
 

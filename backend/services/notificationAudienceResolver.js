@@ -32,8 +32,10 @@ const toObjectIdStrings = (list) =>
  * @param {Date} [options.now]
  * @returns {object} Mongo filter to pass to User.find()
  */
-export const buildAudienceFilter = (audience = {}, { now = new Date() } = {}) => {
+export const buildAudienceFilter = (audience = {}, { now = new Date(), countryId = '' } = {}) => {
   const base = { isBlocked: { $ne: true }, isActive: { $ne: false } };
+  const normalizedCountryId = String(countryId || '').trim();
+  if (normalizedCountryId) base.countryId = normalizedCountryId;
 
   const specificUserIds = toObjectIdStrings(audience?.specificUserIds);
   if (specificUserIds.length) {

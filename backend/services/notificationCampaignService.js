@@ -43,8 +43,8 @@ export const resolveCampaignDeepLink = async (action = {}) => {
 };
 
 /** Fast, index-backed count for the composer's "Estimated recipients" preview. Does not evaluate feature-flag eligibility per user (see file header note in notificationAudienceResolver.js) — for a feature-gated campaign this is an upper bound, not an exact count. */
-export const previewAudienceCount = async (audience = {}) => {
-  const filter = buildAudienceFilter(audience);
+export const previewAudienceCount = async (audience = {}, { countryId = '' } = {}) => {
+  const filter = buildAudienceFilter(audience, { countryId });
   return User.countDocuments(filter);
 };
 
@@ -93,9 +93,13 @@ export const deliverCampaign = async (campaignId) => {
     CAMPAIGN_PRIORITY_TO_NOTIFICATION_PRIORITY[campaign.priority] || 'NORMAL';
   // Email/SMS are stored on the campaign for forward-compat / admin display
   // only — never forwarded to the delivery engine (no provider exists yet).
-  const channels = ['IN_APP', ...(campaign.channels?.push !== false ? ['PUSH'] : [])];
+  const channels = [
+    ...(campaign.channels?.inApp !== false ? ['IN_APP'] : []),
+    ...(campaign.channels?.push !== false ? ['PUSH'] : [])
+  ];
 
-  const filter = buildAudienceFilter(campaign.audience);
+  const campaignCountryId = campaign.countryId ? String(campaign.countryId) : '';
+  const filter = buildAudienceFilter(campaign.audience, { countryId: campaignCountryId });
   const cursor = User.find(filter).select(USER_SELECT_FIELDS).lean().cursor();
 
   let targeted = 0;
@@ -117,6 +121,7 @@ export const deliverCampaign = async (campaignId) => {
           userId: user._id,
           actorId: campaign.createdBy,
           allowSelf: true,
+          countryId: campaign.countryId || null,
           type: 'admin_campaign',
           priority: notificationPriority,
           channels,
@@ -174,7 +179,7 @@ export const computeCampaignAnalytics = async (campaignId) => {
     {
       $group: {
         _id: null,
-        delivered: { $sum: 1 },
+        delivered: { $sum: { $cond: [{ $eq: ['$delivery.status', 'delivered'] }, 1, 0] } },
         opened: { $sum: { $cond: [{ $ne: ['$readAt', null] }, 1, 0] } },
         clicked: { $sum: { $cond: [{ $gt: ['$clickCount', 0] }, 1, 0] } },
         dismissed: { $sum: { $cond: [{ $ne: ['$deletedAt', null] }, 1, 0] } }

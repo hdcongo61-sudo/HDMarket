@@ -2723,14 +2723,28 @@ export const broadcastNotification = asyncHandler(async (req, res) => {
   if (!dryRun && (!message || typeof message !== 'string' || !message.trim())) {
     return res.status(400).json({ message: 'Le message de la notification est requis.' });
   }
-  const filter = buildBroadcastRecipientFilter({ target, gender, city });
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.body?.countryId });
+  const filter = buildBroadcastRecipientFilter({
+    target,
+    gender,
+    city,
+    countryId: countryFilter?.countryId || ''
+  });
+  if (countryFilter?.countryId && typeof countryFilter.countryId === 'object') {
+    filter.countryId = countryFilter.countryId;
+  }
   const actorId = String(req.user.id);
   const recipientQuery = { ...filter, _id: { $ne: req.user.id } };
 
   let linkedShop = null;
   if (shopId) {
-    linkedShop = await User.findOne({ _id: shopId, accountType: 'shop', isActive: { $ne: false } })
-      .select('_id shopName name slug')
+    linkedShop = await User.findOne({
+      _id: shopId,
+      accountType: 'shop',
+      isActive: { $ne: false },
+      ...(countryFilter || {})
+    })
+      .select('_id shopName name slug countryId')
       .lean();
     if (!linkedShop) {
       return res.status(400).json({ message: 'La boutique sélectionnée est introuvable ou inactive.' });
@@ -2750,7 +2764,7 @@ export const broadcastNotification = asyncHandler(async (req, res) => {
     });
   }
 
-  const users = await User.find(recipientQuery).select('_id').lean();
+  const users = await User.find(recipientQuery).select('_id countryId').lean();
   const trimmedMessage = message.trim();
   const trimmedTitle = title && typeof title === 'string' ? title.trim() : 'HDMarketCG';
   const trimmedActionLabel = String(actionLabel || '').trim();
@@ -2767,6 +2781,7 @@ export const broadcastNotification = asyncHandler(async (req, res) => {
         createNotification({
           userId: u._id,
           actorId,
+          countryId: u.countryId || null,
           type: 'admin_broadcast',
           metadata: {
             message: trimmedMessage,

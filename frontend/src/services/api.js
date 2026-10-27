@@ -148,7 +148,6 @@ const CACHE_CONFIG = {
   '/search': 2 * 60 * 1000, // 2 minutes
   '/categories': 30 * 60 * 1000, // 30 minutes
   '/cities': 30 * 60 * 1000, // 30 minutes
-  '/users/notifications': 1 * 60 * 1000, // 1 minute
   // NOTE: /admin/* is force-excluded below (CACHE_EXCLUDE_PREFIXES), so admin
   // endpoints are intentionally never cached.
 };

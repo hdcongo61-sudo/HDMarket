@@ -1,5 +1,6 @@
 import Notification from '../models/notificationModel.js';
 import { initRedis, getRedisClient, isRedisReady } from '../config/redisClient.js';
+import { buildUnreadNotificationFilter } from './notificationVisibility.js';
 
 const ENV = String(process.env.CACHE_ENV || process.env.NODE_ENV || 'dev')
   .toLowerCase()
@@ -18,63 +19,16 @@ const withRedis = async () => {
 
 export const syncUnreadCount = async (userId) => {
   if (!userId) return 0;
-  const unread = await Notification.countDocuments({ user: userId, readAt: null });
-  const client = await withRedis();
+  const unread = await Notification.countDocuments(buildUnreadNotificationFilter(userId));
+  const client = await withRedis().catch(() => null);
   if (client) {
-    await client.set(buildKey(userId), String(unread), { EX: UNREAD_TTL_SECONDS });
+    await client.set(buildKey(userId), String(unread), { EX: UNREAD_TTL_SECONDS }).catch(() => {});
   }
   return Number(unread || 0);
 };
 
-export const getUnreadCount = async (userId) => {
-  if (!userId) return 0;
-  const client = await withRedis();
-  if (!client) {
-    return Notification.countDocuments({ user: userId, readAt: null });
-  }
-
-  const key = buildKey(userId);
-  const cached = await client.get(key);
-  if (cached !== null) {
-    const parsed = Number(cached);
-    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
-  }
-  return syncUnreadCount(userId);
-};
-
-export const incrementUnreadCount = async (userId, delta = 1) => {
-  if (!userId) return 0;
-  const amount = Math.max(1, Number(delta || 1));
-  const client = await withRedis();
-  if (!client) {
-    return getUnreadCount(userId);
-  }
-  const key = buildKey(userId);
-  const next = await client.incrBy(key, amount);
-  await client.expire(key, UNREAD_TTL_SECONDS);
-  return Number(next || 0);
-};
-
-export const decrementUnreadCount = async (userId, delta = 1) => {
-  if (!userId) return 0;
-  const amount = Math.max(1, Number(delta || 1));
-  const client = await withRedis();
-  if (!client) {
-    return getUnreadCount(userId);
-  }
-  const key = buildKey(userId);
-  const next = await client.decrBy(key, amount);
-  const sanitized = Math.max(0, Number(next || 0));
-  await client.set(key, String(sanitized), { EX: UNREAD_TTL_SECONDS });
-  return sanitized;
-};
-
-export const resetUnreadCount = async (userId) => {
-  if (!userId) return 0;
-  const client = await withRedis();
-  if (!client) return 0;
-  await client.set(buildKey(userId), '0', { EX: UNREAD_TTL_SECONDS });
-  return 0;
-};
+// Read the indexed database count: snooze/expiry can change visibility without
+// a mutation, and queue retries must never apply the same delta twice.
+export const getUnreadCount = syncUnreadCount;
 
 export const buildUnreadCounterKey = buildKey;

@@ -1,4 +1,5 @@
 import { safeAsync } from '../utils/safeAsync.js';
+import { randomUUID } from 'node:crypto';
 
 const QUEUE_NAME = 'notifications';
 const DEFAULT_ATTEMPTS = Math.max(1, Number(process.env.NOTIFICATION_QUEUE_ATTEMPTS || 4));
@@ -98,7 +99,10 @@ export const enqueueNotificationJob = async (payload = {}) => {
     payload,
     {
       priority: toBullPriority(payload.priority),
-      jobId: `${notificationId}:${Date.now()}`,
+      // BullMQ reserves `:` in custom job ids. Keep this id unique without
+      // using the reserved separator (otherwise the notification is created
+      // but never reaches the worker).
+      jobId: `${notificationId}-${Date.now()}-${randomUUID()}`,
       delay: Math.max(0, Number(payload.delayMs || 0))
     }
   );
